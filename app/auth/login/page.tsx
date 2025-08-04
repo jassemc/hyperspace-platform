@@ -1,8 +1,17 @@
-import { GalleryVerticalEnd } from "lucide-react"
+import { LoginForm } from "@/components/login-form";
+import { createClient } from "@/lib/supabase/server";
+import { GalleryVerticalEnd } from "lucide-react";
+import Image from "next/image";
+import { redirect } from "next/navigation";
 
-import { LoginForm } from "@/components/login-form"
+export default async function Page() {
+  const supabase = await createClient();
 
-export default function LoginPage() {
+  const { data, error } = await supabase.auth.getClaims();
+  if (!error && data?.claims) {
+    redirect("/dashboard");
+  }
+
   return (
     <div className="grid min-h-svh lg:grid-cols-2">
       <div className="flex flex-col gap-4 p-6 md:p-10">
@@ -21,10 +30,12 @@ export default function LoginPage() {
         </div>
       </div>
       <div className="bg-muted relative hidden lg:block">
-        <img
-          src="/placeholder.svg"
+        <Image
+          src="/login.jpg"
           alt="Image"
           className="absolute inset-0 h-full w-full object-cover dark:brightness-[0.2] dark:grayscale"
+          width={500}
+          height={500}
         />
       </div>
     </div>
