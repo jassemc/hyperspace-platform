@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Image from "next/image"
 import { ChevronsUpDown, Plus } from "lucide-react"
 
 import {
@@ -24,7 +25,7 @@ export function TeamSwitcher({
 }: {
   teams: {
     name: string
-    logo: React.ElementType
+    logo: React.ElementType | string // Icon component or image URL
     plan: string
   }[]
 }) {
@@ -33,6 +34,24 @@ export function TeamSwitcher({
 
   if (!activeTeam) {
     return null
+  }
+
+  function renderLogo(logo: React.ElementType | string) {
+    if (typeof logo === "string") {
+      // It's an image URL
+      return (
+        <Image
+          src={logo}
+          alt="team logo"
+          width={24}
+          height={24}
+          className="object-contain"
+        />
+      )
+    }
+    // Otherwise, assume it's a React component (icon)
+    const Icon = logo
+    return <Icon className="size-4" />
   }
 
   return (
@@ -44,8 +63,8 @@ export function TeamSwitcher({
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
-                <activeTeam.logo className="size-4" />
+              <div className="text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg overflow-hidden">
+                {renderLogo(activeTeam.logo)}
               </div>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{activeTeam.name}</span>
@@ -69,8 +88,8 @@ export function TeamSwitcher({
                 onClick={() => setActiveTeam(team)}
                 className="gap-2 p-2"
               >
-                <div className="flex size-6 items-center justify-center rounded-md border">
-                  <team.logo className="size-3.5 shrink-0" />
+                <div className="flex size-6 items-center justify-center rounded-md border overflow-hidden">
+                  {renderLogo(team.logo)}
                 </div>
                 {team.name}
                 <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
