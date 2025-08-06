@@ -37,10 +37,10 @@ type User = {
 const data = {
   teams: [
     {
-      name: "Acme Inc",
+      name: "Hyperspace",
       logo: '/logo.png',
       plan: "Enterprise",
-    },
+    },/* 
     {
       name: "Acme Corp.",
       logo: AudioWaveform,
@@ -50,7 +50,7 @@ const data = {
       name: "Evil Corp.",
       logo: Command,
       plan: "Free",
-    },
+    }, */
   ],
   navMain: [
     {
