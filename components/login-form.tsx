@@ -93,7 +93,8 @@ export function LoginForm({
                 {isLoading ? "Logging in..." : "Login"}
               </Button>
             </div>
-            <div className="mt-4 text-center text-sm">
+            {/* sign up is temporary unavailable */}
+            {/* <div className="mt-4 text-center text-sm">
               Don&apos;t have an account?{" "}
               <Link
                 href="/auth/sign-up"
@@ -101,7 +102,7 @@ export function LoginForm({
               >
                 Sign up
               </Link>
-            </div>
+            </div> */}
           </form>
         </CardContent>
       </Card>
