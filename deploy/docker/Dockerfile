@@ -1,6 +1,16 @@
 # Stage 1: Build
 FROM node:22.15-alpine AS builder
 
+# TODO: tmp solution, we need to change this environment variable to a more secure way
+ARG SUPABASE_URL
+ENV NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+
+ARG SUPABASE_PUBLISHABLE_OR_ANON_KEY
+ENV NEXT_PUBLIC_SUPABASE_PUBLISHABLE_OR_ANON_KEY=${SUPABASE_PUBLISHABLE_OR_ANON_KEY}
+
+ARG HS_PLATFORM_API_URL
+ENV NEXT_PUBLIC_HS_PLATFORM_API_URL=${HS_PLATFORM_API_URL}
+
 WORKDIR /usr/src/app
 
 # Install dependencies

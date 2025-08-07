@@ -1,0 +1,21 @@
+# Node resources
+node_modules
+dist
+
+# Environment files
+.env.*
+.env
+envs/.env*
+
+# Docker resources 
+.dockerignore
+Dockerfile
+docker-compose.*
+
+# Others
+README.md
+.git
+.gitignore
+.vscode
+.github
+docs
