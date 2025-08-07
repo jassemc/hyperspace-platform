@@ -53,6 +53,10 @@ jobs:
           push: true
           tags: ${{ steps.metadata.outputs.tags }}
           labels: ${{ steps.metadata.outputs.labels }}
+          build-args: |
+            SUPABASE_URL=${{ secrets.SUPABASE_URL }}
+            SUPABASE_PUBLISHABLE_OR_ANON_KEY=${{ secrets.SUPABASE_PUBLISHABLE_OR_ANON_KEY }}
+            HS_PLATFORM_API_URL=${{ secrets.HS_PLATFORM_API_URL }}
 
       - name: 🚀 Deploy to Render
         uses: johnbeynon/render-deploy-action@v0.0.8
