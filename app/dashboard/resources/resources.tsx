@@ -1,19 +1,11 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { ResourceDto } from "@/lib/service/HsService"
 import { ColumnDef } from "@tanstack/react-table"
 import { ArrowUpDown } from "lucide-react"
 
-// This type is used to define the shape of our data.
-// You can use a Zod schema here if you want.
-export type Resources = {
-    id: string
-    name: string
-    status: "pending" | "processing" | "success" | "failed"
-    price: number
-}
-
-export const columns: ColumnDef<Resources>[] = [
+export const columns: ColumnDef<ResourceDto>[] = [
     {
         accessorKey: "name",
         header: ({ column }) => {
