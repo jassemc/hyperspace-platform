@@ -1,55 +1,25 @@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TabsContent } from "@radix-ui/react-tabs";
-import { columns, Resources } from "./resources";
+import { columns } from "./resources";
 import { DataTable } from "./data-table";
 
-async function getData(): Promise<Resources[]> {
-    // Fetch data from your API here.
-    return [
-        {
-            id: "728ed52f",
-            name: 'desk',
-            status: "pending",
-            price: 199,
-        },
-        {
-            id: "728ed52f",
-            name: 'desk',
-            status: "pending",
-            price: 199,
-        },
-        {
-            id: "728ed52f",
-            name: 'desk',
-            status: "pending",
-            price: 199,
-        },
-        {
-            id: "728ed52f",
-            name: 'desk',
-            status: "pending",
-            price: 199,
-        },
-        {
-            id: "728ed52f",
-            name: 'desk',
-            status: "pending",
-            price: 199,
-        },
-        {
-            id: "728ed52f",
-            name: 'desk',
-            status: "pending",
-            price: 199,
-        },
-        {
-            id: "728ed52f",
-            name: 'desk',
-            status: "pending",
-            price: 199,
-        },
-        
-    ]
+import { getResources, } from "@/lib/service";
+import { PageDto } from "@/lib/service/HsService";
+
+import type { GetResourcesParams, ResourceDto, } from "@/lib/service/HsService";
+
+async function getData(): Promise<ResourceDto[]> {
+    const query = {
+        limit: 10,
+        offset: 0,
+        sort: "ASC",
+    } as GetResourcesParams;
+
+    const data: PageDto & {
+        results?: Array<ResourceDto>;
+    } = await getResources(query);
+
+    return data.results;
 }
 
 export default async function ResourcesPage() {

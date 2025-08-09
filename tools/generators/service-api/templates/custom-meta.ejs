@@ -1,0 +1,61 @@
+<%
+const { apiConfig, config, routes, utils } = it;
+const { _, getInlineParseContent } = utils;
+
+const maybeGetUsage = (method, name) => {
+    if(method.toUpperCase() !== 'GET') {
+        return name;
+    }
+
+    return `get${_.upperFirst(name.replace(/^get/i, ''))}`;
+}
+%>
+
+const meta = {
+    name: '<%~ config.apiClassName %>',
+    baseUrl: '<%~ apiConfig.baseUrl %>',
+    routes: [
+    <% routes.combined && routes.combined.forEach(({ routes = [], moduleName }) => { %>
+        <% routes.forEach((route) => { %>
+            <%
+                const { specificArgNameResolver } = route;
+                const { parameters, payload, query, requestParams } = route.request;
+                const queryName = (query && query.name) || "query";
+                const pathParams = _.values(parameters);
+                const pathParamsNames = _.map(pathParams, 'name');
+
+                const argToTmpl = ({ name, optional, type, defaultValue }) => `${name}${!defaultValue && optional ? '?' : ''}: ${type}${defaultValue ? ` = ${defaultValue}` : ''}`;
+
+                const rawWrapperArgs = config.extractRequestParams ?
+                    _.compact([
+                        requestParams && {
+                        name: pathParams.length ? `{ ${_.join(pathParamsNames, ", ")}, ...${queryName} }` : queryName,
+                        optional: false,
+                        type: getInlineParseContent(requestParams),
+                        },
+                        ...(!requestParams ? pathParams : []),
+                    ]) :
+                    _.compact([
+                        ...pathParams,
+                        query,
+                    ])
+        %>
+
+            {
+                namespace: '<%~ moduleName %>',
+                method: '<%~ _.upperCase(route.request.method) %>',
+                usage: '<%~ route.routeName.usage %>',
+                path: '<%~ route.request.path %>',
+                functionName: '<%~ maybeGetUsage(route.request.method, route.routeName.usage) %>',
+                pathParams: [<%~ pathParams.length ? _.sortBy(pathParams, [o => o.optional]).map(({ name, type, optional }) => `{ name: "${name}", type: "${type}", optional: ${optional} }`).join(', ') : '' %>],
+                requestParams: [<%~ requestParams ? `{ name: "${queryName}", type: "${getInlineParseContent(requestParams)}" }` : '' %>],
+                combinedPathAndRequestParams: [<%~ !!requestParams && pathParams.length ? _.sortBy(rawWrapperArgs, [o => o.optional]).map(({ name, type, optional }) => `{ name: "${name}", type: "${type}", optional: ${optional} }`).join(', ') : '' %>],
+                payload: <%~ payload ? JSON.stringify(payload): null %>,
+                responseType: '<%~ route.response.type.replace(/\n/g, "") %>'
+            },
+        <% }) %>
+    <% }) %>
+    ],
+  }
+
+  module.exports = { meta }
