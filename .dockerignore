@@ -1,16 +1,17 @@
 # Node resources
 node_modules
 dist
+.next
 
 # Environment files
 .env.*
 .env
-envs/.env*
 
 # Docker resources 
 .dockerignore
 Dockerfile
 docker-compose.*
+deploy/
 
 # Others
 README.md
@@ -19,3 +20,5 @@ README.md
 .vscode
 .github
 docs
+
+swagger.json

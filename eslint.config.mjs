@@ -1,6 +1,7 @@
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import { FlatCompat } from "@eslint/eslintrc";
+import { defineConfig, globalIgnores } from "eslint/config";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -9,8 +10,12 @@ const compat = new FlatCompat({
   baseDirectory: __dirname,
 });
 
-const eslintConfig = [
-  ...compat.extends("next/core-web-vitals", "next/typescript"),
-];
+export default defineConfig([
 
-export default eslintConfig;
+  ...compat.extends("next/core-web-vitals", "next/typescript"),
+  globalIgnores([
+    "lib/service",                    // Ignores the service directory
+    "lib/shared/types.ts",            // Ignores the shared types file
+    "lib/shared/HttpClient.ts",       // Ignores the HttpClient file
+  ]),
+]);
