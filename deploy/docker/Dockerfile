@@ -25,20 +25,29 @@ RUN npm run build
 # Stage 2: Production
 FROM node:22.15-alpine
 
+ENV HOSTNAME=0.0.0.0
+ENV PORT 3000
+ENV NODE_ENV production
+ENV NEXT_TELEMETRY_DISABLED 1
+
 WORKDIR /usr/src/app
 
-COPY --from=builder /usr/src/app/public ./public
+# Don't run production as root
+RUN addgroup --system --gid 1001 nodejs \
+    && adduser --system --uid 1001 nextjs
+USER nextjs
+
+COPY --from=builder /usr/src/app/next.config.ts .
+COPY --from=builder /usr/src/app/package.json .
 
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing
-COPY --from=builder /usr/src/app/.next/standalone ./
-COPY --from=builder /usr/src/app/.next/static ./.next/static
-
-ENV NODE_ENV production
+COPY --from=builder --chown=nextjs:nodejs /usr/src/app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /usr/src/app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /usr/src/app/public ./public
 
 # Expose the application port
 EXPOSE 3000
 
 # Start the application
-ENV HOSTNAME="0.0.0.0"
 CMD ["node", "server.js"]
