@@ -1,11 +1,12 @@
 # Node resources
 node_modules
-dist
 .next
 
 # Environment files
 .env.*
 .env
+
+docs/
 
 # Docker resources 
 .dockerignore
