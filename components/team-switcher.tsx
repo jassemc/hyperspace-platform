@@ -43,8 +43,8 @@ export function TeamSwitcher({
         <Image
           src={logo}
           alt="team logo"
-          width={24}
-          height={24}
+          width={28}
+          height={28}
           className="object-contain"
         />
       )
@@ -61,16 +61,13 @@ export function TeamSwitcher({
           <DropdownMenuTrigger asChild>
             <SidebarMenuButton
               size="lg"
-              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+              className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground flex flex-row justify-end"
             >
+              <div></div>
               <div className="text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg overflow-hidden">
                 {renderLogo(activeTeam.logo)}
               </div>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate font-medium">{activeTeam.name}</span>
-                <span className="truncate text-xs">{activeTeam.plan}</span>
-              </div>
-              <ChevronsUpDown className="ml-auto" />
+              <ChevronsUpDown/>
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent
@@ -88,11 +85,20 @@ export function TeamSwitcher({
                 onClick={() => setActiveTeam(team)}
                 className="gap-2 p-2"
               >
-                <div className="flex size-6 items-center justify-center rounded-md border overflow-hidden">
+                <div className="flex size-8 items-center justify-center rounded-md border">
                   {renderLogo(team.logo)}
                 </div>
-                {team.name}
-                <DropdownMenuShortcut>⌘{index + 1}</DropdownMenuShortcut>
+
+                <div
+                  className="flex flex-col"
+                >
+                  <div className="text-sm">
+                    {team.name}
+                  </div>
+                  <p className="text-muted-foreground text-sm leading-tight">
+                    {team.plan}
+                  </p>
+                </div>
               </DropdownMenuItem>
             ))}
             <DropdownMenuSeparator />
