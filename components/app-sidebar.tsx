@@ -1,10 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { ChevronRight } from "lucide-react"
+import { ChevronRight, PanelLeftIcon } from "lucide-react"
 
 import { NavUser } from "@/components/nav-user"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Button } from "@/components/ui/button"
 
 // Import navigation configuration and types
 import {
@@ -17,9 +18,6 @@ import { TeamSwitcher } from "./team-switcher"
 import {
   SidebarMenuButton,
   SidebarMenu,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   SidebarMenuItem,
   Sidebar,
   SidebarContent,
@@ -27,7 +25,6 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
-  SidebarTrigger,
   useSidebar,
 } from "@/components/sidebar";
 
@@ -48,6 +45,7 @@ export function AppSidebar({ user, ...props }: Readonly<AppSidebarProps>) {
     getDefaultActiveItem().subMenus || []
   )
   const [isHovered, setIsHovered] = React.useState(false)
+  const [isSticky, setIsSticky] = React.useState(false)
   const { setOpen } = useSidebar()
 
   const handleNavItemClick = React.useCallback((item: MenuItem) => {
@@ -61,15 +59,25 @@ export function AppSidebar({ user, ...props }: Readonly<AppSidebarProps>) {
   }, [])
 
   const handleMouseLeave = React.useCallback(() => {
-    setIsHovered(false)
-  }, [])
+    if (!isSticky) {
+      setIsHovered(false)
+    }
+  }, [isSticky])
+
+  const handleToggleSticky = React.useCallback(() => {
+    setIsSticky(prev => !prev)
+    if (isSticky) {
+      setIsHovered(false)
+    } else {
+      setIsHovered(true)
+    }
+  }, [isSticky])
 
   return (
-    <div 
+    <nav 
       className="relative"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      role="navigation"
       aria-label="Main navigation"
     >
       <Sidebar
@@ -114,66 +122,87 @@ export function AppSidebar({ user, ...props }: Readonly<AppSidebarProps>) {
       {/* Second sidebar - Hover overlay */}
       <div 
         className={`absolute left-full top-0 z-50 h-full w-80 bg-sidebar border-r shadow-lg transition-all duration-300 ease-in-out ${
-          isHovered ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'
+          isHovered || isSticky ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'
         }`}
       >
-        <SidebarHeader className="gap-3.5 border-b p-4">
-          <div className="flex w-full items-center justify-between">
-            <div className="text-foreground text-base font-medium">
-              {activeItem?.title}
+        <div className="flex h-full w-full flex-col">
+          <div className="gap-3.5 border-b p-4">
+            <div className="flex w-full items-center justify-between">
+              <div className="text-foreground text-base font-medium">
+                {activeItem?.title}
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleToggleSticky}
+                className="ml-auto h-8 w-8"
+                title={isSticky ? "Unpin sidebar" : "Pin sidebar"}
+              >
+                <PanelLeftIcon className="h-4 w-4" />
+                <span className="sr-only">{isSticky ? "Unpin sidebar" : "Pin sidebar"}</span>
+              </Button>
             </div>
-            <SidebarTrigger className="ml-auto" />
           </div>
-        </SidebarHeader>
-        <SidebarContent>
-          <SidebarGroup>
-            <SidebarMenu>
-              {subMenus.map((item) => (
-                <Collapsible
-                  key={item.title}
-                  asChild
-                  defaultOpen={false}
-                  className="group/collapsible"
-                >
-                  <SidebarMenuItem>
-                    {item.items ? (
-                      <>
-                        <CollapsibleTrigger asChild>
-                          <SidebarMenuButton className="flex-row h-10 group-data-[collapsible=icon]:h-10! gap-2">
-                            {item.icon && <item.icon />}
-                            <span>{item.title}</span>
-                            <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                          </SidebarMenuButton>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent>
-                          <SidebarMenuSub>
-                            {item.items.map((subItem) => (
-                              <SidebarMenuSubItem key={subItem.title}>
-                                <SidebarMenuSubButton asChild>
+          <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-auto">
+            <div className="px-2 py-2">
+              <div className="space-y-1">
+                {subMenus.map((item) => (
+                  <Collapsible
+                    key={item.title}
+                    asChild
+                    defaultOpen={false}
+                    className="group/collapsible"
+                  >
+                    <div>
+                      {item.items ? (
+                        <>
+                          <CollapsibleTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              className="flex w-full flex-row h-10 gap-2 justify-start px-2"
+                            >
+                              {item.icon && <item.icon className="h-4 w-4" />}
+                              <span>{item.title}</span>
+                              <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                            </Button>
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <div className="ml-6 space-y-1">
+                              {item.items.map((subItem) => (
+                                <Button
+                                  key={subItem.title}
+                                  variant="ghost"
+                                  asChild
+                                  className="flex w-full justify-start h-8 px-2"
+                                >
                                   <a href={subItem.url}>
-                                    <span>{subItem.title}</span>
+                                    <span className="text-sm">{subItem.title}</span>
                                   </a>
-                                </SidebarMenuSubButton>
-                              </SidebarMenuSubItem>
-                            ))}
-                          </SidebarMenuSub>
-                        </CollapsibleContent>
-                      </>
-                    ) : (
-                      <SidebarMenuButton asChild className="flex-row justify-start h-10 group-data-[collapsible=icon]:h-10! gap-2">
-                        <a href={item.url}>
-                          {item.icon && <item.icon />}
-                          <span>{item.title}</span>
-                        </a>
-                      </SidebarMenuButton>
-                    )}
-                  </SidebarMenuItem>
-                </Collapsible>
-              ))}
-            </SidebarMenu>
-          </SidebarGroup>
-        </SidebarContent>
+                                </Button>
+                              ))}
+                            </div>
+                          </CollapsibleContent>
+                        </>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          asChild
+                          className="flex w-full flex-row justify-start h-10 gap-2 px-2"
+                        >
+                          <a href={item.url}>
+                            {item.icon && <item.icon className="h-4 w-4" />}
+                            <span>{item.title}</span>
+                          </a>
+                        </Button>
+                      )}
+                    </div>
+                  </Collapsible>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+    </nav>
   )
 }
