@@ -10,15 +10,14 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-  DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
-  SidebarMenu,
   SidebarMenuButton,
+  SidebarMenu,
   SidebarMenuItem,
-  useSidebar,
-} from "@/components/ui/sidebar"
+  useSidebar
+} from "@/components/sidebar"
 
 export function TeamSwitcher({
   teams,
@@ -67,7 +66,7 @@ export function TeamSwitcher({
               <div className="text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg overflow-hidden">
                 {renderLogo(activeTeam.logo)}
               </div>
-              <ChevronsUpDown/>
+              <ChevronsUpDown />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
           <DropdownMenuContent

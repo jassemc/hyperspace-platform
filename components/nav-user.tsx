@@ -23,14 +23,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import {
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  useSidebar,
-} from "@/components/ui/sidebar"
+
 import { LogoutButton } from "./logout-button"
 import { useMemo } from "react"
+import {
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarMenu,
+  useSidebar,
+} from "@/components/sidebar"
 
 // Function to generate avatar URL using DiceBear API
 function generateAvatarUrl(seed: string): string {
@@ -57,7 +58,7 @@ export function NavUser({
   } | null;
 }) {
   const { isMobile } = useSidebar()
-  
+
   // Generate avatar URL based on user email for consistency
   const avatarUrl = useMemo(() => {
     if (!user) return undefined

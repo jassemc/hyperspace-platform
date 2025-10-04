@@ -1,7 +1,5 @@
 import { AppSidebar } from "@/components/app-sidebar"
-import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb"
-import { Separator } from "@/components/ui/separator"
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
+import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/sidebar"
 import { createClient } from "@/lib/supabase/server"
 import { redirect } from "next/navigation"
 import { ReactNode } from "react"
@@ -35,7 +33,6 @@ export default async function DashboardLayout({ children }: { children: ReactNod
         <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
           {children}
         </div>
-
       </SidebarInset>
     </SidebarProvider>
   )

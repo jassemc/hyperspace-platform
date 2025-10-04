@@ -8,16 +8,17 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible"
+
 import {
-  SidebarGroup,
-  SidebarGroupLabel,
-  SidebarMenu,
   SidebarMenuButton,
-  SidebarMenuItem,
+  SidebarMenu,
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-} from "@/components/ui/sidebar"
+  SidebarMenuItem,
+  SidebarGroup,
+  SidebarGroupLabel,
+} from "@/components/sidebar";
 
 export function NavMain({
   items,
@@ -47,7 +48,7 @@ export function NavMain({
             >
               <SidebarMenuItem>
                 <CollapsibleTrigger asChild>
-                  <SidebarMenuButton tooltip={item.title}>
+                  <SidebarMenuButton>
                     {item.icon && <item.icon />}
                     <span>{item.title}</span>
                     <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -70,7 +71,7 @@ export function NavMain({
             </Collapsible>
           ) : (
             <SidebarMenuItem key={item.title}>
-              <SidebarMenuButton asChild tooltip={item.title}>
+              <SidebarMenuButton asChild>
                 <Link href={item.url} className="flex items-center gap-2 w-full">
                   {item.icon && <item.icon />}
                   <span>{item.title}</span>

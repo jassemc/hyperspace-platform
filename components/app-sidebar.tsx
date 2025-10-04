@@ -2,27 +2,8 @@
 
 import * as React from "react"
 import { ChevronRight } from "lucide-react"
-import Image from "next/image"
 
 import { NavUser } from "@/components/nav-user"
-import { Label } from "@/components/ui/label"
-import {
-  Sidebar,
-  SidebarContent,
-  SidebarFooter,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarHeader,
-  SidebarInput,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
-  useSidebar,
-} from "@/components/ui/sidebar"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 
 // Import navigation configuration and types
@@ -33,6 +14,21 @@ import {
   type SubMenuItem
 } from "@/lib/navigation-config"
 import { TeamSwitcher } from "./team-switcher"
+import {
+  SidebarMenuButton,
+  SidebarMenu,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
+  SidebarMenuItem,
+  Sidebar,
+  SidebarContent,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarHeader,
+  useSidebar,
+} from "@/components/sidebar";
 
 // User type
 type User = {
@@ -74,16 +70,12 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
         </SidebarHeader>
         <SidebarContent>
           <SidebarGroup>
-            <SidebarGroupContent className="px-1.5 md:px-0">
+            <SidebarGroupContent className="px-1 md:px-0">
               <SidebarMenu>
                 {navigationConfig.navMain.map((item) => (
                   <SidebarMenuItem key={item.title}>
                     <SidebarMenuButton
-                      tooltip={{
-                        children: item.title,
-                        hidden: false,
-                      }}
-                      onClick={() => handleNavItemClick(item)}
+                      onMouseOver={() => handleNavItemClick(item)}
                       isActive={activeItem?.title === item.title}
                       className="px-2.5 md:px-2"
                     >
@@ -124,7 +116,7 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
                     {item.items ? (
                       <>
                         <CollapsibleTrigger asChild>
-                          <SidebarMenuButton tooltip={item.title} className="flex-row h-10 group-data-[collapsible=icon]:h-10! gap-2">
+                          <SidebarMenuButton className="flex-row h-10 group-data-[collapsible=icon]:h-10! gap-2">
                             {item.icon && <item.icon />}
                             <span>{item.title}</span>
                             <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
@@ -145,7 +137,7 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
                         </CollapsibleContent>
                       </>
                     ) : (
-                      <SidebarMenuButton asChild tooltip={item.title} className="flex-row justify-start h-10 group-data-[collapsible=icon]:h-10! gap-2">
+                      <SidebarMenuButton asChild className="flex-row justify-start h-10 group-data-[collapsible=icon]:h-10! gap-2">
                         <a href={item.url}>
                           {item.icon && <item.icon />}
                           <span>{item.title}</span>
