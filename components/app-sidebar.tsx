@@ -50,6 +50,15 @@ export function AppSidebar({ user, ...props }: Readonly<AppSidebarProps>) {
   const [isSticky, setIsSticky] = React.useState(false)
   const { setOpen } = useSidebar()
 
+  // Expose sticky state to parent components
+  React.useEffect(() => {
+    // Dispatch custom event to notify layout about sticky state
+    const event = new CustomEvent('sidebar-sticky-change', { 
+      detail: { isSticky } 
+    })
+    window.dispatchEvent(event)
+  }, [isSticky])
+
   // Update active item based on current pathname
   React.useEffect(() => {
     const currentActiveItem = navigationConfig.navMain.find(item =>
