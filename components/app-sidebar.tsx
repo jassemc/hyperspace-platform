@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { ChevronRight, ChevronsLeft, ChevronLast } from "lucide-react"
+import { usePathname } from "next/navigation"
 
 import { NavUser } from "@/components/nav-user"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -40,6 +41,7 @@ interface AppSidebarProps extends Readonly<React.ComponentProps<typeof Sidebar>>
 }
 
 export function AppSidebar({ user, ...props }: Readonly<AppSidebarProps>) {
+  const pathname = usePathname()
   const [activeItem, setActiveItem] = React.useState<MenuItem>(getDefaultActiveItem())
   const [subMenus, setSubMenus] = React.useState<SubMenuItem[]>(
     getDefaultActiveItem().subMenus || []
@@ -48,11 +50,42 @@ export function AppSidebar({ user, ...props }: Readonly<AppSidebarProps>) {
   const [isSticky, setIsSticky] = React.useState(false)
   const { setOpen } = useSidebar()
 
+  // Update active item based on current pathname
+  React.useEffect(() => {
+    const currentActiveItem = navigationConfig.navMain.find(item =>
+      item.url === pathname ||
+      item.subMenus?.some(sub =>
+        sub.url === pathname ||
+        sub.items?.some(subItem => subItem.url === pathname)
+      )
+    )
+    
+    if (currentActiveItem) {
+      setActiveItem(currentActiveItem)
+      setSubMenus(currentActiveItem.subMenus || [])
+    }
+  }, [pathname])
+
   const handleNavItemClick = React.useCallback((item: MenuItem) => {
     setActiveItem(item)
     setSubMenus(item.subMenus || [])
     setOpen(true)
   }, [setOpen])
+
+  // Helper function to check if a menu item is active
+  const isMenuItemActive = React.useCallback((item: MenuItem) => {
+    return item.url === pathname ||
+      item.subMenus?.some(sub =>
+        sub.url === pathname ||
+        sub.items?.some(subItem => subItem.url === pathname)
+      )
+  }, [pathname])
+
+  // Helper function to check if a sub-menu item is active
+  const isSubMenuItemActive = React.useCallback((subItem: SubMenuItem) => {
+    return subItem.url === pathname ||
+      subItem.items?.some(item => item.url === pathname)
+  }, [pathname])
 
   const handleMouseEnter = React.useCallback(() => {
     setIsHovered(true)
@@ -97,18 +130,25 @@ export function AppSidebar({ user, ...props }: Readonly<AppSidebarProps>) {
             <SidebarGroup>
               <SidebarGroupContent className="px-1 md:px-0">
                 <SidebarMenu>
-                  {navigationConfig.navMain.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton
-                        onMouseOver={() => handleNavItemClick(item)}
-                        isActive={activeItem?.title === item.title}
-                        className="px-2.5 md:px-2"
-                      >
-                        <item.icon />
-                        <span>{item.title}</span>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
+                  {navigationConfig.navMain.map((item) => {
+                    const isActive = isMenuItemActive(item)
+                    return (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton
+                          onMouseOver={() => handleNavItemClick(item)}
+                          isActive={isActive}
+                          className={`px-2.5 md:px-2 ${
+                            isActive 
+                              ? 'sidebar-active' 
+                              : 'sidebar-hover'
+                          }`}
+                        >
+                          <item.icon />
+                          <span>{item.title}</span>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )
+                  })}
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -150,58 +190,76 @@ export function AppSidebar({ user, ...props }: Readonly<AppSidebarProps>) {
           <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-auto">
             <div className="px-2 py-2">
               <div className="space-y-1">
-                {subMenus.map((item) => (
-                  <Collapsible
-                    key={item.title}
-                    asChild
-                    defaultOpen={false}
-                    className="group/collapsible"
-                  >
-                    <div>
-                      {item.items ? (
-                        <>
-                          <CollapsibleTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              className="flex w-full flex-row h-10 gap-2 justify-start px-2"
-                            >
+                {subMenus.map((item) => {
+                  const isSubActive = isSubMenuItemActive(item)
+                  return (
+                    <Collapsible
+                      key={item.title}
+                      asChild
+                      defaultOpen={isSubActive}
+                      className="group/collapsible"
+                    >
+                      <div>
+                        {item.items ? (
+                          <>
+                            <CollapsibleTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                className={`flex w-full flex-row h-10 gap-2 justify-start px-2 ${
+                                  isSubActive 
+                                    ? 'sidebar-active' 
+                                    : 'sidebar-hover'
+                                }`}
+                              >
+                                {item.icon && <item.icon className="h-4 w-4" />}
+                                <span>{item.title}</span>
+                                <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                              </Button>
+                            </CollapsibleTrigger>
+                            <CollapsibleContent>
+                              <div className="ml-6 space-y-1">
+                                {item.items.map((subItem) => {
+                                  const isSubItemActive = subItem.url === pathname
+                                  return (
+                                    <Button
+                                      key={subItem.title}
+                                      variant="ghost"
+                                      asChild
+                                      className={`flex w-full justify-start h-8 px-2 ${
+                                        isSubItemActive 
+                                          ? 'sidebar-active' 
+                                          : 'sidebar-hover'
+                                      }`}
+                                    >
+                                      <a href={subItem.url}>
+                                        <span className="text-sm">{subItem.title}</span>
+                                      </a>
+                                    </Button>
+                                  )
+                                })}
+                              </div>
+                            </CollapsibleContent>
+                          </>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            asChild
+                            className={`flex w-full flex-row justify-start h-10 gap-2 px-2 ${
+                              isSubActive 
+                                ? 'sidebar-active' 
+                                : 'sidebar-hover'
+                            }`}
+                          >
+                            <a href={item.url}>
                               {item.icon && <item.icon className="h-4 w-4" />}
                               <span>{item.title}</span>
-                              <ChevronRight className="ml-auto h-4 w-4 transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
-                            </Button>
-                          </CollapsibleTrigger>
-                          <CollapsibleContent>
-                            <div className="ml-6 space-y-1">
-                              {item.items.map((subItem) => (
-                                <Button
-                                  key={subItem.title}
-                                  variant="ghost"
-                                  asChild
-                                  className="flex w-full justify-start h-8 px-2"
-                                >
-                                  <a href={subItem.url}>
-                                    <span className="text-sm">{subItem.title}</span>
-                                  </a>
-                                </Button>
-                              ))}
-                            </div>
-                          </CollapsibleContent>
-                        </>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          asChild
-                          className="flex w-full flex-row justify-start h-10 gap-2 px-2"
-                        >
-                          <a href={item.url}>
-                            {item.icon && <item.icon className="h-4 w-4" />}
-                            <span>{item.title}</span>
-                          </a>
-                        </Button>
-                      )}
-                    </div>
-                  </Collapsible>
-                ))}
+                            </a>
+                          </Button>
+                        )}
+                      </div>
+                    </Collapsible>
+                  )
+                })}
               </div>
             </div>
           </div>

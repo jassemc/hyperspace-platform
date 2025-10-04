@@ -120,3 +120,19 @@
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  /* Custom sidebar active state styling */
+  .sidebar-active {
+    @apply bg-sidebar-accent text-sidebar-accent-foreground font-medium;
+    background-color: oklch(0.9 0 0); /* Darker than hover for light mode */
+  }
+  
+  .dark .sidebar-active {
+    background-color: oklch(0.35 0 0); /* Darker than hover for dark mode */
+  }
+  
+  .sidebar-hover {
+    @apply hover:bg-sidebar-accent/50;
+  }
+}
