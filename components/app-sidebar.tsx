@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { ChevronRight, PanelLeftIcon } from "lucide-react"
+import { ChevronRight, ChevronsLeft, ChevronLast } from "lucide-react"
 
 import { NavUser } from "@/components/nav-user"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
@@ -132,13 +132,17 @@ export function AppSidebar({ user, ...props }: Readonly<AppSidebarProps>) {
                 {activeItem?.title}
               </div>
               <Button
-                variant="ghost"
+                variant={isSticky ? "secondary" : "ghost"}
                 size="icon"
                 onClick={handleToggleSticky}
                 className="ml-auto h-8 w-8"
                 title={isSticky ? "Unpin sidebar" : "Pin sidebar"}
               >
-                <PanelLeftIcon className="h-4 w-4" />
+                {isSticky ? (
+                  <ChevronLast className="h-4 w-4" />
+                ) : (
+                  <ChevronsLeft className="h-4 w-4" />
+                )}
                 <span className="sr-only">{isSticky ? "Unpin sidebar" : "Pin sidebar"}</span>
               </Button>
             </div>
