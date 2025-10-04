@@ -28,6 +28,7 @@ import {
   SidebarHeader,
   useSidebar,
 } from "@/components/sidebar";
+import { cn } from "@/lib/utils"
 
 // User type
 type User = {
@@ -145,12 +146,11 @@ export function AppSidebar({ user, ...props }: Readonly<AppSidebarProps>) {
                       <SidebarMenuItem key={item.title}>
                         <SidebarMenuButton
                           onMouseOver={() => handleNavItemClick(item)}
-                          isActive={isActive}
-                          className={`px-2.5 md:px-2 ${
-                            isActive 
-                              ? 'sidebar-active' 
-                              : 'sidebar-hover'
-                          }`}
+                          data-active={isActive ? 'true' : 'false'} // ✅ this is key
+                          className={cn(
+                            'px-2.5 md:px-2',
+                            isActive && 'bg-sidebar-primary! text-sidebar-primary-foreground!'
+                          )}
                         >
                           <item.icon />
                           <span>{item.title}</span>
