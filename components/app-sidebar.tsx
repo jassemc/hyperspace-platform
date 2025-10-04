@@ -27,6 +27,7 @@ import {
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
+  SidebarTrigger,
   useSidebar,
 } from "@/components/sidebar";
 
@@ -37,16 +38,17 @@ type User = {
   id: string;
 } | null;
 
-interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+interface AppSidebarProps extends Readonly<React.ComponentProps<typeof Sidebar>> {
   user: User;
 }
 
-export function AppSidebar({ user, ...props }: AppSidebarProps) {
+export function AppSidebar({ user, ...props }: Readonly<AppSidebarProps>) {
   const [activeItem, setActiveItem] = React.useState<MenuItem>(getDefaultActiveItem())
   const [subMenus, setSubMenus] = React.useState<SubMenuItem[]>(
     getDefaultActiveItem().subMenus || []
   )
-  const { setOpen, isMobile } = useSidebar()
+  const [isHovered, setIsHovered] = React.useState(false)
+  const { setOpen } = useSidebar()
 
   const handleNavItemClick = React.useCallback((item: MenuItem) => {
     setActiveItem(item)
@@ -54,52 +56,73 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
     setOpen(true)
   }, [setOpen])
 
+  const handleMouseEnter = React.useCallback(() => {
+    setIsHovered(true)
+  }, [])
+
+  const handleMouseLeave = React.useCallback(() => {
+    setIsHovered(false)
+  }, [])
+
   return (
-    <Sidebar
-      collapsible="icon"
-      className="overflow-hidden *:data-[sidebar=sidebar]:flex-row bg-red"
-      {...props}
+    <div 
+      className="relative"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      role="navigation"
+      aria-label="Main navigation"
     >
-      {/* First sidebar - Main navigation */}
       <Sidebar
-        collapsible="none"
-        className="w-[calc(var(--sidebar-width-icon)+1px)]! border-r"
+        collapsible="icon"
+        className="overflow-hidden *:data-[sidebar=sidebar]:flex-row"
+        {...props}
       >
-        <SidebarHeader>
-          <TeamSwitcher teams={navigationConfig.site} />
-        </SidebarHeader>
-        <SidebarContent>
-          <SidebarGroup>
-            <SidebarGroupContent className="px-1 md:px-0">
-              <SidebarMenu>
-                {navigationConfig.navMain.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      onMouseOver={() => handleNavItemClick(item)}
-                      isActive={activeItem?.title === item.title}
-                      className="px-2.5 md:px-2"
-                    >
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            </SidebarGroupContent>
-          </SidebarGroup>
-        </SidebarContent>
-        <SidebarFooter>
-          <NavUser user={user} />
-        </SidebarFooter>
+        {/* First sidebar - Main navigation */}
+        <Sidebar
+          collapsible="none"
+          className="w-[calc(var(--sidebar-width-icon)+1px)]! border-r"
+        >
+          <SidebarHeader>
+            <TeamSwitcher teams={navigationConfig.site} />
+          </SidebarHeader>
+          <SidebarContent>
+            <SidebarGroup>
+              <SidebarGroupContent className="px-1 md:px-0">
+                <SidebarMenu>
+                  {navigationConfig.navMain.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        onMouseOver={() => handleNavItemClick(item)}
+                        isActive={activeItem?.title === item.title}
+                        className="px-2.5 md:px-2"
+                      >
+                        <item.icon />
+                        <span>{item.title}</span>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
+          <SidebarFooter>
+            <NavUser user={user} />
+          </SidebarFooter>
+        </Sidebar>
       </Sidebar>
 
-      {/* Second sidebar - Sub menus */}
-      <Sidebar collapsible="none" className="hidden flex-1 md:flex">
+      {/* Second sidebar - Hover overlay */}
+      <div 
+        className={`absolute left-full top-0 z-50 h-full w-80 bg-sidebar border-r shadow-lg transition-all duration-300 ease-in-out ${
+          isHovered ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'
+        }`}
+      >
         <SidebarHeader className="gap-3.5 border-b p-4">
           <div className="flex w-full items-center justify-between">
             <div className="text-foreground text-base font-medium">
               {activeItem?.title}
             </div>
+            <SidebarTrigger className="ml-auto" />
           </div>
         </SidebarHeader>
         <SidebarContent>
@@ -150,7 +173,7 @@ export function AppSidebar({ user, ...props }: AppSidebarProps) {
             </SidebarMenu>
           </SidebarGroup>
         </SidebarContent>
-      </Sidebar>
-    </Sidebar>
+      </div>
+    </div>
   )
 }
