@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { ChevronRight, ChevronsLeft, ChevronLast } from "lucide-react"
+import { ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
 import { usePathname } from "next/navigation"
 
 import { NavUser } from "@/components/nav-user"
@@ -188,9 +188,9 @@ export function AppSidebar({ user, ...props }: Readonly<AppSidebarProps>) {
                 title={isSticky ? "Unpin sidebar" : "Pin sidebar"}
               >
                 {isSticky ? (
-                  <ChevronLast className="h-4 w-4" />
-                ) : (
                   <ChevronsLeft className="h-4 w-4" />
+                ) : (
+                  <ChevronsRight className="h-4 w-4" />
                 )}
                 <span className="sr-only">{isSticky ? "Unpin sidebar" : "Pin sidebar"}</span>
               </Button>
