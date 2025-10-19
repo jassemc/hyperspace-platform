@@ -84,7 +84,7 @@ export const navigationConfig: NavigationConfig = {
                 },
                 {
                     title: "Overview",
-                    url: "#",
+                    url: "/dashboard/overview",
                     icon: PieChart,
                 },
                 {

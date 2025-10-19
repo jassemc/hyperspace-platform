@@ -1,6 +1,7 @@
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TabsContent } from "@radix-ui/react-tabs";
 import { ResourceTable } from "./resource-table";
+import { Suspense } from "react";
 
 import { getResources } from "@/lib/service";
 import { PageDto } from "@/lib/service/HsService";
@@ -36,7 +37,9 @@ export default async function SpaceResourcesPage() {
                 </TabsList>
                 <TabsContent value="list">
                     <div className="py-6">
-                        <ResourceTable data={data} />
+                        <Suspense fallback={<div>Loading...</div>}>
+                            <ResourceTable data={data} />
+                        </Suspense>
                     </div>
                 </TabsContent>
                 <TabsContent value="other">Content coming soon.</TabsContent>
