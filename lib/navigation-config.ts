@@ -147,7 +147,7 @@ export const navigationConfig: NavigationConfig = {
                 },
                 {
                     title: "Resources",
-                    url: "#",
+                    url: "/space/resources",
                     icon: Database,
                 },
                 {
