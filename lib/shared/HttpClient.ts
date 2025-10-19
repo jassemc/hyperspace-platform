@@ -30,7 +30,11 @@ export class HttpClient<SecurityDataType = unknown> {
 
   constructor(apiConfig: ApiConfig<SecurityDataType> = {}) {
     Object.assign(this, apiConfig);
-    this.baseUrl = `${(apiConfig.baseUrl?.replace(/\/+$/, '') ?? process.env.HS_API_BASE_URL)?.replace(/\/+$/, '')}`
+    const configuredBaseUrl = apiConfig.baseUrl ?? process.env.HS_API_BASE_URL ?? "http://localhost:8080";
+    // Normalize and strip trailing slashes
+    this.baseUrl = typeof configuredBaseUrl === "string"
+      ? configuredBaseUrl.replace(/\/+$/, '')
+      : "http://localhost:8080";
 
     this.securityWorker = requestSecurityWorker;
   }
@@ -198,7 +202,7 @@ export class HttpClient<SecurityDataType = unknown> {
     const payloadFormatter = this.contentFormatters[type || ContentType.Json];
     const responseFormat = format || requestParams.format;
 
-    return this.customFetch(`${baseUrl || this.baseUrl || ""}${path}${queryString ? `?${queryString}` : ""}`, {
+    return this.customFetch(`${(baseUrl ?? this.baseUrl).replace(/\/+$/, '')}${path}${queryString ? `?${queryString}` : ""}`, {
       ...requestParams,
       headers: {
         ...(requestParams.headers || {}),
@@ -214,7 +218,8 @@ export class HttpClient<SecurityDataType = unknown> {
       }
 
       if (formattedResponse instanceof HttpError || !response.ok) {
-        console.error("Error response:", formattedResponse);
+        // Avoid noisy server console errors that break RSC dev overlay
+        console.warn("API error response", formattedResponse);
         throw formattedResponse;
       }
 
