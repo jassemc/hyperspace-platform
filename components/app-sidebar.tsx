@@ -99,13 +99,38 @@ export function AppSidebar({ user, ...props }: Readonly<AppSidebarProps>) {
 
   const handleMouseEnter = React.useCallback(() => {
     setIsHovered(true)
-  }, [])
+    // Reset to active menu when leaving hover
+    const currentActiveItem = navigationConfig.navMain.find(item =>
+      item.url === pathname ||
+      item.subMenus?.some(sub =>
+        sub.url === pathname ||
+        sub.items?.some(subItem => subItem.url === pathname)
+      )
+    )
+    if (currentActiveItem) {
+      setActiveItem(currentActiveItem)
+      setSubMenus(currentActiveItem.subMenus || [])
+    }
+  }, [pathname])
 
   const handleMouseLeave = React.useCallback(() => {
     if (!isSticky) {
       setIsHovered(false)
+      
+    } else {
+      const currentActiveItem = navigationConfig.navMain.find(item =>
+        item.url === pathname ||
+        item.subMenus?.some(sub =>
+          sub.url === pathname ||
+          sub.items?.some(subItem => subItem.url === pathname)
+        )
+      )
+      if (currentActiveItem) {
+        setActiveItem(currentActiveItem)
+        setSubMenus(currentActiveItem.subMenus || [])
+      }
     }
-  }, [isSticky])
+  }, [isSticky, pathname])
 
   const handleToggleSticky = React.useCallback(() => {
     setIsSticky(prev => !prev)
