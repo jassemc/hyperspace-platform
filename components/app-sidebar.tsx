@@ -15,7 +15,7 @@ import {
   type MenuItem,
   type SubMenuItem
 } from "@/lib/navigation-config"
-import { TeamSwitcher } from "./team-switcher"
+import { SiteLogo } from "./site-logo"
 import {
   SidebarMenuButton,
   SidebarMenu,
@@ -134,7 +134,7 @@ export function AppSidebar({ user, ...props }: Readonly<AppSidebarProps>) {
           className="w-[calc(var(--sidebar-width-icon)+1px)]! border-r"
         >
           <SidebarHeader>
-            <TeamSwitcher teams={navigationConfig.site} />
+            <SiteLogo teams={navigationConfig.site} />
           </SidebarHeader>
           <SidebarContent>
             <SidebarGroup>
@@ -170,7 +170,7 @@ export function AppSidebar({ user, ...props }: Readonly<AppSidebarProps>) {
 
       {/* Second sidebar - Hover overlay */}
       <div 
-        className={`absolute left-full top-0 z-50 h-full w-80 bg-sidebar border-r shadow-lg transition-all duration-300 ease-in-out ${
+        className={`absolute left-full top-0 z-50 h-full w-60 bg-sidebar border-r shadow-lg transition-all duration-300 ease-in-out ${
           isHovered || isSticky ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'
         }`}
       >

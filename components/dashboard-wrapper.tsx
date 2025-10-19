@@ -26,7 +26,7 @@ export function DashboardWrapper({ children }: Readonly<DashboardWrapperProps>) 
   return (
     <SidebarInset 
       className={`transition-all duration-300 ease-in-out ${
-        isSticky ? 'ml-80' : 'ml-0'
+        isSticky ? 'ml-60' : 'ml-0'
       }`}
     >
       {children}
