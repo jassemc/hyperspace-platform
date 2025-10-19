@@ -214,11 +214,11 @@ export function AppSidebar({ user, ...props }: Readonly<AppSidebarProps>) {
                             <CollapsibleTrigger asChild>
                               <Button
                                 variant="ghost"
-                                className={`flex w-full flex-row h-10 gap-2 justify-start px-2 ${
-                                  isSubActive 
-                                    ? 'sidebar-active' 
-                                    : 'sidebar-hover'
-                                }`}
+                                className={cn(
+                                  "flex w-full flex-row h-10 gap-2 justify-start px-2",
+                                  isSubActive && "bg-sidebar-primary! text-sidebar-primary-foreground!"
+                                )}
+                                data-active={isSubActive ? 'true' : 'false'}
                               >
                                 {item.icon && <item.icon className="h-4 w-4" />}
                                 <span>{item.title}</span>
@@ -234,11 +234,11 @@ export function AppSidebar({ user, ...props }: Readonly<AppSidebarProps>) {
                                       key={subItem.title}
                                       variant="ghost"
                                       asChild
-                                      className={`flex w-full justify-start h-8 px-2 ${
-                                        isSubItemActive 
-                                          ? 'sidebar-active' 
-                                          : 'sidebar-hover'
-                                      }`}
+                                      className={cn(
+                                        "flex w-full justify-start h-8 px-2",
+                                        isSubItemActive && "bg-sidebar-primary! text-sidebar-primary-foreground!"
+                                      )}
+                                      data-active={isSubItemActive ? 'true' : 'false'}
                                     >
                                       <a href={subItem.url}>
                                         <span className="text-sm">{subItem.title}</span>
@@ -253,11 +253,11 @@ export function AppSidebar({ user, ...props }: Readonly<AppSidebarProps>) {
                           <Button
                             variant="ghost"
                             asChild
-                            className={`flex w-full flex-row justify-start h-10 gap-2 px-2 ${
-                              isSubActive 
-                                ? 'sidebar-active' 
-                                : 'sidebar-hover'
-                            }`}
+                            className={cn(
+                              "flex w-full flex-row justify-start h-10 gap-2 px-2",
+                              isSubActive && "bg-sidebar-primary! text-sidebar-primary-foreground!"
+                            )}
+                            data-active={isSubActive ? 'true' : 'false'}
                           >
                             <a href={item.url}>
                               {item.icon && <item.icon className="h-4 w-4" />}
