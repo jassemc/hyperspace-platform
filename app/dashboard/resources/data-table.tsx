@@ -23,30 +23,47 @@ import {
 } from "@/components/ui/table"
 import { Button } from "@/components/ui/button"
 import React from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Input } from "@/components/ui/input"
+import {
+    Pagination,
+    PaginationContent,
+    PaginationItem,
+    PaginationLink,
+    PaginationPrevious,
+    PaginationNext,
+    PaginationEllipsis,
+} from "@/components/ui/pagination"
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
     data: TData[]
+    totalCount?: number
 }
 
 export function DataTable<TData, TValue>({
     columns,
     data,
+    totalCount,
 }: DataTableProps<TData, TValue>) {
+    const searchParams = useSearchParams()
+    const router = useRouter()
+
     const [sorting, setSorting] = React.useState<SortingState>([])
     const [pagination, setPagination] = React.useState<PaginationState>({
-    pageIndex: 0,
-    pageSize: 5,
-  })
+        pageIndex: Number(searchParams.get("page")) - 1 || 0,
+        pageSize: Number(searchParams.get("pageSize")) || 10,
+    })
     const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
         []
     )
+    
     const table = useReactTable({
         data,
         columns,
         getCoreRowModel: getCoreRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
+        // Server-side pagination: do not paginate again client-side
+        manualPagination: true,
         onPaginationChange: setPagination,
         onSortingChange: setSorting,
         getSortedRowModel: getSortedRowModel(),
@@ -59,9 +76,18 @@ export function DataTable<TData, TValue>({
         },
     })
 
+    // Sync pagination to URL
+    React.useEffect(() => {
+        const params = new URLSearchParams(searchParams.toString())
+        params.set("page", String(pagination.pageIndex + 1))
+        params.set("pageSize", String(pagination.pageSize))
+        router.replace(`?${params.toString()}`)
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [pagination.pageIndex, pagination.pageSize])
+
     return (
         <div>
-            <div className="flex items-center py-4">
+            <div className="flex items-center justify-between py-3">
                 <Input
                     placeholder="Filter names..."
                     value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
@@ -70,10 +96,21 @@ export function DataTable<TData, TValue>({
                     }
                     className="max-w-sm"
                 />
+                <div className="flex items-center gap-2">
+                    <select
+                        className="flex h-9 w-[120px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        value={pagination.pageSize}
+                        onChange={(e) => table.setPageSize(Number(e.target.value))}
+                    >
+                        {[10, 25, 50, 100].map((size) => (
+                            <option key={size} value={size}>{size} / page</option>
+                        ))}
+                    </select>
+                </div>
             </div>
             <div className="overflow-hidden rounded-md border">
                 <Table>
-                    <TableHeader>
+                    <TableHeader className="sticky top-0 z-10 bg-background">
                         {table.getHeaderGroups().map((headerGroup) => (
                             <TableRow key={headerGroup.id}>
                                 {headerGroup.headers.map((header) => {
@@ -107,30 +144,90 @@ export function DataTable<TData, TValue>({
                             ))
                         ) : (
                             <TableRow>
-                                <TableCell colSpan={columns.length} className="h-24 text-center">
-                                    No results.
+                                <TableCell colSpan={columns.length} className="h-40 text-center">
+                                    <div className="flex flex-col items-center justify-center gap-2">
+                                        <div className="text-sm text-muted-foreground">No results</div>
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         )}
                     </TableBody>
                 </Table>
-                <div className="flex items-center justify-end space-x-2 py-4">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => table.previousPage()}
-                        disabled={!table.getCanPreviousPage()}
-                    >
-                        Previous
-                    </Button>
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => table.nextPage()}
-                        disabled={!table.getCanNextPage()}
-                    >
-                        Next
-                    </Button>
+                <div className="flex items-center justify-between py-4 px-3 text-sm text-muted-foreground">
+                    <div>
+                        {(() => {
+                            const total = totalCount ?? data.length
+                            const start = total === 0 ? 0 : pagination.pageIndex * pagination.pageSize + 1
+                            const end = total === 0 ? 0 : Math.min(start + (data.length || 0) - 1, total)
+                            return `Showing ${start}-${end} of ${total}`
+                        })()}
+                    </div>
+                    <div>
+                    <Pagination>
+                        <PaginationContent>
+                            <PaginationItem>
+                                <PaginationPrevious
+                                    onClick={() => table.setPageIndex(Math.max(0, pagination.pageIndex - 1))}
+                                    disabled={pagination.pageIndex === 0}
+                                >
+                                    Previous
+                                </PaginationPrevious>
+                            </PaginationItem>
+                            {
+                                (() => {
+                                    const pageCount = Math.max(1, Math.ceil((totalCount ?? data.length) / pagination.pageSize))
+                                    return Array.from({ length: pageCount }).map((_, index) => {
+                                    const isActive = table.getState().pagination.pageIndex === index
+                                    // Windowed pages if many pages
+                                    const total = pageCount
+                                    const current = table.getState().pagination.pageIndex
+                                    const show = index === 0 || index === total - 1 || Math.abs(index - current) <= 1
+                                    if (!show) {
+                                        if (index === 1 && current > 2) {
+                                            return (
+                                                <PaginationItem key={index}>
+                                                    <PaginationEllipsis />
+                                                </PaginationItem>
+                                            )
+                                        }
+                                        if (index === total - 2 && current < total - 3) {
+                                            return (
+                                                <PaginationItem key={index}>
+                                                    <PaginationEllipsis />
+                                                </PaginationItem>
+                                            )
+                                        }
+                                        return null
+                                    }
+                                    return (
+                                        <PaginationItem key={index}>
+                                            <PaginationLink
+                                                isActive={isActive}
+                                                onClick={() => table.setPageIndex(index)}
+                                            >
+                                                {index + 1}
+                                            </PaginationLink>
+                                        </PaginationItem>
+                                    )
+                                    })
+                                })()
+                            }
+                            <PaginationItem>
+                                <PaginationNext
+                                    onClick={() => table.setPageIndex(
+                                        Math.min(
+                                            Math.max(1, Math.ceil((totalCount ?? data.length) / pagination.pageSize)) - 1,
+                                            pagination.pageIndex + 1
+                                        )
+                                    )}
+                                    disabled={pagination.pageIndex >= Math.max(1, Math.ceil((totalCount ?? data.length) / pagination.pageSize)) - 1}
+                                >
+                                    Next
+                                </PaginationNext>
+                            </PaginationItem>
+                        </PaginationContent>
+                    </Pagination>
+                    </div>
                 </div>
             </div>
         </div>
