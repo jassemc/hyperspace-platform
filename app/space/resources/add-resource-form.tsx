@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useActionState } from "react"
+import { useState, useEffect, useActionState, useRef } from "react"
 import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -18,6 +18,7 @@ import { X } from "lucide-react"
 import { getResourceTypes } from "@/lib/service"
 import type { ResourceTypeDto, ResourceDto } from "@/lib/service/HsService"
 import { createResourceAction, updateResourceAction } from "./actions"
+import { toast } from "sonner"
 
 interface AddResourceFormProps {
   isOpen: boolean
@@ -50,12 +51,41 @@ export function AddResourceForm({ isOpen, onClose, editingResource }: Readonly<A
   const [createState, createFormAction] = useActionState(createResourceAction, {})
   const [updateState, updateFormAction] = useActionState(updateResourceAction, {})
 
-  // Close drawer on successful action
+  // Prevent duplicate toasts in StrictMode and across re-renders
+  const createNotifiedRef = useRef(false)
+  const updateNotifiedRef = useRef(false)
+
+  // Reset notification guards when the drawer opens
   useEffect(() => {
-    if (createState.success || updateState.success) {
-      onClose()
+    if (isOpen) {
+      createNotifiedRef.current = false
+      updateNotifiedRef.current = false
     }
-  }, [createState.success, updateState.success, onClose])
+  }, [isOpen])
+
+  // Close drawer and toast on successful action; toast errors when present (create)
+  useEffect(() => {
+    if (createState.success && !createNotifiedRef.current) {
+      createNotifiedRef.current = true
+      toast.success("Resource created")
+      onClose()
+    } else if (createState.error && !createNotifiedRef.current) {
+      createNotifiedRef.current = true
+      toast.error(createState.error)
+    }
+  }, [createState.success, createState.error, onClose])
+
+  // Close drawer and toast on successful action; toast errors when present (update)
+  useEffect(() => {
+    if (updateState.success && !updateNotifiedRef.current) {
+      updateNotifiedRef.current = true
+      toast.success("Resource updated")
+      onClose()
+    } else if (updateState.error && !updateNotifiedRef.current) {
+      updateNotifiedRef.current = true
+      toast.error(updateState.error)
+    }
+  }, [updateState.success, updateState.error, onClose])
 
   // Reset form state when drawer opens/closes or editing resource changes
   useEffect(() => {

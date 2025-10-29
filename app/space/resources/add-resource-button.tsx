@@ -14,10 +14,12 @@ export function AddResourceButton() {
         <Plus className="mr-2 h-4 w-4" />
         Add Resource
       </Button>
-      <AddResourceForm
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-      />
+      {isDrawerOpen && (
+        <AddResourceForm
+          isOpen={isDrawerOpen}
+          onClose={() => setIsDrawerOpen(false)}
+        />
+      )}
     </>
   )
 }
