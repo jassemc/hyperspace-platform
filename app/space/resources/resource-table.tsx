@@ -8,9 +8,10 @@ import { createColumns } from "./columns"
 
 interface ResourceTableProps {
   data: ResourceDto[]
+  totalCount?: number
 }
 
-export function ResourceTable({ data }: Readonly<ResourceTableProps>) {
+export function ResourceTable({ data, totalCount }: Readonly<ResourceTableProps>) {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false)
     const [editingResource, setEditingResource] = useState<ResourceDto | null>(null)
     
@@ -35,7 +36,7 @@ export function ResourceTable({ data }: Readonly<ResourceTableProps>) {
 
     return (
         <>
-            <DataTable columns={columns} data={optimisticResources} />
+            <DataTable columns={columns} data={optimisticResources} totalCount={typeof totalCount === 'number' ? totalCount : undefined} />
             <AddResourceForm
                 key={editingResource?.id || 'create'}
                 isOpen={isDrawerOpen}
