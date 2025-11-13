@@ -232,6 +232,11 @@ export const navigationConfig: NavigationConfig = {
             isActive: false,
             subMenus: [
                 {
+                    title: "Resource types",
+                    url: "/settings/resource-types",
+                    icon: Database,
+                },
+                {
                     title: "Profile",
                     url: "#",
                     icon: User,
