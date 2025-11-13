@@ -3,9 +3,10 @@ import { PageDto } from "@/lib/service/HsService";
 import type { GetResourcesParams, ResourceDto } from "@/lib/service/HsService";
 import { ResourceTable } from "./resource-table";
 
-export async function ResourceTableSection({ searchParams }: Readonly<{ searchParams?: Record<string, string | string[] | undefined> }>) {
-    const pageParam = Array.isArray(searchParams?.page) ? searchParams?.page[0] : searchParams?.page
-    const pageSizeParam = Array.isArray(searchParams?.pageSize) ? searchParams?.pageSize[0] : searchParams?.pageSize
+export async function ResourceTableSection({ searchParams }: Readonly<{ searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined> }>) {
+    const resolvedSearchParams = searchParams instanceof Promise ? await searchParams : searchParams
+    const pageParam = Array.isArray(resolvedSearchParams?.page) ? resolvedSearchParams?.page[0] : resolvedSearchParams?.page
+    const pageSizeParam = Array.isArray(resolvedSearchParams?.pageSize) ? resolvedSearchParams?.pageSize[0] : resolvedSearchParams?.pageSize
     const page = Number(pageParam) || 1
     const pageSize = Number(pageSizeParam) || 10
 

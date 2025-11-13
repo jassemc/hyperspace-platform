@@ -86,8 +86,8 @@ export function DataTable<TData, TValue>({
     }, [pagination.pageIndex, pagination.pageSize])
 
     return (
-        <div>
-            <div className="flex items-center justify-between py-3">
+        <div className="w-full">
+            <div className="flex items-center justify-between py-3 px-4">
                 <Input
                     placeholder="Filter names..."
                     value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
@@ -108,7 +108,7 @@ export function DataTable<TData, TValue>({
                     </select>
                 </div>
             </div>
-            <div className="overflow-hidden rounded-md border">
+            <div className="overflow-hidden rounded-md border mx-4">
                 <Table>
                     <TableHeader className="sticky top-0 z-10 bg-background">
                         {table.getHeaderGroups().map((headerGroup) => (
@@ -153,7 +153,7 @@ export function DataTable<TData, TValue>({
                         )}
                     </TableBody>
                 </Table>
-                <div className="flex items-center justify-between py-4 px-3 text-sm text-muted-foreground">
+                <div className="flex items-center justify-between py-4 px-4 text-sm text-muted-foreground">
                     <div>
                         {(() => {
                             const total = totalCount ?? data.length
