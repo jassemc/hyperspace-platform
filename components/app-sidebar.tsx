@@ -4,7 +4,7 @@ import * as React from "react"
 import { ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
 import { usePathname } from "next/navigation"
 
-import { NavUser } from "@/components/nav-user"
+import { SidebarLogoutButton } from "@/components/sidebar-logout-button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Button } from "@/components/ui/button"
 
@@ -30,18 +30,10 @@ import {
 } from "@/components/sidebar";
 import { cn } from "@/lib/utils"
 
-// User type
-type User = {
-  name: string;
-  email: string;
-  id: string;
-} | null;
-
 interface AppSidebarProps extends Readonly<React.ComponentProps<typeof Sidebar>> {
-  user: User;
 }
 
-export function AppSidebar({ user, ...props }: Readonly<AppSidebarProps>) {
+export function AppSidebar({ ...props }: Readonly<AppSidebarProps>) {
   const pathname = usePathname()
   const [activeItem, setActiveItem] = React.useState<MenuItem>(getDefaultActiveItem())
   const [subMenus, setSubMenus] = React.useState<SubMenuItem[]>(
@@ -188,7 +180,7 @@ export function AppSidebar({ user, ...props }: Readonly<AppSidebarProps>) {
             </SidebarGroup>
           </SidebarContent>
           <SidebarFooter>
-            <NavUser user={user} />
+            <SidebarLogoutButton />
           </SidebarFooter>
         </Sidebar>
       </Sidebar>
