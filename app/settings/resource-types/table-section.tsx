@@ -12,22 +12,14 @@ export async function ResourceTypeTableSection({ searchParams }: Readonly<{ sear
     const page = Number(pageParam) || 1
     const pageSize = Number(pageSizeParam) || 10
 
-    // Build search query from filters
-    // Combine both filters if present (backend should handle searching both fields)
-    const searchTerms: string[] = []
-    if (nameParam) {
-        searchTerms.push(nameParam)
-    }
-    if (typeParam) {
-        searchTerms.push(typeParam)
-    }
-    const searchQuery = searchTerms.length > 0 ? searchTerms.join(" ") : undefined
+
 
     const query: GetResourceTypesParams = {
         limit: pageSize,
         offset: (page - 1) * pageSize,
         sort: "ASC",
-        ...(searchQuery && { q: searchQuery }),
+        name: nameParam,
+        type: typeParam,
     }
 
     let results: ResourceTypeDto[] = []

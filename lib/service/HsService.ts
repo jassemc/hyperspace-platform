@@ -589,6 +589,8 @@ export interface GetResourceTypesParams {
   sort: Sort;
   /** The search term to filter results. */
   q?: string;
+  name?: string;
+  type?: string;
 }
 
 export interface GetAmenitiesParams {
@@ -810,6 +812,8 @@ export namespace Api {
       sort: Sort;
       /** The search term to filter results. */
       q?: string;
+      name?: string;
+      type?: string;
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
@@ -1876,33 +1880,33 @@ export class HsService<SecurityDataType extends unknown> {
           >;
         },
         | {
-            /** @example "error" */
-            status?: string;
-            /** @example {"database":{"status":"up"}} */
-            info?: Record<
-              string,
-              {
-                status: string;
-                [key: string]: any;
-              }
-            >;
-            /** @example {"redis":{"status":"down","message":"Could not connect"}} */
-            error?: Record<
-              string,
-              {
-                status: string;
-                [key: string]: any;
-              }
-            >;
-            /** @example {"database":{"status":"up"},"redis":{"status":"down","message":"Could not connect"}} */
-            details?: Record<
-              string,
-              {
-                status: string;
-                [key: string]: any;
-              }
-            >;
-          }
+          /** @example "error" */
+          status?: string;
+          /** @example {"database":{"status":"up"}} */
+          info?: Record<
+            string,
+            {
+              status: string;
+              [key: string]: any;
+            }
+          >;
+          /** @example {"redis":{"status":"down","message":"Could not connect"}} */
+          error?: Record<
+            string,
+            {
+              status: string;
+              [key: string]: any;
+            }
+          >;
+          /** @example {"database":{"status":"up"},"redis":{"status":"down","message":"Could not connect"}} */
+          details?: Record<
+            string,
+            {
+              status: string;
+              [key: string]: any;
+            }
+          >;
+        }
         | object
       >({
         path: `/health`,
