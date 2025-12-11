@@ -1,11 +1,11 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import type { ResourceTypeDto } from "@/lib/service/HsService"
 import type { ColumnDef } from "@tanstack/react-table"
 import { ArrowUpDown, Edit } from "lucide-react"
 import { DeleteButton } from "./delete-button"
+import { getIconFromFontAwesome } from "@/lib/icon-utils"
 
 interface ColumnsProps {
   onEdit: (resourceType: ResourceTypeDto) => void
@@ -29,7 +29,7 @@ export const createColumns = ({ onEdit }: ColumnsProps): ColumnDef<ResourceTypeD
         header: "Type",
         cell: ({ row }) => {
             const value = row.getValue<string>("type")
-            return <span className="capitalize">{value?.replaceAll("_", " ")}</span>
+            return <span>{value || "-"}</span>
         },
     },
     {
@@ -37,31 +37,8 @@ export const createColumns = ({ onEdit }: ColumnsProps): ColumnDef<ResourceTypeD
         header: "Icon",
         cell: ({ row }) => {
             const value = row.getValue<string>("icon")
-            return <span className="font-mono text-sm">{value || "-"}</span>
-        },
-    },
-    {
-        accessorKey: "canBook",
-        header: "Can Book",
-        cell: ({ row }) => {
-            const value = row.getValue<boolean>("canBook")
-            return (
-                <Badge variant={value ? "default" : "secondary"}>
-                    {value ? "Yes" : "No"}
-                </Badge>
-            )
-        },
-    },
-    {
-        accessorKey: "canAssign",
-        header: "Can Assign",
-        cell: ({ row }) => {
-            const value = row.getValue<boolean>("canAssign")
-            return (
-                <Badge variant={value ? "default" : "secondary"}>
-                    {value ? "Yes" : "No"}
-                </Badge>
-            )
+            const IconComponent = getIconFromFontAwesome(value)
+            return <IconComponent className="h-5 w-5" />
         },
     },
     {

@@ -7,13 +7,27 @@ export async function ResourceTypeTableSection({ searchParams }: Readonly<{ sear
     const resolvedSearchParams = searchParams instanceof Promise ? await searchParams : searchParams
     const pageParam = Array.isArray(resolvedSearchParams?.page) ? resolvedSearchParams?.page[0] : resolvedSearchParams?.page
     const pageSizeParam = Array.isArray(resolvedSearchParams?.pageSize) ? resolvedSearchParams?.pageSize[0] : resolvedSearchParams?.pageSize
+    const nameParam = Array.isArray(resolvedSearchParams?.name) ? resolvedSearchParams?.name[0] : resolvedSearchParams?.name
+    const typeParam = Array.isArray(resolvedSearchParams?.type) ? resolvedSearchParams?.type[0] : resolvedSearchParams?.type
     const page = Number(pageParam) || 1
     const pageSize = Number(pageSizeParam) || 10
+
+    // Build search query from filters
+    // Combine both filters if present (backend should handle searching both fields)
+    const searchTerms: string[] = []
+    if (nameParam) {
+        searchTerms.push(nameParam)
+    }
+    if (typeParam) {
+        searchTerms.push(typeParam)
+    }
+    const searchQuery = searchTerms.length > 0 ? searchTerms.join(" ") : undefined
 
     const query: GetResourceTypesParams = {
         limit: pageSize,
         offset: (page - 1) * pageSize,
         sort: "ASC",
+        ...(searchQuery && { q: searchQuery }),
     }
 
     let results: ResourceTypeDto[] = []

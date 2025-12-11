@@ -36,7 +36,12 @@ export function ResourceTypeTable({ data, totalCount }: Readonly<ResourceTypeTab
 
     return (
         <>
-            <DataTable columns={columns} data={optimisticResourceTypes} totalCount={typeof totalCount === 'number' ? totalCount : undefined} />
+            <DataTable 
+                columns={columns} 
+                data={optimisticResourceTypes} 
+                totalCount={typeof totalCount === 'number' ? totalCount : undefined}
+                showTypeFilter={true}
+            />
             <AddResourceTypeForm
                 key={editingResourceType?.id || 'create'}
                 isOpen={isDrawerOpen}
