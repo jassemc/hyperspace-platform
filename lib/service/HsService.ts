@@ -570,6 +570,7 @@ export interface GetResourcesParams {
   sort: Sort;
   /** The search term to filter results. */
   q?: string;
+  status?: string;
 }
 
 export interface GetResourceTypesParams {
@@ -667,6 +668,7 @@ export namespace Api {
       sort: Sort;
       /** The search term to filter results. */
       q?: string;
+      status?: string;
     };
     export type RequestBody = never;
     export type RequestHeaders = {};

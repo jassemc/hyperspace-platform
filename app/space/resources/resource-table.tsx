@@ -7,14 +7,14 @@ import type { ResourceDto } from "@/lib/service/HsService"
 import { createColumns } from "./columns"
 
 interface ResourceTableProps {
-  data: ResourceDto[]
-  totalCount?: number
+    data: ResourceDto[]
+    totalCount?: number
 }
 
 export function ResourceTable({ data, totalCount }: Readonly<ResourceTableProps>) {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false)
     const [editingResource, setEditingResource] = useState<ResourceDto | null>(null)
-    
+
     const [optimisticResources] = useOptimistic(
         data,
         (state, newResource: ResourceDto) => [...state, newResource]
@@ -36,7 +36,7 @@ export function ResourceTable({ data, totalCount }: Readonly<ResourceTableProps>
 
     return (
         <>
-            <DataTable columns={columns} data={optimisticResources} totalCount={typeof totalCount === 'number' ? totalCount : undefined} />
+            <DataTable columns={columns} data={optimisticResources} totalCount={typeof totalCount === 'number' ? totalCount : undefined} showStatusTabs={true} />
             <AddResourceForm
                 key={editingResource?.id || 'create'}
                 isOpen={isDrawerOpen}

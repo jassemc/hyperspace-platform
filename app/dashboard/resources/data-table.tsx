@@ -1,5 +1,5 @@
 "use client"
-
+import { cn } from "@/lib/utils"
 import {
     ColumnDef,
     ColumnFiltersState,
@@ -32,12 +32,14 @@ import {
     PaginationNext,
     PaginationEllipsis,
 } from "@/components/ui/pagination"
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
     data: TData[]
     totalCount?: number
     showTypeFilter?: boolean
+    showStatusTabs?: boolean
 }
 
 export function DataTable<TData, TValue>({
@@ -45,6 +47,7 @@ export function DataTable<TData, TValue>({
     data,
     totalCount,
     showTypeFilter = false,
+    showStatusTabs = false,
 }: DataTableProps<TData, TValue>) {
     const searchParams = useSearchParams()
     const router = useRouter()
@@ -171,6 +174,33 @@ export function DataTable<TData, TValue>({
                     </select>
                 </div>
             </div>
+            {showStatusTabs && (
+                <div className="px-4 pb-4">
+                    <Tabs
+                        defaultValue={searchParams.get("status") || "all"}
+                        onValueChange={(value) => {
+                            const params = new URLSearchParams(searchParams.toString())
+                            if (value && value !== "all") {
+                                params.set("status", value)
+                            } else {
+                                params.delete("status")
+                            }
+                            params.set("page", "1") // Reset to page 1 on filter change
+                            router.push(`?${params.toString()}`)
+                        }}
+                        className="w-full"
+                    >
+                        <TabsList className="w-full justify-start overflow-x-auto">
+                            <TabsTrigger value="all">All</TabsTrigger>
+                            <TabsTrigger value="AVAILABLE">Available</TabsTrigger>
+                            <TabsTrigger value="OCCUPIED">Occupied</TabsTrigger>
+                            <TabsTrigger value="UNAVAILABLE">Unavailable</TabsTrigger>
+                            <TabsTrigger value="AVAILABLE_SOON">Available Soon</TabsTrigger>
+                            <TabsTrigger value="RESERVED">Reserved</TabsTrigger>
+                        </TabsList>
+                    </Tabs>
+                </div>
+            )}
             <div className="overflow-hidden rounded-md border mx-4">
                 <Table>
                     <TableHeader className="sticky top-0 z-10 bg-background">
