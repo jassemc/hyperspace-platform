@@ -25,14 +25,15 @@ export async function MemberTableSection({
 
   const page = Number(firstParam(resolvedSearchParams?.page)) || 1
   const pageSize = Number(firstParam(resolvedSearchParams?.pageSize)) || 10
-  const statusParam = firstParam(resolvedSearchParams?.status) as MemberStatus | undefined
+  const kindHintParam = firstParam(resolvedSearchParams?.status) as MemberStatus | undefined
   const searchQuery = firstParam(resolvedSearchParams?.name)
 
   const query: ListMembersParams = {
-    limit: statusParam ? 1000 : pageSize,
-    offset: statusParam ? 0 : (page - 1) * pageSize,
+    limit: pageSize,
+    offset: (page - 1) * pageSize,
     sort: "ASC",
     q: searchQuery || undefined,
+    kindHint: kindHintParam,
   }
 
   let results: MemberDto[] = []
@@ -40,17 +41,8 @@ export async function MemberTableSection({
 
   try {
     const response = (await getListMembers(query)) as MembersPage
-    let allResults = response.results ?? []
-
-    if (statusParam) {
-      allResults = allResults.filter((member) => member.status === statusParam)
-      total = allResults.length
-      const start = (page - 1) * pageSize
-      results = allResults.slice(start, start + pageSize)
-    } else {
-      results = allResults
-      total = response.meta?.totalItems ?? results.length
-    }
+    results = response.results ?? []
+    total = response.meta?.totalItems ?? results.length
   } catch (error) {
     console.warn("Failed to load members", error)
   }
