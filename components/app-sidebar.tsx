@@ -28,12 +28,11 @@ import {
   SidebarHeader,
   useSidebar,
 } from "@/components/sidebar";
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
-interface AppSidebarProps extends Readonly<React.ComponentProps<typeof Sidebar>> {
-}
+type AppSidebarProps = Readonly<React.ComponentProps<typeof Sidebar>>
 
-export function AppSidebar({ ...props }: Readonly<AppSidebarProps>) {
+export function AppSidebar({ ...props }: AppSidebarProps) {
   const pathname = usePathname()
   const [activeItem, setActiveItem] = React.useState<MenuItem>(getDefaultActiveItem())
   const [subMenus, setSubMenus] = React.useState<SubMenuItem[]>(

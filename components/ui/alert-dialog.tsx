@@ -12,8 +12,8 @@ function AlertDialogTrigger({ ...props }: React.ComponentProps<typeof DialogPrim
   return <DialogPrimitive.Trigger data-slot="alert-dialog-trigger" {...props} />
 }
 
-function AlertDialogPortal({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Portal> & { className?: string }) {
-  return <DialogPrimitive.Portal className={className} {...props} />
+function AlertDialogPortal({ ...props }: React.ComponentProps<typeof DialogPrimitive.Portal>) {
+  return <DialogPrimitive.Portal {...props} />
 }
 
 function AlertDialogOverlay({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
