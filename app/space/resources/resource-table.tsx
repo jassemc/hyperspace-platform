@@ -36,7 +36,7 @@ export function ResourceTable({ data, totalCount }: Readonly<ResourceTableProps>
 
     return (
         <>
-            <DataTable columns={columns} data={optimisticResources} totalCount={typeof totalCount === 'number' ? totalCount : undefined} showStatusTabs={true} />
+            <DataTable columns={columns} data={optimisticResources} totalCount={typeof totalCount === 'number' ? totalCount : undefined} showTypeFilter={true} />
             <AddResourceForm
                 key={editingResource?.id || 'create'}
                 isOpen={isDrawerOpen}

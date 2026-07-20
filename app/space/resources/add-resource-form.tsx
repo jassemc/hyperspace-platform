@@ -15,8 +15,8 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer"
 import { X } from "lucide-react"
-import { getResourceTypes } from "@/lib/service"
-import type { ResourceTypeDto, ResourceDto } from "@/lib/service/HsService"
+import { getListResourceTypes, getListLocations } from "@/lib/service"
+import type { ResourceTypeDto, ResourceDto, ListResourceTypesParams, LocationDto } from "@/lib/service/HsService"
 import { createResourceAction, updateResourceAction } from "./actions"
 import { toast } from "sonner"
 
@@ -44,9 +44,12 @@ function SubmitButton({ editingResource }: Readonly<{ editingResource?: Resource
 }
 
 export function AddResourceForm({ isOpen, onClose, editingResource }: Readonly<AddResourceFormProps>) {
+  const [locations, setLocations] = useState<LocationDto[]>([])
   const [resourceTypes, setResourceTypes] = useState<ResourceTypeDto[]>([])
+  const [isLoadingLocations, setIsLoadingLocations] = useState(false)
   const [isLoadingTypes, setIsLoadingTypes] = useState(false)
-  const [selectedType, setSelectedType] = useState(editingResource?.type || "")
+  const [selectedLocation, setSelectedLocation] = useState("")
+  const [selectedType, setSelectedType] = useState("")
 
   const [createState, createFormAction] = useActionState(createResourceAction, {})
   const [updateState, updateFormAction] = useActionState(updateResourceAction, {})
@@ -91,7 +94,7 @@ export function AddResourceForm({ isOpen, onClose, editingResource }: Readonly<A
   useEffect(() => {
     if (isOpen) {
       // Set selected type when drawer opens for editing
-      setSelectedType(editingResource?.type || "")
+      setSelectedType(editingResource?.resourceTypeId || "")
     } else {
       // Reset states when drawer closes
       setResourceTypes([])
@@ -99,21 +102,39 @@ export function AddResourceForm({ isOpen, onClose, editingResource }: Readonly<A
     }
   }, [isOpen, editingResource])
 
-  // Fetch resource types when drawer opens
+  // Fetch locations and resource types when drawer opens
   useEffect(() => {
     if (isOpen) {
+      fetchLocations()
       fetchResourceTypes()
     }
   }, [isOpen])
 
-  const fetchResourceTypes = async () => {
-    setIsLoadingTypes(true)
+  const fetchLocations = async () => {
+    setIsLoadingLocations(true)
     try {
-      const response = await getResourceTypes({
+      const response = await getListLocations({
         limit: 100,
         offset: 0,
         sort: "ASC"
       })
+      setLocations(response.results || [])
+    } catch (err) {
+      console.error("Failed to fetch locations:", err)
+    } finally {
+      setIsLoadingLocations(false)
+    }
+  }
+
+  const fetchResourceTypes = async () => {
+    setIsLoadingTypes(true)
+    try {
+      const query: ListResourceTypesParams = {
+        limit: 100,
+        offset: 0,
+        sort: "ASC"
+      }
+      const response = await getListResourceTypes(query)
       setResourceTypes(response.results || [])
     } catch (err) {
       console.error("Failed to fetch resource types:", err)
@@ -153,6 +174,25 @@ export function AddResourceForm({ isOpen, onClose, editingResource }: Readonly<A
               )}
               <div className="space-y-6">
                 <div className="grid gap-2">
+                  <Label htmlFor="locationId">Location</Label>
+                  <select
+                    id="locationId"
+                    name="locationId"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                    value={selectedLocation}
+                    onChange={(e) => setSelectedLocation(e.target.value)}
+                    required
+                    disabled={isLoadingLocations}
+                  >
+                    <option value="">{isLoadingLocations ? "Loading locations..." : "Select location"}</option>
+                    {locations.map((location) => (
+                      <option key={location.id} value={location.id}>
+                        {location.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="grid gap-2">
                   <Label htmlFor="name">Name</Label>
                   <Input
                     id="name"
@@ -172,10 +212,10 @@ export function AddResourceForm({ isOpen, onClose, editingResource }: Readonly<A
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="type">Type</Label>
+                  <Label htmlFor="resourceTypeId">Type</Label>
                   <select
-                    id="type"
-                    name="type"
+                    id="resourceTypeId"
+                    name="resourceTypeId"
                     className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                     value={selectedType}
                     onChange={(e) => setSelectedType(e.target.value)}
@@ -184,8 +224,8 @@ export function AddResourceForm({ isOpen, onClose, editingResource }: Readonly<A
                   >
                     <option value="">{isLoadingTypes ? "Loading types..." : "Select resource type"}</option>
                     {resourceTypes.map((type) => (
-                      <option key={type.id} value={type.type}>
-                        {type.name} ({type.type})
+                      <option key={type.id} value={type.id}>
+                        {type.name} ({type.slug})
                       </option>
                     ))}
                   </select>
@@ -201,21 +241,6 @@ export function AddResourceForm({ isOpen, onClose, editingResource }: Readonly<A
                     defaultValue={editingResource?.capacity || 1}
                     required
                   />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="status">Status</Label>
-                  <select
-                    id="status"
-                    name="status"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    defaultValue={editingResource?.status || "AVAILABLE"}
-                  >
-                    <option value="AVAILABLE">Available</option>
-                    <option value="OCCUPIED">Occupied</option>
-                    <option value="UNAVAILABLE">Unavailable</option>
-                    <option value="AVAILABLE_SOON">Available Soon</option>
-                    <option value="RESERVED">Reserved</option>
-                  </select>
                 </div>
                 {currentState.error && (
                   <div className="text-sm text-red-600">

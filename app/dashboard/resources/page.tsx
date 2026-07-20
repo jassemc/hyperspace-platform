@@ -3,23 +3,23 @@ import { TabsContent } from "@radix-ui/react-tabs";
 import { columns } from "./resources";
 import { DataTable } from "./data-table";
 
-import { getResources, } from "@/lib/service";
+import { getListResources } from "@/lib/service";
 import { PageDto } from "@/lib/service/HsService";
 
-import type { GetResourcesParams, ResourceDto, } from "@/lib/service/HsService";
+import type { ListResourcesParams, ResourceDto, } from "@/lib/service/HsService";
 
 async function getData(): Promise<ResourceDto[]> {
     const query = {
         limit: 10,
         offset: 0,
         sort: "ASC",
-    } as GetResourcesParams;
+    } as ListResourcesParams;
 
     const data: PageDto & {
         results?: Array<ResourceDto>;
-    } = await getResources(query);
+    } = await getListResources(query);
 
-    return data.results;
+    return data.results ?? [];
 }
 
 export default async function ResourcesPage() {

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Trash2 } from "lucide-react"
 import { deleteResourceAction } from "./actions"
 import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -22,12 +23,15 @@ interface DeleteButtonProps {
 }
 
 export function DeleteButton({ resourceId, resourceName }: Readonly<DeleteButtonProps>) {
+  const router = useRouter()
+
   const onConfirm = async () => {
     const formData = new FormData()
     formData.append("id", resourceId)
     const result = await deleteResourceAction({}, formData)
     if (result?.success) {
       toast.success("Resource deleted")
+      router.refresh()
     } else if (result?.error) {
       toast.error(result.error)
     } else {
@@ -50,7 +54,7 @@ export function DeleteButton({ resourceId, resourceName }: Readonly<DeleteButton
         <AlertDialogHeader>
           <AlertDialogTitle>Delete resource</AlertDialogTitle>
           <AlertDialogDescription>
-            Are you sure you want to delete "{resourceName}"? This action cannot be undone.
+            Are you sure you want to delete  &quot;{resourceName} &quot;? This action cannot be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

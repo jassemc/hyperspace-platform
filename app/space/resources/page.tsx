@@ -13,7 +13,7 @@ export default async function SpaceResourcesPage({ searchParams }: Readonly<{ se
                 <h1 className="text-5xl font-semibold">Resources</h1>
                 <AddResourceButton />
             </div>
-            <SectionCards className="mb-4"/>
+            <SectionCards />
             <Suspense fallback={<TableSkeleton rows={10} />}>
                 <ResourceTableSection searchParams={resolvedSearchParams} />
             </Suspense>

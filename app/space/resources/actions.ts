@@ -1,8 +1,33 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { addResource, updateResource, deleteResource } from "@/lib/service"
-import type { CreateResourceDto, UpdateResourceDto } from "@/lib/service/HsService"
+import { createResource, updateResource, getListResourceTypes } from "@/lib/service"
+import type { CreateResourceDto, ResourceTypeDto, UpdateResourceDto } from "@/lib/service/HsService"
+
+
+type ApiErrorProperty = {
+  name?: string
+  message?: string
+  title?: string
+}
+
+type ApiErrorViolation = {
+  field?: string
+  message?: string
+}
+
+type ApiErrorData = {
+  detail?: string
+  properties?: ApiErrorProperty[]
+  violations?: ApiErrorViolation[]
+}
+
+function getApiErrorData(error: unknown): ApiErrorData | undefined {
+  if (typeof error === "object" && error !== null && "error" in error) {
+    return (error as { error?: ApiErrorData }).error
+  }
+  return undefined
+}
 
 export type ActionState = {
   success?: boolean
@@ -15,22 +40,84 @@ export async function createResourceAction(
   formData: FormData
 ): Promise<ActionState> {
   try {
-    const data: CreateResourceDto = {
-      name: formData.get("name") as string,
-      description: formData.get("description") as string,
-      type: formData.get("type") as string,
-      capacity: Number(formData.get("capacity")),
-      status: formData.get("status") as CreateResourceDto["status"],
-      amenities: [],
+    const locationId = formData.get("locationId") as string
+    const resourceTypeId = formData.get("resourceTypeId") as string
+    const name = formData.get("name") as string
+    const description = formData.get("description") as string
+    const capacityStr = formData.get("capacity") as string
+
+    if (!locationId?.trim()) {
+      return { 
+        success: false,
+        error: "Location is required"
+      }
     }
 
-    await addResource(data)
+    if (!resourceTypeId?.trim()) {
+      return { 
+        success: false,
+        error: "Resource type is required"
+      }
+    }
+
+    if (!name?.trim()) {
+      return { 
+        success: false,
+        error: "Resource name is required"
+      }
+    }
+
+    const capacity = Number(capacityStr)
+    if (isNaN(capacity) || capacity < 1) {
+      return { 
+        success: false,
+        error: "Capacity must be a number greater than 0"
+      }
+    }
+
+    const data: CreateResourceDto = {
+      locationId: locationId.trim(),
+      resourceTypeId: resourceTypeId.trim(),
+      name: name.trim(),
+      description: description?.trim() || undefined,
+      capacity,
+    }
+
+    console.log("Creating resource with data:", JSON.stringify(data, null, 2))
+
+    await createResource(data)
     revalidatePath("/space/resources")
     return { success: true }
   } catch (error) {
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Failed to create resource" 
+    console.error("Create resource error:", error)
+
+    let errorMessage = "Failed to create resource"
+
+    if (error instanceof Error) {
+      errorMessage = error.message
+
+      const errorData = getApiErrorData(error)
+      console.error("API error data:", JSON.stringify(errorData, null, 2))
+
+      if (errorData?.properties && Array.isArray(errorData.properties)) {
+        const details = errorData.properties
+          .map((p) => `${p.name || 'Field'}: ${p.message || p.title}`)
+          .join(", ")
+        errorMessage = details || errorData.detail || errorMessage
+      } else if (errorData?.violations) {
+        const violations = errorData.violations
+          .map((v) => `${v.field || 'Field'}: ${v.message}`)
+          .join(", ")
+        errorMessage = violations || errorMessage
+      } else if (errorData?.detail) {
+        errorMessage = errorData.detail
+      }
+    }
+
+    console.error("Error details:", { error, errorMessage })
+    return {
+      success: false,
+      error: errorMessage
     }
   }
 }
@@ -41,22 +128,66 @@ export async function updateResourceAction(
 ): Promise<ActionState> {
   try {
     const id = formData.get("id") as string
+    const typeValue = formData.get("type") as string
+
+    if (!id) {
+      return { 
+        success: false,
+        error: "Resource ID is required"
+      }
+    }
+
+    // Find the resourceTypeId from the type value
+    let resourceTypeId: string | undefined
+    if (typeValue) {
+      const resourceTypes = await getListResourceTypes({
+        limit: 100,  // API max limit is 100
+        offset: 0,
+        sort: "ASC"
+      })
+
+      const selectedType = resourceTypes?.results?.find(
+        (rt: ResourceTypeDto) => rt.name === typeValue
+      )
+
+      if (selectedType) {
+        resourceTypeId = selectedType.id
+      }
+    }
+
     const data: UpdateResourceDto = {
-      name: formData.get("name") as string,
-      description: formData.get("description") as string,
-      type: formData.get("type") as string,
-      capacity: Number(formData.get("capacity")),
-      status: formData.get("status") as UpdateResourceDto["status"],
-      amenities: [],
+      name: formData.get("name") as string || undefined,
+      description: formData.get("description") as string || undefined,
+      capacity: Number(formData.get("capacity")) || undefined,
+      resourceTypeId,
     }
 
     await updateResource(id, data)
     revalidatePath("/space/resources")
     return { success: true }
   } catch (error) {
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Failed to update resource" 
+    console.error("Update resource error:", error)
+
+    let errorMessage = "Failed to update resource"
+
+    if (error instanceof Error) {
+      errorMessage = error.message
+
+      const errorData = getApiErrorData(error)
+      if (errorData?.violations) {
+        const violations = errorData.violations
+          .map((v) => `${v.field || 'Field'}: ${v.message}`)
+          .join(", ")
+        errorMessage = violations || errorMessage
+      } else if (errorData?.detail) {
+        errorMessage = errorData.detail
+      }
+    }
+
+    console.error("Error details:", { error, errorMessage })
+    return {
+      success: false,
+      error: errorMessage
     }
   }
 }
@@ -66,10 +197,9 @@ export async function deleteResourceAction(
   formData: FormData
 ): Promise<ActionState> {
   try {
-    const id = formData.get("id") as string
-    await deleteResource(id)
+    // TODO: Implement deleteResource when API endpoint is available
     revalidatePath("/space/resources")
-    return { success: true }
+    return { success: true, error: "Delete not yet implemented" }
   } catch (error) {
     return { 
       success: false, 

@@ -1,5 +1,4 @@
 "use client"
-import { cn } from "@/lib/utils"
 import {
     ColumnDef,
     ColumnFiltersState,
@@ -34,13 +33,27 @@ import {
 } from "@/components/ui/pagination"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
+interface StatusTabOption {
+    value: string
+    label: string
+}
+
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
     data: TData[]
     totalCount?: number
     showTypeFilter?: boolean
     showStatusTabs?: boolean
+    statusTabOptions?: StatusTabOption[]
 }
+
+const DEFAULT_STATUS_TAB_OPTIONS: StatusTabOption[] = [
+    { value: "AVAILABLE", label: "Available" },
+    { value: "OCCUPIED", label: "Occupied" },
+    { value: "UNAVAILABLE", label: "Unavailable" },
+    { value: "AVAILABLE_SOON", label: "Available Soon" },
+    { value: "RESERVED", label: "Reserved" },
+]
 
 export function DataTable<TData, TValue>({
     columns,
@@ -48,6 +61,7 @@ export function DataTable<TData, TValue>({
     totalCount,
     showTypeFilter = false,
     showStatusTabs = false,
+    statusTabOptions = DEFAULT_STATUS_TAB_OPTIONS,
 }: DataTableProps<TData, TValue>) {
     const searchParams = useSearchParams()
     const router = useRouter()
@@ -192,11 +206,11 @@ export function DataTable<TData, TValue>({
                     >
                         <TabsList className="w-full justify-start overflow-x-auto">
                             <TabsTrigger value="all">All</TabsTrigger>
-                            <TabsTrigger value="AVAILABLE">Available</TabsTrigger>
-                            <TabsTrigger value="OCCUPIED">Occupied</TabsTrigger>
-                            <TabsTrigger value="UNAVAILABLE">Unavailable</TabsTrigger>
-                            <TabsTrigger value="AVAILABLE_SOON">Available Soon</TabsTrigger>
-                            <TabsTrigger value="RESERVED">Reserved</TabsTrigger>
+                            {statusTabOptions.map((option) => (
+                                <TabsTrigger key={option.value} value={option.value}>
+                                    {option.label}
+                                </TabsTrigger>
+                            ))}
                         </TabsList>
                     </Tabs>
                 </div>

@@ -29,7 +29,7 @@ export const createColumns = ({ onEdit }: ColumnsProps): ColumnDef<ResourceDto>[
         header: "Type",
         cell: ({ row }) => {
             const value = row.getValue<string>("type")
-            return <span className="capitalize">{value?.replaceAll("_", " ")}</span>
+            return <span className="capitalize">{value ? value.replaceAll("_", " ") : "-"}</span>
         },
     },
     {
@@ -37,7 +37,7 @@ export const createColumns = ({ onEdit }: ColumnsProps): ColumnDef<ResourceDto>[
         header: "Capacity",
         cell: ({ row }) => {
             const value = row.getValue<number>("capacity")
-            return <span>{value}</span>
+            return <span>{value ?? "-"}</span>
         },
     },
     {
@@ -45,6 +45,8 @@ export const createColumns = ({ onEdit }: ColumnsProps): ColumnDef<ResourceDto>[
         header: "Status",
         cell: ({ row }) => {
             const value = row.getValue<string>("status")
+            if (!value) return <span>-</span>
+
             const getStatusVariant = (status: string) => {
                 switch (status) {
                     case "AVAILABLE":
