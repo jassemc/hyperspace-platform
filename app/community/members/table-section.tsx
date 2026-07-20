@@ -1,5 +1,5 @@
 import { getListMembers } from "@/lib/service"
-import type { ListMembersParams, MemberDto, MemberStatus } from "@/lib/service/HsService"
+import type { ListMembersParams, MemberDto, MemberKindHint } from "@/lib/service/HsService"
 import { MemberTable } from "./member-table"
 
 type MembersPage = {
@@ -25,7 +25,7 @@ export async function MemberTableSection({
 
   const page = Number(firstParam(resolvedSearchParams?.page)) || 1
   const pageSize = Number(firstParam(resolvedSearchParams?.pageSize)) || 10
-  const kindHintParam = firstParam(resolvedSearchParams?.status) as MemberStatus | undefined
+  const kindHintParam = firstParam(resolvedSearchParams?.status) as MemberKindHint | undefined
   const searchQuery = firstParam(resolvedSearchParams?.name)
 
   const query: ListMembersParams = {
