@@ -43,8 +43,6 @@ function SubmitButton({ editingResourceType }: Readonly<{ editingResourceType?: 
 }
 
 export function AddResourceTypeForm({ isOpen, onClose, editingResourceType }: Readonly<AddResourceTypeFormProps>) {
-  const [canBook, setCanBook] = useState(editingResourceType?.canBook ?? false)
-  const [canAssign, setCanAssign] = useState(editingResourceType?.canAssign ?? false)
 
   const [createState, createFormAction] = useActionState(createResourceTypeAction, {})
   const [updateState, updateFormAction] = useActionState(updateResourceTypeAction, {})
@@ -58,8 +56,6 @@ export function AddResourceTypeForm({ isOpen, onClose, editingResourceType }: Re
     if (isOpen) {
       createNotifiedRef.current = false
       updateNotifiedRef.current = false
-      setCanBook(editingResourceType?.canBook ?? false)
-      setCanAssign(editingResourceType?.canAssign ?? false)
     }
   }, [isOpen, editingResourceType])
 
@@ -86,14 +82,6 @@ export function AddResourceTypeForm({ isOpen, onClose, editingResourceType }: Re
       toast.error(updateState.error)
     }
   }, [updateState.success, updateState.error, onClose])
-
-  // Reset form state when drawer closes
-  useEffect(() => {
-    if (!isOpen) {
-      setCanBook(false)
-      setCanAssign(false)
-    }
-  }, [isOpen])
 
   const currentState = editingResourceType ? updateState : createState
   const formAction = editingResourceType ? updateFormAction : createFormAction
@@ -136,77 +124,15 @@ export function AddResourceTypeForm({ isOpen, onClose, editingResourceType }: Re
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="description">Description</Label>
+                  <Label htmlFor="slug">Slug Key</Label>
                   <Input
-                    id="description"
-                    name="description"
-                    placeholder="Resource type description"
-                    defaultValue={editingResourceType?.description || ""}
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="type">Type Key</Label>
-                  <Input
-                    id="type"
-                    name="type"
+                    id="slug"
+                    name="slug"
                     placeholder="meeting_room"
-                    defaultValue={editingResourceType?.type || ""}
+                    defaultValue={editingResourceType?.slug || ""}
                     required
                   />
                   <p className="text-xs text-muted-foreground">Unique key (e.g., meeting_room, office)</p>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="icon">Icon</Label>
-                  <Input
-                    id="icon"
-                    name="icon"
-                    placeholder="fa-building"
-                    defaultValue={editingResourceType?.icon || ""}
-                    required
-                  />
-                  <p className="text-xs text-muted-foreground">Icon class name (e.g., fa-building)</p>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="canBook">Can Book</Label>
-                  <select
-                    id="canBook"
-                    name="canBook"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    value={canBook ? "true" : "false"}
-                    onChange={(e) => setCanBook(e.target.value === "true")}
-                  >
-                    <option value="false">No</option>
-                    <option value="true">Yes</option>
-                  </select>
-                </div>
-                {canBook ? (
-                  <div className="grid gap-2">
-                    <Label htmlFor="bookingMode">Booking Mode</Label>
-                    <select
-                      id="bookingMode"
-                      name="bookingMode"
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      defaultValue={editingResourceType?.bookingMode || "DATE"}
-                    >
-                      <option value="DATE">Date</option>
-                      <option value="TIME">Time</option>
-                    </select>
-                  </div>
-                ) : (
-                  <input type="hidden" name="bookingMode" value={editingResourceType?.bookingMode || "DATE"} />
-                )}
-                <div className="grid gap-2">
-                  <Label htmlFor="canAssign">Can Assign</Label>
-                  <select
-                    id="canAssign"
-                    name="canAssign"
-                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    value={canAssign ? "true" : "false"}
-                    onChange={(e) => setCanAssign(e.target.value === "true")}
-                  >
-                    <option value="false">No</option>
-                    <option value="true">Yes</option>
-                  </select>
                 </div>
                 {currentState.error && (
                   <div className="text-sm text-red-600">

@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button"
 import type { ResourceTypeDto } from "@/lib/service/HsService"
 import type { ColumnDef } from "@tanstack/react-table"
 import { ArrowUpDown, Edit } from "lucide-react"
-import { DeleteButton } from "./delete-button"
 import { getIconFromFontAwesome } from "@/lib/icon-utils"
 
 interface ColumnsProps {
@@ -65,7 +64,6 @@ export const createColumns = ({ onEdit }: ColumnsProps): ColumnDef<ResourceTypeD
                     >
                         <Edit className="h-4 w-4" />
                     </Button>
-                    <DeleteButton resourceTypeId={resourceType.id} resourceTypeName={resourceType.name} />
                 </div>
             )
         },
