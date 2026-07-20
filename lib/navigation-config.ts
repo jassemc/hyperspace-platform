@@ -106,13 +106,8 @@ export const navigationConfig: NavigationConfig = {
             subMenus: [
                 {
                     title: "Members",
-                    url: "#",
+                    url: "/community/members",
                     icon: Users,
-                    items: [
-                        { title: "View All Members", url: "#" },
-                        { title: "Add Member", url: "#" },
-                        { title: "Member Roles", url: "#" },
-                    ]
                 },
                 {
                     title: "Discussions",
