@@ -152,6 +152,11 @@ export const navigationConfig: NavigationConfig = {
                     icon: Database,
                 },
                 {
+                    title: "Plan",
+                    url: "/space/plan",
+                    icon: Calendar,
+                },
+                {
                     title: "Availability",
                     url: "#",
                     icon: Clock,
