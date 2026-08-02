@@ -125,6 +125,10 @@ export function DataTable<TData, TValue>({
         },
     })
 
+    const getTableColumn = React.useCallback((id: string) => {
+        return table.getAllFlatColumns().find((column) => column.id === id)
+    }, [table])
+
     // Sync pagination and filters to URL
     React.useEffect(() => {
         const params = new URLSearchParams(searchParams.toString())
@@ -132,7 +136,7 @@ export function DataTable<TData, TValue>({
         params.set("pageSize", String(pagination.pageSize))
 
         // Sync name filter
-        const nameFilter = table.getColumn("name")?.getFilterValue() as string
+        const nameFilter = getTableColumn("name")?.getFilterValue() as string
         if (nameFilter) {
             params.set("name", nameFilter)
         } else {
@@ -141,7 +145,7 @@ export function DataTable<TData, TValue>({
 
         // Sync type filter if enabled
         if (showTypeFilter) {
-            const typeFilter = table.getColumn("type")?.getFilterValue() as string
+            const typeFilter = getTableColumn("type")?.getFilterValue() as string
             if (typeFilter) {
                 params.set("type", typeFilter)
             } else {
@@ -159,18 +163,18 @@ export function DataTable<TData, TValue>({
                 <div className="flex items-center gap-2">
                     <Input
                         placeholder="Filter names..."
-                        value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
+                        value={(getTableColumn("name")?.getFilterValue() as string) ?? ""}
                         onChange={(event) =>
-                            table.getColumn("name")?.setFilterValue(event.target.value)
+                            getTableColumn("name")?.setFilterValue(event.target.value)
                         }
                         className="max-w-sm"
                     />
                     {showTypeFilter && (
                         <Input
                             placeholder="Filter type key..."
-                            value={(table.getColumn("type")?.getFilterValue() as string) ?? ""}
+                            value={(getTableColumn("type")?.getFilterValue() as string) ?? ""}
                             onChange={(event) =>
-                                table.getColumn("type")?.setFilterValue(event.target.value)
+                                getTableColumn("type")?.setFilterValue(event.target.value)
                             }
                             className="max-w-sm"
                         />
