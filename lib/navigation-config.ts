@@ -1,5 +1,6 @@
 import {
     ArchiveX,
+    Building2,
     File,
     Inbox,
     Send,
@@ -108,6 +109,11 @@ export const navigationConfig: NavigationConfig = {
                     title: "Members",
                     url: "/community/members",
                     icon: Users,
+                },
+                {
+                    title: "Companies",
+                    url: "/community/companies",
+                    icon: Building2,
                 },
                 {
                     title: "Discussions",
