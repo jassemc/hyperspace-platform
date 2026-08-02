@@ -173,6 +173,11 @@ export const navigationConfig: NavigationConfig = {
                     ]
                 },
                 {
+                    title: "Resource rates",
+                    url: "/billing/resource-rates",
+                    icon: Receipt,
+                },
+                {
                     title: "Payment Methods",
                     url: "#",
                     icon: CreditCard,
