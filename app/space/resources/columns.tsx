@@ -9,9 +9,10 @@ import { DeleteButton } from "./delete-button"
 
 interface ColumnsProps {
   onEdit: (resource: ResourceDto) => void
+  resourceTypeNames?: Record<string, string>
 }
 
-export const createColumns = ({ onEdit }: ColumnsProps): ColumnDef<ResourceDto>[] => [
+export const createColumns = ({ onEdit, resourceTypeNames = {} }: ColumnsProps): ColumnDef<ResourceDto>[] => [
     {
         accessorKey: "name",
         header: ({ column }) => (
@@ -25,7 +26,9 @@ export const createColumns = ({ onEdit }: ColumnsProps): ColumnDef<ResourceDto>[
         ),
     },
     {
-        accessorKey: "type",
+        id: "type",
+        // Resources reference their type by id only, so resolve the name from the loaded types.
+        accessorFn: (resource) => resourceTypeNames[resource.resourceTypeId] ?? "",
         header: "Type",
         cell: ({ row }) => {
             const value = row.getValue<string>("type")
