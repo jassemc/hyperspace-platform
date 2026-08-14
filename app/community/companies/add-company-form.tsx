@@ -104,8 +104,8 @@ export function AddCompanyForm({ isOpen, onClose, editingCompany }: Readonly<Add
             </DrawerDescription>
           </DrawerHeader>
 
-          <form key={editingCompany?.id || "create"} action={formAction} className="flex h-full flex-col">
-            <div className="flex-1 overflow-y-auto px-6 pb-4">
+          <form key={editingCompany?.id || "create"} action={formAction} className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-4">
               {editingCompany && (
                 <input type="hidden" name="id" value={editingCompany.id} />
               )}
@@ -241,7 +241,7 @@ export function AddCompanyForm({ isOpen, onClose, editingCompany }: Readonly<Add
               </div>
             </div>
 
-            <DrawerFooter className="border-t pt-4 px-6 pb-6">
+            <DrawerFooter className="shrink-0 border-t pt-4 px-6 pb-6">
               <div className="flex gap-3">
                 <SubmitButton editingCompany={editingCompany} />
                 <DrawerClose asChild>

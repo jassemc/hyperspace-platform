@@ -93,12 +93,15 @@ export function AddResourceForm({ isOpen, onClose, editingResource }: Readonly<A
   // Reset form state when drawer opens/closes or editing resource changes
   useEffect(() => {
     if (isOpen) {
-      // Set selected type when drawer opens for editing
+      // Set selected type and location when drawer opens for editing
       setSelectedType(editingResource?.resourceTypeId || "")
+      setSelectedLocation(editingResource?.locationId || "")
     } else {
       // Reset states when drawer closes
       setResourceTypes([])
       setSelectedType("")
+      setLocations([])
+      setSelectedLocation("")
     }
   }, [isOpen, editingResource])
 
@@ -118,7 +121,12 @@ export function AddResourceForm({ isOpen, onClose, editingResource }: Readonly<A
         offset: 0,
         sort: "ASC"
       })
-      setLocations(response.results || [])
+      const results = response.results || []
+      setLocations(results)
+      // With a single location there is nothing to choose, so lock it in.
+      if (results.length === 1) {
+        setSelectedLocation(results[0].id)
+      }
     } catch (err) {
       console.error("Failed to fetch locations:", err)
     } finally {
@@ -146,6 +154,9 @@ export function AddResourceForm({ isOpen, onClose, editingResource }: Readonly<A
   const currentState = editingResource ? updateState : createState
   const formAction = editingResource ? updateFormAction : createFormAction
 
+  // Only one location to pick from: preselect it and take the choice away.
+  const isLocationLocked = locations.length === 1 && selectedLocation !== ""
+
   return (
     <Drawer open={isOpen} onOpenChange={onClose} direction="right">
       <DrawerContent className="h-full w-[400px] ml-auto">
@@ -167,14 +178,18 @@ export function AddResourceForm({ isOpen, onClose, editingResource }: Readonly<A
             </DrawerDescription>
           </DrawerHeader>
           
-          <form key={editingResource?.id || 'create'} action={formAction} className="flex h-full flex-col">
-            <div className="flex-1 overflow-y-auto px-6 pb-4">
+          <form key={editingResource?.id || 'create'} action={formAction} className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-4">
               {editingResource && (
                 <input type="hidden" name="id" value={editingResource.id} />
               )}
               <div className="space-y-6">
                 <div className="grid gap-2">
                   <Label htmlFor="locationId">Location</Label>
+                  {/* A disabled select is not submitted, so carry the locked value separately. */}
+                  {isLocationLocked && (
+                    <input type="hidden" name="locationId" value={selectedLocation} />
+                  )}
                   <select
                     id="locationId"
                     name="locationId"
@@ -182,7 +197,7 @@ export function AddResourceForm({ isOpen, onClose, editingResource }: Readonly<A
                     value={selectedLocation}
                     onChange={(e) => setSelectedLocation(e.target.value)}
                     required
-                    disabled={isLoadingLocations}
+                    disabled={isLoadingLocations || isLocationLocked}
                   >
                     <option value="">{isLoadingLocations ? "Loading locations..." : "Select location"}</option>
                     {locations.map((location) => (
@@ -250,7 +265,7 @@ export function AddResourceForm({ isOpen, onClose, editingResource }: Readonly<A
               </div>
             </div>
             
-            <DrawerFooter className="border-t pt-4 px-6 pb-6">
+            <DrawerFooter className="shrink-0 border-t pt-4 px-6 pb-6">
               <div className="flex gap-3">
                 <SubmitButton editingResource={editingResource} />
                 <DrawerClose asChild>

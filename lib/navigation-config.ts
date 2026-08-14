@@ -31,11 +31,18 @@ export interface Site {
     plan: string
 }
 
+/**
+ * Identifies a submenu whose children are loaded at runtime instead of being
+ * declared here. See `applyDynamicSubMenuItems`.
+ */
+export type DynamicSubMenuId = "resourceTypes"
+
 export interface SubMenuItem {
     title: string
     url: string
     icon?: LucideIcon
     items?: NavigationItem[]
+    dynamicId?: DynamicSubMenuId
 }
 
 export interface NavigationItem {
@@ -139,12 +146,10 @@ export const navigationConfig: NavigationConfig = {
             subMenus: [
                 {
                     title: "Resource types",
-                    url: "/resource-types",
+                    url: "#",
                     icon: Map,
-                    items: [
-                        { title: "Resource type 1", url: "/resource-types" },
-                        { title: "Resource type 2", url: "/resource-types" },
-                    ]
+                    dynamicId: "resourceTypes",
+                    items: []
                 },
                 {
                     title: "Resources",
@@ -289,4 +294,26 @@ export const getActiveMenuItem = (pathname: string): MenuItem | undefined => {
 
 export const getDefaultActiveItem = (): MenuItem => {
     return navigationConfig.navMain.find(item => item.isActive) || navigationConfig.navMain[0]
+}
+
+/**
+ * Returns a copy of the menu tree with the children of every submenu marked
+ * with `dynamicId` replaced by the given items.
+ */
+export const applyDynamicSubMenuItems = (
+    navMain: MenuItem[],
+    dynamicId: DynamicSubMenuId,
+    items: NavigationItem[]
+): MenuItem[] => {
+    return navMain.map(item => {
+        if (!item.subMenus?.some(sub => sub.dynamicId === dynamicId)) {
+            return item
+        }
+        return {
+            ...item,
+            subMenus: item.subMenus.map(sub =>
+                sub.dynamicId === dynamicId ? { ...sub, items } : sub
+            ),
+        }
+    })
 }

@@ -2,17 +2,21 @@
 
 import * as React from "react"
 import { ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 
 import { SidebarLogoutButton } from "@/components/sidebar-logout-button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Button } from "@/components/ui/button"
+import { getListResourceTypes } from "@/lib/service"
+import type { ResourceTypeDto } from "@/lib/service/HsService"
 
 // Import navigation configuration and types
 import {
   navigationConfig,
   getDefaultActiveItem,
+  applyDynamicSubMenuItems,
   type MenuItem,
+  type NavigationItem,
   type SubMenuItem
 } from "@/lib/navigation-config"
 import { SiteLogo } from "./site-logo"
@@ -34,13 +38,58 @@ type AppSidebarProps = Readonly<React.ComponentProps<typeof Sidebar>>
 
 export function AppSidebar({ ...props }: AppSidebarProps) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [activeItem, setActiveItem] = React.useState<MenuItem>(getDefaultActiveItem())
-  const [subMenus, setSubMenus] = React.useState<SubMenuItem[]>(
-    getDefaultActiveItem().subMenus || []
-  )
+  const [resourceTypeItems, setResourceTypeItems] = React.useState<NavigationItem[]>([])
   const [isHovered, setIsHovered] = React.useState(false)
   const [isSticky, setIsSticky] = React.useState(false)
   const { setOpen } = useSidebar()
+
+  // Resource types are managed data, so the menu entries are loaded from the API.
+  React.useEffect(() => {
+    let cancelled = false
+    getListResourceTypes({ limit: 100, offset: 0, sort: "ASC" })
+      .then((response) => {
+        if (cancelled) return
+        setResourceTypeItems(
+          ((response?.results ?? []) as ResourceTypeDto[]).map((type) => ({
+            title: type.name,
+            url: `/space/resources?resourceTypeId=${encodeURIComponent(type.id)}`,
+          }))
+        )
+      })
+      .catch((error) => {
+        console.warn("Failed to load resource types for navigation", error)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const navMain = React.useMemo(
+    () => applyDynamicSubMenuItems(navigationConfig.navMain, "resourceTypes", resourceTypeItems),
+    [resourceTypeItems]
+  )
+
+  // Re-resolve the open menu against the latest tree once dynamic items arrive.
+  React.useEffect(() => {
+    setActiveItem((previous) => navMain.find((item) => item.title === previous.title) ?? previous)
+  }, [navMain])
+
+  const subMenus: SubMenuItem[] = activeItem.subMenus ?? []
+
+  // A menu url matches when its path equals the current path and every query
+  // param it pins (e.g. resourceTypeId) has the same value in the current url.
+  const isUrlActive = React.useCallback((url: string) => {
+    if (!url || url === "#") return false
+    const [urlPath, urlQuery] = url.split("?")
+    if (urlPath !== pathname) return false
+    if (!urlQuery) return true
+    for (const [key, value] of new URLSearchParams(urlQuery)) {
+      if (searchParams.get(key) !== value) return false
+    }
+    return true
+  }, [pathname, searchParams])
 
   // Expose sticky state to parent components
   React.useEffect(() => {
@@ -51,77 +100,50 @@ export function AppSidebar({ ...props }: AppSidebarProps) {
     window.dispatchEvent(event)
   }, [isSticky])
 
-  // Update active item based on current pathname
-  React.useEffect(() => {
-    const currentActiveItem = navigationConfig.navMain.find(item =>
-      item.url === pathname ||
-      item.subMenus?.some(sub =>
-        sub.url === pathname ||
-        sub.items?.some(subItem => subItem.url === pathname)
-      )
-    )
-    
-    if (currentActiveItem) {
-      setActiveItem(currentActiveItem)
-      setSubMenus(currentActiveItem.subMenus || [])
-    }
-  }, [pathname])
-
-  const handleNavItemClick = React.useCallback((item: MenuItem) => {
-    setActiveItem(item)
-    setSubMenus(item.subMenus || [])
-    setOpen(true)
-  }, [setOpen])
+  // Helper function to check if a sub-menu item is active
+  const isSubMenuItemActive = React.useCallback((subItem: SubMenuItem) => {
+    return isUrlActive(subItem.url) ||
+      subItem.items?.some(item => isUrlActive(item.url))
+  }, [isUrlActive])
 
   // Helper function to check if a menu item is active
   const isMenuItemActive = React.useCallback((item: MenuItem) => {
-    return item.url === pathname ||
-      item.subMenus?.some(sub =>
-        sub.url === pathname ||
-        sub.items?.some(subItem => subItem.url === pathname)
-      )
-  }, [pathname])
+    return isUrlActive(item.url) || item.subMenus?.some(isSubMenuItemActive)
+  }, [isUrlActive, isSubMenuItemActive])
 
-  // Helper function to check if a sub-menu item is active
-  const isSubMenuItemActive = React.useCallback((subItem: SubMenuItem) => {
-    return subItem.url === pathname ||
-      subItem.items?.some(item => item.url === pathname)
-  }, [pathname])
+  // Reset the overlay to the menu matching the current url
+  const syncActiveItem = React.useCallback(() => {
+    const currentActiveItem = navMain.find(isMenuItemActive)
+    if (currentActiveItem) {
+      setActiveItem(currentActiveItem)
+    }
+  }, [navMain, isMenuItemActive])
+
+  // Only on navigation — query-param updates (paging, filters) must not close
+  // a submenu the user is currently hovering.
+  React.useEffect(() => {
+    syncActiveItem()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname, navMain])
+
+  const handleNavItemClick = React.useCallback((item: MenuItem) => {
+    setActiveItem(item)
+    setOpen(true)
+  }, [setOpen])
 
   const handleMouseEnter = React.useCallback(() => {
     setIsHovered(true)
     // Reset to active menu when leaving hover
-    const currentActiveItem = navigationConfig.navMain.find(item =>
-      item.url === pathname ||
-      item.subMenus?.some(sub =>
-        sub.url === pathname ||
-        sub.items?.some(subItem => subItem.url === pathname)
-      )
-    )
-    if (currentActiveItem) {
-      setActiveItem(currentActiveItem)
-      setSubMenus(currentActiveItem.subMenus || [])
-    }
-  }, [pathname])
+    syncActiveItem()
+  }, [syncActiveItem])
 
   const handleMouseLeave = React.useCallback(() => {
     if (!isSticky) {
       setIsHovered(false)
-      
     } else {
-      const currentActiveItem = navigationConfig.navMain.find(item =>
-        item.url === pathname ||
-        item.subMenus?.some(sub =>
-          sub.url === pathname ||
-          sub.items?.some(subItem => subItem.url === pathname)
-        )
-      )
-      if (currentActiveItem) {
-        setActiveItem(currentActiveItem)
-        setSubMenus(currentActiveItem.subMenus || [])
-      }
+      syncActiveItem()
     }
-  }, [isSticky, pathname])
+  }, [isSticky, syncActiveItem])
 
   const handleToggleSticky = React.useCallback(() => {
     setIsSticky(prev => !prev)
@@ -156,7 +178,7 @@ export function AppSidebar({ ...props }: AppSidebarProps) {
             <SidebarGroup>
               <SidebarGroupContent className="px-1 md:px-0">
                 <SidebarMenu>
-                  {navigationConfig.navMain.map((item) => {
+                  {navMain.map((item) => {
                     const isActive = isMenuItemActive(item)
                     return (
                       <SidebarMenuItem key={item.title}>
@@ -219,7 +241,8 @@ export function AppSidebar({ ...props }: AppSidebarProps) {
                   const isSubActive = isSubMenuItemActive(item)
                   return (
                     <Collapsible
-                      key={item.title}
+                      // Remount when dynamic children arrive so defaultOpen re-applies.
+                      key={`${item.title}-${item.items?.length ?? 0}`}
                       asChild
                       defaultOpen={isSubActive}
                       className="group/collapsible"
@@ -242,9 +265,9 @@ export function AppSidebar({ ...props }: AppSidebarProps) {
                               </Button>
                             </CollapsibleTrigger>
                             <CollapsibleContent>
-                              <div className="ml-6 space-y-1">
+                              <div className="ml-6 py-2 space-y-1">
                                 {item.items.map((subItem) => {
-                                  const isSubItemActive = subItem.url === pathname
+                                  const isSubItemActive = isUrlActive(subItem.url)
                                   return (
                                     <Button
                                       key={subItem.title}

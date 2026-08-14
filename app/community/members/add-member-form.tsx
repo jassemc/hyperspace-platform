@@ -122,8 +122,8 @@ export function AddMemberForm({ isOpen, onClose, editingMember }: Readonly<AddMe
             </DrawerDescription>
           </DrawerHeader>
 
-          <form key={editingMember?.id || "create"} action={formAction} className="flex h-full flex-col">
-            <div className="flex-1 overflow-y-auto px-6 pb-4">
+          <form key={editingMember?.id || "create"} action={formAction} className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-4">
               {editingMember && (
                 <input type="hidden" name="id" value={editingMember.id} />
               )}
@@ -214,7 +214,7 @@ export function AddMemberForm({ isOpen, onClose, editingMember }: Readonly<AddMe
               </div>
             </div>
 
-            <DrawerFooter className="border-t pt-4 px-6 pb-6">
+            <DrawerFooter className="shrink-0 border-t pt-4 px-6 pb-6">
               <div className="flex gap-3">
                 <SubmitButton editingMember={editingMember} />
                 <DrawerClose asChild>

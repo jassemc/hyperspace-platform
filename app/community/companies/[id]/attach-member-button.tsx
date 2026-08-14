@@ -107,7 +107,7 @@ export function AttachMemberButton({ companyId }: Readonly<{ companyId: string }
               </DrawerDescription>
             </DrawerHeader>
 
-            <div className="flex-1 overflow-y-auto px-6 pb-4">
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-4">
               <div className="grid gap-2">
                 <Label htmlFor="member-search">Search</Label>
                 <Input
@@ -146,7 +146,7 @@ export function AttachMemberButton({ companyId }: Readonly<{ companyId: string }
               </div>
             </div>
 
-            <DrawerFooter className="border-t pt-4 px-6 pb-6">
+            <DrawerFooter className="shrink-0 border-t pt-4 px-6 pb-6">
               <div className="flex gap-3">
                 <Button onClick={onSubmit} disabled={isSaving || !selectedId} className="flex-1">
                   {isSaving ? "Attaching..." : "Attach"}
