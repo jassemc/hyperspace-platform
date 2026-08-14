@@ -107,8 +107,8 @@ export function AddResourceTypeForm({ isOpen, onClose, editingResourceType }: Re
             </DrawerDescription>
           </DrawerHeader>
           
-          <form key={editingResourceType?.id || 'create'} action={formAction} className="flex h-full flex-col">
-            <div className="flex-1 overflow-y-auto px-6 pb-4">
+          <form key={editingResourceType?.id || 'create'} action={formAction} className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-4">
               {editingResourceType && (
                 <input type="hidden" name="id" value={editingResourceType.id} />
               )}
@@ -142,7 +142,7 @@ export function AddResourceTypeForm({ isOpen, onClose, editingResourceType }: Re
               </div>
             </div>
             
-            <DrawerFooter className="border-t pt-4 px-6 pb-6">
+            <DrawerFooter className="shrink-0 border-t pt-4 px-6 pb-6">
               <div className="flex gap-3">
                 <SubmitButton editingResourceType={editingResourceType} />
                 <DrawerClose asChild>

@@ -99,8 +99,8 @@ export function AddPlanForm({ isOpen, onClose, editingPlan }: Readonly<AddPlanFo
             </DrawerDescription>
           </DrawerHeader>
 
-          <form key={editingPlan?.id || "create"} action={formAction} className="flex h-full flex-col">
-            <div className="flex-1 overflow-y-auto px-6 pb-4">
+          <form key={editingPlan?.id || "create"} action={formAction} className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-4">
               {editingPlan && <input type="hidden" name="id" value={editingPlan.id} />}
               <div className="space-y-6">
                 <div className="grid gap-2">
@@ -150,7 +150,7 @@ export function AddPlanForm({ isOpen, onClose, editingPlan }: Readonly<AddPlanFo
               </div>
             </div>
 
-            <DrawerFooter className="border-t pt-4 px-6 pb-6">
+            <DrawerFooter className="shrink-0 border-t pt-4 px-6 pb-6">
               <div className="flex gap-3">
                 <SubmitButton editingPlan={editingPlan} />
                 <DrawerClose asChild>

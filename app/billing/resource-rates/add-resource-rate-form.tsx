@@ -115,8 +115,8 @@ export function AddResourceRateForm({ isOpen, onClose, editingRate }: Readonly<A
             </DrawerDescription>
           </DrawerHeader>
 
-          <form key={editingRate?.id || "create"} action={formAction} className="flex h-full flex-col">
-            <div className="flex-1 overflow-y-auto px-6 pb-4">
+          <form key={editingRate?.id || "create"} action={formAction} className="flex min-h-0 flex-1 flex-col">
+            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-4">
               {editingRate && <input type="hidden" name="id" value={editingRate.id} />}
               <div className="space-y-6">
                 {!editingRate && (
@@ -162,7 +162,7 @@ export function AddResourceRateForm({ isOpen, onClose, editingRate }: Readonly<A
               </div>
             </div>
 
-            <DrawerFooter className="border-t pt-4 px-6 pb-6">
+            <DrawerFooter className="shrink-0 border-t pt-4 px-6 pb-6">
               <div className="flex gap-3">
                 <SubmitButton editingRate={editingRate} />
                 <DrawerClose asChild>

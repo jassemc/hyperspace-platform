@@ -122,8 +122,8 @@ export function SubscribePlanButton({ companyId }: Readonly<{ companyId: string 
               </DrawerDescription>
             </DrawerHeader>
 
-            <form action={onSubmit} className="flex h-full flex-col">
-              <div className="flex-1 overflow-y-auto px-6 pb-4">
+            <form action={onSubmit} className="flex min-h-0 flex-1 flex-col">
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-4">
                 <div className="space-y-6">
                   <div className="grid gap-2">
                     <Label htmlFor="memberId">Member</Label>
@@ -198,7 +198,7 @@ export function SubscribePlanButton({ companyId }: Readonly<{ companyId: string 
                 </div>
               </div>
 
-              <DrawerFooter className="border-t pt-4 px-6 pb-6">
+              <DrawerFooter className="shrink-0 border-t pt-4 px-6 pb-6">
                 <div className="flex gap-3">
                   <Button type="submit" disabled={isSaving || !hasMembers} className="flex-1">
                     {isSaving ? "Subscribing..." : "Subscribe"}
