@@ -1,8 +1,8 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { createResource, updateResource, getListResourceTypes } from "@/lib/service"
-import type { CreateResourceDto, ResourceTypeDto, UpdateResourceDto } from "@/lib/service/HsService"
+import { createResource, updateResource } from "@/lib/service"
+import type { CreateResourceDto, UpdateResourceDto } from "@/lib/service/HsService"
 
 
 type ApiErrorProperty = {
@@ -128,38 +128,23 @@ export async function updateResourceAction(
 ): Promise<ActionState> {
   try {
     const id = formData.get("id") as string
-    const typeValue = formData.get("type") as string
 
     if (!id) {
-      return { 
+      return {
         success: false,
         error: "Resource ID is required"
       }
     }
 
-    // Find the resourceTypeId from the type value
-    let resourceTypeId: string | undefined
-    if (typeValue) {
-      const resourceTypes = await getListResourceTypes({
-        limit: 100,  // API max limit is 100
-        offset: 0,
-        sort: "ASC"
-      })
-
-      const selectedType = resourceTypes?.results?.find(
-        (rt: ResourceTypeDto) => rt.name === typeValue
-      )
-
-      if (selectedType) {
-        resourceTypeId = selectedType.id
-      }
-    }
+    const resourceTypeId = (formData.get("resourceTypeId") as string)?.trim() || undefined
+    const locationId = (formData.get("locationId") as string)?.trim() || undefined
 
     const data: UpdateResourceDto = {
       name: formData.get("name") as string || undefined,
       description: formData.get("description") as string || undefined,
       capacity: Number(formData.get("capacity")) || undefined,
       resourceTypeId,
+      locationId,
     }
 
     await updateResource(id, data)
