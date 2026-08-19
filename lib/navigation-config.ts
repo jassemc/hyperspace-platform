@@ -16,10 +16,17 @@ import {
     Database,
     BarChart3,
     PieChart,
-    TrendingUp,
     Map,
-    Car,
     Clock,
+    BadgeCheck,
+    Target,
+    FileText,
+    Ticket,
+    DoorOpen,
+    Armchair,
+    Sparkles,
+    Package,
+    MapPin,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -82,28 +89,14 @@ export const navigationConfig: NavigationConfig = {
             subMenus: [
                 {
                     title: "Analytics",
-                    url: "#",
+                    url: "/dashboard/analytics",
                     icon: BarChart3,
-                    items: [
-                        { title: "View Reports", url: "#" },
-                        { title: "Export Data", url: "#" },
-                        { title: "Trending Analysis", url: "#" },
-                    ]
                 },
                 {
                     title: "Overview",
                     url: "/dashboard/overview",
                     icon: PieChart,
                 },
-                {
-                    title: "Performance",
-                    url: "#",
-                    icon: TrendingUp,
-                    items: [
-                        { title: "Monthly Stats", url: "#" },
-                        { title: "Weekly Report", url: "#" },
-                    ]
-                }
             ]
         },
         {
@@ -121,6 +114,16 @@ export const navigationConfig: NavigationConfig = {
                     title: "Companies",
                     url: "/community/companies",
                     icon: Building2,
+                },
+                {
+                    title: "Memberships",
+                    url: "/community/memberships",
+                    icon: BadgeCheck,
+                },
+                {
+                    title: "Opportunities",
+                    url: "/community/opportunities",
+                    icon: Target,
                 },
                 {
                     title: "Discussions",
@@ -180,13 +183,18 @@ export const navigationConfig: NavigationConfig = {
             subMenus: [
                 {
                     title: "Invoices",
-                    url: "#",
+                    url: "/billing/invoices",
                     icon: Receipt,
-                    items: [
-                        { title: "View Invoices", url: "#" },
-                        { title: "Download PDF", url: "#" },
-                        { title: "Payment History", url: "#" },
-                    ]
+                },
+                {
+                    title: "Charges",
+                    url: "/billing/charges",
+                    icon: FileText,
+                },
+                {
+                    title: "Credits",
+                    url: "/billing/credits",
+                    icon: Ticket,
                 },
                 {
                     title: "Resource rates",
@@ -216,29 +224,20 @@ export const navigationConfig: NavigationConfig = {
             isActive: false,
             subMenus: [
                 {
-                    title: "Reservations",
-                    url: "#",
+                    title: "Bookings",
+                    url: "/booking/bookings",
                     icon: Calendar,
-                    items: [
-                        { title: "View Bookings", url: "#" },
-                        { title: "Create Booking", url: "#" },
-                        { title: "Cancel Booking", url: "#" },
-                    ]
                 },
                 {
-                    title: "Vehicles",
-                    url: "#",
-                    icon: Car,
+                    title: "Check-ins",
+                    url: "/booking/checkins",
+                    icon: DoorOpen,
                 },
                 {
-                    title: "Schedule",
-                    url: "#",
-                    icon: Clock,
-                    items: [
-                        { title: "Daily View", url: "#" },
-                        { title: "Weekly View", url: "#" },
-                    ]
-                }
+                    title: "Assignments",
+                    url: "/booking/assignments",
+                    icon: Armchair,
+                },
             ]
         },
         {
@@ -251,6 +250,21 @@ export const navigationConfig: NavigationConfig = {
                     title: "Resource types",
                     url: "/settings/resource-types",
                     icon: Database,
+                },
+                {
+                    title: "Amenities",
+                    url: "/settings/amenities",
+                    icon: Sparkles,
+                },
+                {
+                    title: "Extras",
+                    url: "/settings/extras",
+                    icon: Package,
+                },
+                {
+                    title: "Locations",
+                    url: "/settings/locations",
+                    icon: MapPin,
                 },
                 {
                     title: "Profile",
