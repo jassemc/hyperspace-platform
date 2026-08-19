@@ -1,6 +1,6 @@
 "use client"
 
-import { DataTable } from "@/app/dashboard/resources/data-table"
+import { DataTable } from "@/components/data-table"
 import type { MembershipDto } from "@/lib/service/HsService"
 import { createPlanColumns } from "./plans-columns"
 

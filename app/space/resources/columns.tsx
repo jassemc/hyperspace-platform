@@ -2,10 +2,11 @@
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import type { ResourceDto } from "@/lib/service/HsService"
+import type { ResourceDto, ResourceStatus } from "@/lib/service/HsService"
 import type { ColumnDef } from "@tanstack/react-table"
 import { ArrowUpDown, Edit } from "lucide-react"
-import { DeleteButton } from "./delete-button"
+import { ArchiveButton } from "./archive-button"
+import { RESOURCE_STATUS_CLASSES, RESOURCE_STATUS_LABELS } from "./resource-status"
 
 interface ColumnsProps {
   onEdit: (resource: ResourceDto) => void
@@ -44,52 +45,50 @@ export const createColumns = ({ onEdit, resourceTypeNames = {} }: ColumnsProps):
         },
     },
     {
+        id: "amenities",
+        accessorFn: (resource) => (resource.amenities ?? []).map((amenity) => amenity.name).join(", "),
+        header: "Amenities",
+        cell: ({ row }) => {
+            const amenities = row.original.amenities ?? []
+            if (amenities.length === 0) return <span className="text-muted-foreground">-</span>
+            return (
+                <div className="flex flex-wrap gap-1">
+                    {amenities.map((amenity) => (
+                        <Badge key={amenity.id} variant="outline" className="font-normal">
+                            {amenity.name}
+                        </Badge>
+                    ))}
+                </div>
+            )
+        },
+    },
+    {
+        id: "rates",
+        accessorFn: (resource) => (resource.rates ?? []).length,
+        header: "Rates",
+        cell: ({ row }) => {
+            const rates = row.original.rates ?? []
+            if (rates.length === 0) return <span className="text-muted-foreground">-</span>
+            return (
+                <span title={rates.map((rate) => rate.name).join(", ")}>
+                    {rates.length} {rates.length === 1 ? "rate" : "rates"}
+                </span>
+            )
+        },
+    },
+    {
         accessorKey: "status",
         header: "Status",
         cell: ({ row }) => {
-            const value = row.getValue<string>("status")
-            if (!value) return <span>-</span>
+            const value = row.getValue<ResourceStatus | undefined>("status")
+            if (!value) return <span className="text-muted-foreground">-</span>
 
-            const getStatusVariant = (status: string) => {
-                switch (status) {
-                    case "AVAILABLE":
-                        return "default"
-                    case "OCCUPIED":
-                        return "destructive"
-                    case "UNAVAILABLE":
-                        return "secondary"
-                    case "AVAILABLE_SOON":
-                        return "outline"
-                    case "RESERVED":
-                        return "outline"
-                    default:
-                        return "secondary"
-                }
-            }
-            
-            const getStatusColor = (status: string) => {
-                switch (status) {
-                    case "AVAILABLE":
-                        return "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900 dark:text-green-200"
-                    case "OCCUPIED":
-                        return "bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900 dark:text-red-200"
-                    case "UNAVAILABLE":
-                        return "bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200"
-                    case "AVAILABLE_SOON":
-                        return "bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200"
-                    case "RESERVED":
-                        return "bg-orange-100 text-orange-800 hover:bg-orange-200 dark:bg-orange-900 dark:text-orange-200"
-                    default:
-                        return "bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200"
-                }
-            }
-            
             return (
-                <Badge 
-                    variant={getStatusVariant(value)} 
-                    className={`${getStatusColor(value)} border-0`}
+                <Badge
+                    variant="secondary"
+                    className={`${RESOURCE_STATUS_CLASSES[value] ?? ""} border-0`}
                 >
-                    {value.replaceAll("_", " ")}
+                    {RESOURCE_STATUS_LABELS[value] ?? value.replaceAll("_", " ")}
                 </Badge>
             )
         },
@@ -118,7 +117,11 @@ export const createColumns = ({ onEdit, resourceTypeNames = {} }: ColumnsProps):
                     >
                         <Edit className="h-4 w-4" />
                     </Button>
-                    <DeleteButton resourceId={resource.id} resourceName={resource.name} />
+                    <ArchiveButton
+                        resourceId={resource.id}
+                        resourceName={resource.name}
+                        active={resource.active}
+                    />
                 </div>
             )
         },

@@ -4,19 +4,21 @@ import { useState, useOptimistic } from "react"
 import Link from "next/link"
 import { X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { DataTable } from "@/app/dashboard/resources/data-table"
+import { DataTable } from "@/components/data-table"
 import { AddResourceForm } from "./add-resource-form"
-import type { ResourceDto } from "@/lib/service/HsService"
+import type { ResourceDto, ResourceStatus } from "@/lib/service/HsService"
 import { createColumns } from "./columns"
+import { RESOURCE_STATUS_TABS } from "./resource-status"
 
 interface ResourceTableProps {
     data: ResourceDto[]
     totalCount?: number
     resourceTypeNames?: Record<string, string>
     activeResourceTypeId?: string
+    activeStatus?: ResourceStatus
 }
 
-export function ResourceTable({ data, totalCount, resourceTypeNames = {}, activeResourceTypeId }: Readonly<ResourceTableProps>) {
+export function ResourceTable({ data, totalCount, resourceTypeNames = {}, activeResourceTypeId, activeStatus }: Readonly<ResourceTableProps>) {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false)
     const [editingResource, setEditingResource] = useState<ResourceDto | null>(null)
 
@@ -59,11 +61,13 @@ export function ResourceTable({ data, totalCount, resourceTypeNames = {}, active
             )}
             {/* Remount on filter change so the table re-reads pagination from the URL. */}
             <DataTable
-                key={activeResourceTypeId ?? "all"}
+                key={`${activeResourceTypeId ?? "all"}-${activeStatus ?? "all"}`}
                 columns={columns}
                 data={optimisticResources}
                 totalCount={typeof totalCount === 'number' ? totalCount : undefined}
                 showTypeFilter={true}
+                showStatusTabs={true}
+                statusTabOptions={RESOURCE_STATUS_TABS}
             />
             <AddResourceForm
                 key={editingResource?.id || 'create'}

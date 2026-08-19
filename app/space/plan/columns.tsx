@@ -5,14 +5,9 @@ import { Button } from "@/components/ui/button"
 import type { ColumnDef } from "@tanstack/react-table"
 import type { PlanDto, PlanKind, PlanStatus } from "@/lib/service/HsService"
 import { ArrowUpDown, Edit } from "lucide-react"
+import { formatDate, formatEnumLabel, formatPriceHt, formatVatRate } from "@/lib/format"
 
-function formatPrice(value: number) {
-  return `${(value / 1000).toLocaleString("en-US")} TND`
-}
-
-function formatLabel(value: string) {
-  return value.replaceAll("-", " ").replaceAll("_", " ")
-}
+const formatLabel = formatEnumLabel
 
 function statusBadgeClass(status: PlanStatus) {
   switch (status) {
@@ -67,9 +62,47 @@ export const createColumns = ({ onEdit }: ColumnsProps): ColumnDef<PlanDto>[] =>
     },
   },
   {
-    accessorKey: "priceHtMillimes",
-    header: "Price",
-    cell: ({ row }) => <span>{formatPrice(row.getValue<number>("priceHtMillimes"))}</span>,
+    accessorKey: "priceHt",
+    header: "Price (HT)",
+    cell: ({ row }) => {
+      const plan = row.original
+      return (
+        <div className="flex flex-col">
+          <span>{formatPriceHt(row.getValue<number>("priceHt"))}</span>
+          <span className="text-xs text-muted-foreground">
+            VAT {formatVatRate(plan.vatRate)}
+            {plan.cycleMonths ? ` · every ${plan.cycleMonths} mo` : ""}
+          </span>
+        </div>
+      )
+    },
+  },
+  {
+    accessorKey: "deposit",
+    header: "Deposit",
+    cell: ({ row }) => {
+      const value = row.getValue<number>("deposit")
+      return <span>{value ? formatPriceHt(value) : <span className="text-muted-foreground">-</span>}</span>
+    },
+  },
+  {
+    accessorKey: "activeMemberships",
+    header: "Active",
+    cell: ({ row }) => <span className="tabular-nums">{row.getValue<number>("activeMemberships") ?? 0}</span>,
+  },
+  {
+    id: "extras",
+    accessorFn: (plan) => (plan.extras ?? []).length,
+    header: "Extras",
+    cell: ({ row }) => {
+      const extras = row.original.extras ?? []
+      if (extras.length === 0) return <span className="text-muted-foreground">-</span>
+      return (
+        <span title={extras.map((extra) => extra.name).join(", ")}>
+          {extras.length} {extras.length === 1 ? "extra" : "extras"}
+        </span>
+      )
+    },
   },
   {
     accessorKey: "status",
@@ -86,11 +119,7 @@ export const createColumns = ({ onEdit }: ColumnsProps): ColumnDef<PlanDto>[] =>
   {
     accessorKey: "createdAt",
     header: "Created",
-    cell: ({ row }) => {
-      const value = row.getValue<string>("createdAt")
-      const date = value ? new Date(value) : null
-      return <span>{date ? date.toLocaleDateString() : "-"}</span>
-    },
+    cell: ({ row }) => <span>{formatDate(row.getValue<string>("createdAt"))}</span>,
   },
   {
     id: "actions",

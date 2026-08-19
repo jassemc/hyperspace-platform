@@ -4,14 +4,14 @@ import { revalidatePath } from "next/cache"
 import {
   createMember,
   updateMember,
-  inviteMember,
-  unlinkMember,
+  updateMemberStatus,
+  updateMemberCompany,
 } from "@/lib/service"
 import type {
   CreateMemberDto,
-  InviteResponseDto,
   MemberKindHint,
   MemberSegment,
+  MemberStatusUpdate,
   UpdateMemberDto,
 } from "@/lib/service/HsService"
 
@@ -19,7 +19,6 @@ export type ActionState = {
   success?: boolean
   error?: string
   fieldErrors?: Record<string, string[]>
-  invite?: InviteResponseDto
 }
 
 function emptyToUndefined(value: FormDataEntryValue | null): string | undefined {
@@ -28,7 +27,20 @@ function emptyToUndefined(value: FormDataEntryValue | null): string | undefined 
   return trimmed.length > 0 ? trimmed : undefined
 }
 
-function parseMemberPayload(formData: FormData): CreateMemberDto {
+function tags(formData: FormData): string[] | undefined {
+  const raw = emptyToUndefined(formData.get("tags"))
+  if (!raw) return undefined
+  return raw
+    .split(",")
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+}
+
+/**
+ * Fields common to create and update. `companyId` is deliberately absent —
+ * employment moves through PUT /members/:id/company, not the member patch.
+ */
+function parseMemberPayload(formData: FormData): UpdateMemberDto {
   const fullName = emptyToUndefined(formData.get("fullName"))
   if (!fullName) {
     throw new Error("Full name is required")
@@ -41,6 +53,10 @@ function parseMemberPayload(formData: FormData): CreateMemberDto {
     notes: emptyToUndefined(formData.get("notes")),
     kindHint: (emptyToUndefined(formData.get("kindHint")) as MemberKindHint) || undefined,
     segment: (emptyToUndefined(formData.get("segment")) as MemberSegment) || undefined,
+    // Both roles are company-scoped and rejected without an employer.
+    isBillingPerson: formData.get("isBillingPerson") === "on",
+    isContactPerson: formData.get("isContactPerson") === "on",
+    tags: tags(formData),
   }
 }
 
@@ -49,7 +65,22 @@ export async function createMemberAction(
   formData: FormData
 ): Promise<ActionState> {
   try {
-    const data = parseMemberPayload(formData)
+    const companyId = emptyToUndefined(formData.get("companyId"))
+    const payload = parseMemberPayload(formData)
+
+    if (!companyId && (payload.isBillingPerson || payload.isContactPerson)) {
+      return {
+        success: false,
+        error: "Billing and contact roles require an employer company",
+      }
+    }
+
+    const data: CreateMemberDto = {
+      ...payload,
+      fullName: payload.fullName as string,
+      companyId,
+    }
+
     await createMember(data)
     revalidatePath("/community/members")
     return { success: true }
@@ -73,6 +104,14 @@ export async function updateMemberAction(
 
     const data: UpdateMemberDto = parseMemberPayload(formData)
     await updateMember(id, data)
+
+    // Employment is a separate endpoint; only call it when the form changed it.
+    const companyId = emptyToUndefined(formData.get("companyId"))
+    const previousCompanyId = emptyToUndefined(formData.get("previousCompanyId"))
+    if (companyId !== previousCompanyId) {
+      await updateMemberCompany(id, { companyId: companyId ?? null })
+    }
+
     revalidatePath("/community/members")
     return { success: true }
   } catch (error) {
@@ -83,7 +122,11 @@ export async function updateMemberAction(
   }
 }
 
-export async function inviteMemberAction(
+/**
+ * Pins or clears the lifecycle status. Replaces the removed portal invite and
+ * unlink actions, which the API no longer exposes.
+ */
+export async function updateMemberStatusAction(
   prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
@@ -93,34 +136,18 @@ export async function inviteMemberAction(
       return { success: false, error: "Member id is required" }
     }
 
-    const invite = await inviteMember(id)
-    revalidatePath("/community/members")
-    return { success: true, invite }
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to invite member",
-    }
-  }
-}
-
-export async function unlinkMemberAction(
-  prevState: ActionState,
-  formData: FormData
-): Promise<ActionState> {
-  try {
-    const id = formData.get("id") as string
-    if (!id) {
-      return { success: false, error: "Member id is required" }
+    const status = emptyToUndefined(formData.get("status")) as MemberStatusUpdate | undefined
+    if (!status) {
+      return { success: false, error: "Status is required" }
     }
 
-    await unlinkMember(id)
+    await updateMemberStatus(id, { status })
     revalidatePath("/community/members")
     return { success: true }
   } catch (error) {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to revoke portal access",
+      error: error instanceof Error ? error.message : "Failed to update member status",
     }
   }
 }

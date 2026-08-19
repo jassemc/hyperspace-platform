@@ -15,8 +15,8 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer"
 import { X } from "lucide-react"
-import { getListResourceTypes, getListLocations } from "@/lib/service"
-import type { ResourceTypeDto, ResourceDto, ListResourceTypesParams, LocationDto } from "@/lib/service/HsService"
+import { getListResourceTypes, getListLocations, getListAmenities, getListResourceRates } from "@/lib/service"
+import type { ResourceTypeDto, ResourceDto, ListResourceTypesParams, LocationDto, AmenityDto, ResourceRateDto } from "@/lib/service/HsService"
 import { createResourceAction, updateResourceAction } from "./actions"
 import { toast } from "sonner"
 
@@ -24,6 +24,24 @@ interface AddResourceFormProps {
   isOpen: boolean
   onClose: () => void
   editingResource?: ResourceDto | null
+}
+
+interface AvailabilityRow {
+  startDate: string
+  endDate: string
+}
+
+/** ISO date-time from the API -> value a datetime-local input accepts. */
+function toInputValue(iso?: string | null): string {
+  if (!iso) return ""
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return ""
+  const pad = (value: number) => String(value).padStart(2, "0")
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function toggleId(ids: string[], id: string): string[] {
+  return ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id]
 }
 
 function SubmitButton({ editingResource }: Readonly<{ editingResource?: ResourceDto | null }>) {
@@ -50,6 +68,13 @@ export function AddResourceForm({ isOpen, onClose, editingResource }: Readonly<A
   const [isLoadingTypes, setIsLoadingTypes] = useState(false)
   const [selectedLocation, setSelectedLocation] = useState("")
   const [selectedType, setSelectedType] = useState("")
+  const [amenities, setAmenities] = useState<AmenityDto[]>([])
+  const [isLoadingAmenities, setIsLoadingAmenities] = useState(false)
+  const [selectedAmenityIds, setSelectedAmenityIds] = useState<string[]>([])
+  const [rates, setRates] = useState<ResourceRateDto[]>([])
+  const [isLoadingRates, setIsLoadingRates] = useState(false)
+  const [selectedRateIds, setSelectedRateIds] = useState<string[]>([])
+  const [availability, setAvailability] = useState<AvailabilityRow[]>([])
 
   const [createState, createFormAction] = useActionState(createResourceAction, {})
   const [updateState, updateFormAction] = useActionState(updateResourceAction, {})
@@ -96,22 +121,47 @@ export function AddResourceForm({ isOpen, onClose, editingResource }: Readonly<A
       // Set selected type and location when drawer opens for editing
       setSelectedType(editingResource?.resourceTypeId || "")
       setSelectedLocation(editingResource?.locationId || "")
+      setSelectedAmenityIds((editingResource?.amenities ?? []).map((amenity) => amenity.id))
+      setSelectedRateIds((editingResource?.rates ?? []).map((rate) => rate.id))
+      setAvailability(
+        (editingResource?.availability ?? []).map((period) => ({
+          startDate: toInputValue(period.startDate),
+          endDate: toInputValue(period.endDate),
+        }))
+      )
     } else {
       // Reset states when drawer closes
       setResourceTypes([])
       setSelectedType("")
       setLocations([])
       setSelectedLocation("")
+      setAmenities([])
+      setSelectedAmenityIds([])
+      setRates([])
+      setSelectedRateIds([])
+      setAvailability([])
     }
   }, [isOpen, editingResource])
 
-  // Fetch locations and resource types when drawer opens
+  // Fetch locations, resource types and amenities when drawer opens
   useEffect(() => {
     if (isOpen) {
       fetchLocations()
       fetchResourceTypes()
+      fetchAmenities()
     }
   }, [isOpen])
+
+  // Rates attach only to resources of their exact type, so reload on type change.
+  useEffect(() => {
+    if (!isOpen) return
+    if (!selectedType) {
+      setRates([])
+      setSelectedRateIds([])
+      return
+    }
+    fetchRates(selectedType)
+  }, [isOpen, selectedType])
 
   const fetchLocations = async () => {
     setIsLoadingLocations(true)
@@ -149,6 +199,47 @@ export function AddResourceForm({ isOpen, onClose, editingResource }: Readonly<A
     } finally {
       setIsLoadingTypes(false)
     }
+  }
+
+  const fetchAmenities = async () => {
+    setIsLoadingAmenities(true)
+    try {
+      const response = await getListAmenities({ limit: 100, offset: 0, sort: "ASC" })
+      setAmenities((response.results ?? []) as AmenityDto[])
+    } catch (err) {
+      console.error("Failed to fetch amenities:", err)
+    } finally {
+      setIsLoadingAmenities(false)
+    }
+  }
+
+  const fetchRates = async (resourceTypeId: string) => {
+    setIsLoadingRates(true)
+    try {
+      const response = await getListResourceRates({ limit: 100, offset: 0, sort: "ASC", resourceTypeId })
+      const results = (response.results ?? []) as ResourceRateDto[]
+      setRates(results)
+      // Drop any rate that does not belong to the newly selected type.
+      setSelectedRateIds((previous) => previous.filter((id) => results.some((rate) => rate.id === id)))
+    } catch (err) {
+      console.error("Failed to fetch resource rates:", err)
+    } finally {
+      setIsLoadingRates(false)
+    }
+  }
+
+  const addAvailabilityRow = () => {
+    setAvailability((previous) => [...previous, { startDate: "", endDate: "" }])
+  }
+
+  const updateAvailabilityRow = (index: number, patch: Partial<AvailabilityRow>) => {
+    setAvailability((previous) =>
+      previous.map((row, rowIndex) => (rowIndex === index ? { ...row, ...patch } : row))
+    )
+  }
+
+  const removeAvailabilityRow = (index: number) => {
+    setAvailability((previous) => previous.filter((_, rowIndex) => rowIndex !== index))
   }
 
   const currentState = editingResource ? updateState : createState
@@ -257,6 +348,123 @@ export function AddResourceForm({ isOpen, onClose, editingResource }: Readonly<A
                     required
                   />
                 </div>
+
+                <div className="grid gap-2">
+                  <Label>Amenities</Label>
+                  {(() => {
+                    if (isLoadingAmenities) {
+                      return <p className="text-sm text-muted-foreground">Loading amenities...</p>
+                    }
+                    if (amenities.length === 0) {
+                      return <p className="text-sm text-muted-foreground">No amenities available.</p>
+                    }
+                    return (
+                      <div className="grid gap-2 rounded-md border border-input p-3">
+                        {amenities.map((amenity) => (
+                          <label key={amenity.id} className="flex items-center gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              name="amenityIds"
+                              value={amenity.id}
+                              checked={selectedAmenityIds.includes(amenity.id)}
+                              onChange={() =>
+                                setSelectedAmenityIds((previous) => toggleId(previous, amenity.id))
+                              }
+                              className="h-4 w-4 rounded border-input"
+                            />
+                            <span>{amenity.name}</span>
+                          </label>
+                        ))}
+                      </div>
+                    )
+                  })()}
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>Rates</Label>
+                  {(() => {
+                    if (!selectedType) {
+                      return <p className="text-sm text-muted-foreground">Select a resource type to see its rates.</p>
+                    }
+                    if (isLoadingRates) {
+                      return <p className="text-sm text-muted-foreground">Loading rates...</p>
+                    }
+                    if (rates.length === 0) {
+                      return <p className="text-sm text-muted-foreground">No rates defined for this type.</p>
+                    }
+                    return (
+                      <div className="grid gap-2 rounded-md border border-input p-3">
+                        {rates.map((rate) => (
+                          <label key={rate.id} className="flex items-start gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              name="rateIds"
+                              value={rate.id}
+                              checked={selectedRateIds.includes(rate.id)}
+                              onChange={() =>
+                                setSelectedRateIds((previous) => toggleId(previous, rate.id))
+                              }
+                              className="mt-0.5 h-4 w-4 rounded border-input"
+                            />
+                            <span>
+                              {rate.name}
+                              <span className="block text-xs text-muted-foreground">
+                                {rate.priceHt} TND / {rate.intervalType.replaceAll("_", " ")}
+                                {rate.isWeekendRate ? " (weekend)" : ""}
+                              </span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )
+                  })()}
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>Availability</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Periods the resource can be booked. Leave empty for always available;
+                    leave an end date empty for indefinite.
+                  </p>
+                  {availability.map((row, index) => (
+                    // Rows are positional: the action pairs start/end by index.
+                    <div key={index} className="grid gap-2 rounded-md border border-input p-3">
+                      <div className="grid gap-1">
+                        <Label htmlFor={`availabilityStart-${index}`} className="text-xs">From</Label>
+                        <Input
+                          id={`availabilityStart-${index}`}
+                          name="availabilityStart"
+                          type="datetime-local"
+                          value={row.startDate}
+                          onChange={(e) => updateAvailabilityRow(index, { startDate: e.target.value })}
+                        />
+                      </div>
+                      <div className="grid gap-1">
+                        <Label htmlFor={`availabilityEnd-${index}`} className="text-xs">Until</Label>
+                        <Input
+                          id={`availabilityEnd-${index}`}
+                          name="availabilityEnd"
+                          type="datetime-local"
+                          value={row.endDate}
+                          onChange={(e) => updateAvailabilityRow(index, { endDate: e.target.value })}
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="justify-self-start text-destructive"
+                        onClick={() => removeAvailabilityRow(index)}
+                      >
+                        Remove period
+                      </Button>
+                    </div>
+                  ))}
+                  <Button type="button" variant="outline" size="sm" onClick={addAvailabilityRow}>
+                    Add period
+                  </Button>
+                </div>
+
                 {currentState.error && (
                   <div className="text-sm text-red-600">
                     {currentState.error}

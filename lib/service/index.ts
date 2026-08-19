@@ -5,12 +5,14 @@ import type {
   AnalyticsMembershipsParams,
   AnalyticsOccupancyParams,
   AnalyticsRevenueParams,
-  ClaimMemberDto,
+  CreateAmenityDto,
+  CreateAssignmentDto,
   CreateBookingDto,
   CreateBookingRequestDto,
   CreateChargeDto,
   CreateCheckinDto,
   CreateCompanyDto,
+  CreateExtraDto,
   CreateInvoiceDto,
   CreateLocationDto,
   CreateMemberDto,
@@ -18,15 +20,23 @@ import type {
   CreateOpportunityDto,
   CreatePaymentDto,
   CreatePlanDto,
+  CreatePlanRequestDto,
   CreateResourceDto,
   CreateResourceRateDto,
   CreateResourceTypeDto,
+  EndAssignmentDto,
+  GetCreditBalancesParams,
   GetOccupancyParams,
   GetResourceAvailabilityParams,
+  GrantCreditDto,
+  ListAmenitiesParams,
+  ListAssignmentsParams,
   ListBookingsParams,
   ListChargesParams,
   ListCheckinsParams,
   ListCompaniesParams,
+  ListCreditsParams,
+  ListExtrasParams,
   ListInvoicesParams,
   ListLocationsParams,
   ListMembershipsParams,
@@ -37,32 +47,25 @@ import type {
   ListResourcesParams,
   ListResourceTypesParams,
   PublicResourceAvailabilityParams,
-  RegisterDto,
+  RelocateAssignmentDto,
+  UpdateAmenityDto,
   UpdateBookingDto,
   UpdateCompanyDto,
+  UpdateCreditDto,
+  UpdateExtraDto,
   UpdateLocationDto,
+  UpdateMemberCompanyDto,
   UpdateMemberDto,
+  UpdateMembershipDto,
+  UpdateMemberStatusDto,
   UpdateOpportunityDto,
   UpdatePlanDto,
   UpdateResourceDto,
   UpdateResourceRateDto,
   UpdateResourceTypeDto,
-  VerifyOtpDto,
 } from "./HsService";
 
 import type { RequestParams } from "../shared/types";
-
-export async function requestEmailOtp(data: RegisterDto, params?: RequestParams) {
-  return hsService.api.requestEmailOtp(data, params);
-}
-
-export async function verifyEmailOtp(data: VerifyOtpDto, params?: RequestParams) {
-  return hsService.api.verifyEmailOtp(data, params);
-}
-
-export async function signOut(params?: RequestParams) {
-  return hsService.api.signOut(params);
-}
 
 export async function getListLocations(query: ListLocationsParams, params?: RequestParams) {
   return hsService.api.listLocations(query, params);
@@ -112,16 +115,12 @@ export async function updateMember(id: string, data: UpdateMemberDto, params?: R
   return hsService.api.updateMember(id, data, params);
 }
 
-export async function inviteMember(id: string, params?: RequestParams) {
-  return hsService.api.inviteMember(id, params);
+export async function updateMemberStatus(id: string, data: UpdateMemberStatusDto, params?: RequestParams) {
+  return hsService.api.updateMemberStatus(id, data, params);
 }
 
-export async function unlinkMember(id: string, params?: RequestParams) {
-  return hsService.api.unlinkMember(id, params);
-}
-
-export async function claimMember(data: ClaimMemberDto, params?: RequestParams) {
-  return hsService.api.claimMember(data, params);
+export async function updateMemberCompany(id: string, data: UpdateMemberCompanyDto, params?: RequestParams) {
+  return hsService.api.updateMemberCompany(id, data, params);
 }
 
 export async function getListResourceTypes(query: ListResourceTypesParams, params?: RequestParams) {
@@ -156,6 +155,10 @@ export async function updateResource(id: string, data: UpdateResourceDto, params
   return hsService.api.updateResource(id, data, params);
 }
 
+export async function getResourceStatus(id: string, params?: RequestParams) {
+  return hsService.api.getResourceStatus(id, params);
+}
+
 export async function getListResourceRates(query: ListResourceRatesParams, params?: RequestParams) {
   return hsService.api.listResourceRates(query, params);
 }
@@ -188,6 +191,38 @@ export async function updatePlan(id: string, data: UpdatePlanDto, params?: Reque
   return hsService.api.updatePlan(id, data, params);
 }
 
+export async function getListAmenities(query: ListAmenitiesParams, params?: RequestParams) {
+  return hsService.api.listAmenities(query, params);
+}
+
+export async function createAmenity(data: CreateAmenityDto, params?: RequestParams) {
+  return hsService.api.createAmenity(data, params);
+}
+
+export async function getAmenity(id: string, params?: RequestParams) {
+  return hsService.api.getAmenity(id, params);
+}
+
+export async function updateAmenity(id: string, data: UpdateAmenityDto, params?: RequestParams) {
+  return hsService.api.updateAmenity(id, data, params);
+}
+
+export async function getListExtras(query: ListExtrasParams, params?: RequestParams) {
+  return hsService.api.listExtras(query, params);
+}
+
+export async function createExtra(data: CreateExtraDto, params?: RequestParams) {
+  return hsService.api.createExtra(data, params);
+}
+
+export async function getExtra(id: string, params?: RequestParams) {
+  return hsService.api.getExtra(id, params);
+}
+
+export async function updateExtra(id: string, data: UpdateExtraDto, params?: RequestParams) {
+  return hsService.api.updateExtra(id, data, params);
+}
+
 export async function getListCharges(query: ListChargesParams, params?: RequestParams) {
   return hsService.api.listCharges(query, params);
 }
@@ -216,6 +251,30 @@ export async function recordPayment(id: string, data: CreatePaymentDto, params?:
   return hsService.api.recordPayment(id, data, params);
 }
 
+export async function getListCredits(query: ListCreditsParams, params?: RequestParams) {
+  return hsService.api.listCredits(query, params);
+}
+
+export async function grantCredit(data: GrantCreditDto, params?: RequestParams) {
+  return hsService.api.grantCredit(data, params);
+}
+
+export async function getCreditBalances(query: GetCreditBalancesParams, params?: RequestParams) {
+  return hsService.api.getCreditBalances(query, params);
+}
+
+export async function getCredit(id: string, params?: RequestParams) {
+  return hsService.api.getCredit(id, params);
+}
+
+export async function updateCredit(id: string, data: UpdateCreditDto, params?: RequestParams) {
+  return hsService.api.updateCredit(id, data, params);
+}
+
+export async function deleteCredit(id: string, params?: RequestParams) {
+  return hsService.api.deleteCredit(id, params);
+}
+
 export async function getListMemberships(query: ListMembershipsParams, params?: RequestParams) {
   return hsService.api.listMemberships(query, params);
 }
@@ -228,8 +287,8 @@ export async function getMembership(id: string, params?: RequestParams) {
   return hsService.api.getMembership(id, params);
 }
 
-export async function getMembershipCredits(id: string, params?: RequestParams) {
-  return hsService.api.getMembershipCredits(id, params);
+export async function updateMembership(id: string, data: UpdateMembershipDto, params?: RequestParams) {
+  return hsService.api.updateMembership(id, data, params);
 }
 
 export async function cancelMembership(id: string, params?: RequestParams) {
@@ -240,8 +299,20 @@ export async function renewMembership(id: string, params?: RequestParams) {
   return hsService.api.renewMembership(id, params);
 }
 
-export async function getMe(params?: RequestParams) {
-  return hsService.api.getMe(params);
+export async function getListAssignments(query: ListAssignmentsParams, params?: RequestParams) {
+  return hsService.api.listAssignments(query, params);
+}
+
+export async function createAssignment(data: CreateAssignmentDto, params?: RequestParams) {
+  return hsService.api.createAssignment(data, params);
+}
+
+export async function endAssignment(id: string, data: EndAssignmentDto, params?: RequestParams) {
+  return hsService.api.endAssignment(id, data, params);
+}
+
+export async function relocateAssignment(id: string, data: RelocateAssignmentDto, params?: RequestParams) {
+  return hsService.api.relocateAssignment(id, data, params);
 }
 
 export async function checkIn(data: CreateCheckinDto, params?: RequestParams) {
@@ -327,8 +398,16 @@ export async function getPublicResourceAvailability(
   return hsService.api.publicResourceAvailability({ id, ...query }, params);
 }
 
+export async function getPublicListResources(params?: RequestParams) {
+  return hsService.api.publicListResources(params);
+}
+
 export async function publicCreateBookingRequest(data: CreateBookingRequestDto, params?: RequestParams) {
   return hsService.api.publicCreateBookingRequest(data, params);
+}
+
+export async function publicCreatePlanRequest(data: CreatePlanRequestDto, params?: RequestParams) {
+  return hsService.api.publicCreatePlanRequest(data, params);
 }
 
 export async function getHealthCheckerControllerCheckDatabase(params?: RequestParams) {

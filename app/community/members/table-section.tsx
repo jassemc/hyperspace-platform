@@ -1,5 +1,10 @@
-import { getListMembers } from "@/lib/service"
-import type { ListMembersParams, MemberDto, MemberKindHint } from "@/lib/service/HsService"
+import { getListMembers, getListCompanies } from "@/lib/service"
+import type {
+  CompanyDto,
+  ListMembersParams,
+  MemberDto,
+  MemberKindHint,
+} from "@/lib/service/HsService"
 import { MemberTable } from "./member-table"
 
 type MembersPage = {
@@ -11,6 +16,14 @@ function firstParam(
   value: string | string[] | undefined
 ): string | undefined {
   return Array.isArray(value) ? value[0] : value
+}
+
+const MEMBER_KIND_HINTS: MemberKindHint[] = ["lead", "visitor", "member"]
+
+function asKindHint(value: string | undefined): MemberKindHint | undefined {
+  return MEMBER_KIND_HINTS.includes(value as MemberKindHint)
+    ? (value as MemberKindHint)
+    : undefined
 }
 
 export async function MemberTableSection({
@@ -25,7 +38,9 @@ export async function MemberTableSection({
 
   const page = Number(firstParam(resolvedSearchParams?.page)) || 1
   const pageSize = Number(firstParam(resolvedSearchParams?.pageSize)) || 10
-  const kindHintParam = firstParam(resolvedSearchParams?.status) as MemberKindHint | undefined
+  // The shared table writes its tab selection to `status`; for members that
+  // selection is a kindHint, the only lifecycle filter the endpoint accepts.
+  const kindHint = asKindHint(firstParam(resolvedSearchParams?.status))
   const searchQuery = firstParam(resolvedSearchParams?.name)
 
   const query: ListMembersParams = {
@@ -33,7 +48,7 @@ export async function MemberTableSection({
     offset: (page - 1) * pageSize,
     sort: "ASC",
     q: searchQuery || undefined,
-    kindHint: kindHintParam,
+    kindHint,
   }
 
   let results: MemberDto[] = []
@@ -47,5 +62,23 @@ export async function MemberTableSection({
     console.warn("Failed to load members", error)
   }
 
-  return <MemberTable data={results} totalCount={total} />
+  // Members carry only `companyId`, so resolve employer names for the table.
+  const companyNames: Record<string, string> = {}
+  try {
+    const companies = await getListCompanies({ limit: 100, offset: 0, sort: "ASC" })
+    for (const company of (companies?.results ?? []) as CompanyDto[]) {
+      companyNames[company.id] = company.name
+    }
+  } catch (error) {
+    console.warn("Failed to load companies for member lookup", error)
+  }
+
+  return (
+    <MemberTable
+      data={results}
+      totalCount={total}
+      companyNames={companyNames}
+      activeKindHint={kindHint}
+    />
+  )
 }

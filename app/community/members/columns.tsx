@@ -5,35 +5,16 @@ import { Badge } from "@/components/ui/badge"
 import type { MemberDto, MemberStatus } from "@/lib/service/HsService"
 import type { ColumnDef } from "@tanstack/react-table"
 import { ArrowUpDown, Edit } from "lucide-react"
-import { InviteButton } from "./invite-button"
-import { UnlinkButton } from "./unlink-button"
+import { formatDate, formatEnumLabel } from "@/lib/format"
+import { MEMBER_STATUS_CLASSES, MEMBER_STATUS_LABELS } from "./member-status"
+import { StatusButton } from "./status-button"
 
 interface ColumnsProps {
   onEdit: (member: MemberDto) => void
+  companyNames?: Record<string, string>
 }
 
-function statusBadgeClass(status: MemberStatus) {
-  switch (status) {
-    case "active":
-      return "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900 dark:text-green-200"
-    case "lead":
-      return "bg-sky-100 text-sky-800 hover:bg-sky-200 dark:bg-sky-900 dark:text-sky-200"
-    case "drop-in":
-      return "bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200"
-    case "pending":
-      return "bg-orange-100 text-orange-800 hover:bg-orange-200 dark:bg-orange-900 dark:text-orange-200"
-    case "former":
-      return "bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900 dark:text-red-200"
-    default:
-      return "bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200"
-  }
-}
-
-function formatLabel(value: string) {
-  return value.replaceAll("-", " ").replaceAll("_", " ")
-}
-
-export const createColumns = ({ onEdit }: ColumnsProps): ColumnDef<MemberDto>[] => [
+export const createColumns = ({ onEdit, companyNames = {} }: ColumnsProps): ColumnDef<MemberDto>[] => [
   {
     id: "name",
     accessorKey: "fullName",
@@ -64,11 +45,40 @@ export const createColumns = ({ onEdit }: ColumnsProps): ColumnDef<MemberDto>[] 
     },
   },
   {
+    id: "company",
+    // Members reference their employer by id only.
+    accessorFn: (member) => (member.companyId ? companyNames[member.companyId] ?? "" : ""),
+    header: "Company",
+    cell: ({ row }) => {
+      const member = row.original
+      if (!member.companyId) return <span className="text-muted-foreground">Solo</span>
+      return (
+        <div className="flex flex-col">
+          <span>{row.getValue<string>("company") || "Unknown company"}</span>
+          {(member.isBillingPerson || member.isContactPerson) && (
+            <span className="flex gap-1 pt-0.5">
+              {member.isBillingPerson && (
+                <Badge variant="outline" className="text-[10px] font-normal">
+                  Billing
+                </Badge>
+              )}
+              {member.isContactPerson && (
+                <Badge variant="outline" className="text-[10px] font-normal">
+                  Contact
+                </Badge>
+              )}
+            </span>
+          )}
+        </div>
+      )
+    },
+  },
+  {
     accessorKey: "kindHint",
     header: "Kind",
     cell: ({ row }) => {
       const value = row.getValue<string>("kindHint")
-      return <span className="capitalize">{formatLabel(value)}</span>
+      return <span className="capitalize">{value ? formatEnumLabel(value) : "-"}</span>
     },
   },
   {
@@ -76,35 +86,27 @@ export const createColumns = ({ onEdit }: ColumnsProps): ColumnDef<MemberDto>[] 
     header: "Status",
     cell: ({ row }) => {
       const value = row.getValue<MemberStatus>("status")
-      if (!value) return <span>-</span>
+      if (!value) return <span className="text-muted-foreground">-</span>
 
       return (
-        <Badge variant="secondary" className={`${statusBadgeClass(value)} border-0 capitalize`}>
-          {formatLabel(value)}
-        </Badge>
-      )
-    },
-  },
-  {
-    accessorKey: "hasPortalAccess",
-    header: "Portal",
-    cell: ({ row }) => {
-      const hasAccess = row.getValue<boolean>("hasPortalAccess")
-      return (
-        <Badge variant={hasAccess ? "default" : "outline"}>
-          {hasAccess ? "Linked" : "None"}
-        </Badge>
+        <div className="flex items-center gap-1.5">
+          <Badge variant="secondary" className={`${MEMBER_STATUS_CLASSES[value] ?? ""} border-0`}>
+            {MEMBER_STATUS_LABELS[value] ?? formatEnumLabel(value)}
+          </Badge>
+          {/* A pinned status was set by staff rather than derived from activity. */}
+          {row.original.statusOverride && (
+            <span className="text-[10px] text-muted-foreground" title="Manually pinned">
+              pinned
+            </span>
+          )}
+        </div>
       )
     },
   },
   {
     accessorKey: "createdAt",
     header: "Created",
-    cell: ({ row }) => {
-      const value = row.getValue<string>("createdAt")
-      const date = value ? new Date(value) : null
-      return <span>{date ? date.toLocaleDateString() : "-"}</span>
-    },
+    cell: ({ row }) => <span>{formatDate(row.getValue<string>("createdAt"))}</span>,
   },
   {
     id: "actions",
@@ -121,15 +123,10 @@ export const createColumns = ({ onEdit }: ColumnsProps): ColumnDef<MemberDto>[] 
           >
             <Edit className="h-4 w-4" />
           </Button>
-          <InviteButton
+          <StatusButton
             memberId={member.id}
             memberName={member.fullName}
-            hasPortalAccess={member.hasPortalAccess}
-          />
-          <UnlinkButton
-            memberId={member.id}
-            memberName={member.fullName}
-            hasPortalAccess={member.hasPortalAccess}
+            statusOverride={member.statusOverride}
           />
         </div>
       )
