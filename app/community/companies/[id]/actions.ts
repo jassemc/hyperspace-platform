@@ -8,7 +8,7 @@ import {
   getListMembers,
   getListPlans,
   renewMembership,
-  updateMember,
+  updateMemberCompany,
 } from "@/lib/service"
 import type {
   CompanyDto,
@@ -113,7 +113,7 @@ export async function attachMemberAction(
     if (!companyId) return { success: false, error: "Company id is required" }
     if (!memberId) return { success: false, error: "Select a member to attach" }
 
-    await updateMember(memberId, { companyId })
+    await updateMemberCompany(memberId, { companyId })
     revalidateCompany(companyId)
     return { success: true }
   } catch (error) {
@@ -125,8 +125,8 @@ export async function attachMemberAction(
 }
 
 /**
- * Moves a member to another company. The API models `companyId` as a
- * non-nullable uuid, so a member can be reassigned but not un-affiliated.
+ * Moves a member to another company via PUT /members/:id/company. That
+ * endpoint accepts null to detach a member into a solo membership.
  */
 export async function reassignMemberAction(
   prevState: ActionState,
@@ -143,7 +143,7 @@ export async function reassignMemberAction(
       return { success: false, error: "Member already belongs to this company" }
     }
 
-    await updateMember(memberId, { companyId: targetCompanyId })
+    await updateMemberCompany(memberId, { companyId: targetCompanyId })
     if (currentCompanyId) revalidateCompany(currentCompanyId)
     revalidateCompany(targetCompanyId)
     return { success: true }

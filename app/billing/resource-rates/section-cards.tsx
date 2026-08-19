@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { DollarSignIcon, UsersIcon, EyeIcon, Clock3Icon } from "lucide-react"
+import { DollarSignIcon, CalendarDaysIcon, LayersIcon, Clock3Icon } from "lucide-react"
 
 type ResourceRatesPage = {
   results?: ResourceRateDto[]
@@ -17,9 +17,9 @@ type ResourceRatesPage = {
 
 type ResourceRateStats = {
   total: number
-  members: number
-  visitors: number
-  hourly: number
+  weekend: number
+  typesPriced: number
+  withExtras: number
 }
 
 async function loadResourceRateStats(): Promise<ResourceRateStats> {
@@ -35,13 +35,13 @@ async function loadResourceRateStats(): Promise<ResourceRateStats> {
 
     return {
       total,
-      members: rates.filter((rate) => rate.audience === "member").length,
-      visitors: rates.filter((rate) => rate.audience === "visitor").length,
-      hourly: rates.filter((rate) => rate.rateType === "hourly").length,
+      weekend: rates.filter((rate) => rate.isWeekendRate).length,
+      typesPriced: new Set(rates.map((rate) => rate.resourceTypeId)).size,
+      withExtras: rates.filter((rate) => (rate.extras ?? []).length > 0).length,
     }
   } catch (error) {
     console.warn("Failed to load resource rate stats", error)
-    return { total: 0, members: 0, visitors: 0, hourly: 0 }
+    return { total: 0, weekend: 0, typesPriced: 0, withExtras: 0 }
   }
 }
 
@@ -70,55 +70,55 @@ export async function SectionCards() {
 
       <Card className="@container/card">
         <CardHeader className="relative">
-          <CardDescription>Member rates</CardDescription>
+          <CardDescription>Weekend variants</CardDescription>
           <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
-            {stats.members}
+            {stats.weekend}
           </CardTitle>
           <div className="absolute right-4 top-4">
             <Badge variant="outline" className="flex gap-1 rounded-lg text-xs">
-              <UsersIcon className="size-3" />
-              Members
+              <CalendarDaysIcon className="size-3" />
+              Weekend
             </Badge>
           </div>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1 text-sm">
-          <div className="text-muted-foreground">Rates for member audiences</div>
+          <div className="text-muted-foreground">Saturday and Sunday overrides</div>
         </CardFooter>
       </Card>
 
       <Card className="@container/card">
         <CardHeader className="relative">
-          <CardDescription>Visitor rates</CardDescription>
+          <CardDescription>Types priced</CardDescription>
           <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
-            {stats.visitors}
+            {stats.typesPriced}
           </CardTitle>
           <div className="absolute right-4 top-4">
             <Badge variant="outline" className="flex gap-1 rounded-lg text-xs">
-              <EyeIcon className="size-3" />
-              Visitors
+              <LayersIcon className="size-3" />
+              Coverage
             </Badge>
           </div>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1 text-sm">
-          <div className="text-muted-foreground">Rates for visitor audiences</div>
+          <div className="text-muted-foreground">Distinct resource types with a rate</div>
         </CardFooter>
       </Card>
 
       <Card className="@container/card">
         <CardHeader className="relative">
-          <CardDescription>Hourly</CardDescription>
+          <CardDescription>With extras</CardDescription>
           <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
-            {stats.hourly}
+            {stats.withExtras}
           </CardTitle>
           <div className="absolute right-4 top-4">
             <Badge variant="outline" className="flex gap-1 rounded-lg text-xs">
               <Clock3Icon className="size-3" />
-              Time-based
+              Add-ons
             </Badge>
           </div>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1 text-sm">
-          <div className="text-muted-foreground">Hourly billing entries</div>
+          <div className="text-muted-foreground">Rates offering add-ons</div>
         </CardFooter>
       </Card>
     </div>

@@ -2,6 +2,7 @@ import { getListResources, getListResourceTypes } from "@/lib/service";
 import { PageDto } from "@/lib/service/HsService";
 import type { ListResourcesParams, ResourceDto, ResourceTypeDto } from "@/lib/service/HsService";
 import { ResourceTable } from "./resource-table";
+import { isResourceStatus } from "./resource-status";
 
 function firstParam(
   value: string | string[] | undefined
@@ -16,6 +17,7 @@ export async function ResourceTableSection({ searchParams }: Readonly<{ searchPa
     const pageSize = Number(firstParam(resolvedSearchParams?.pageSize)) || 10
     const searchQuery = firstParam(resolvedSearchParams?.name)
     const resourceTypeId = firstParam(resolvedSearchParams?.resourceTypeId)
+    const statusParam = firstParam(resolvedSearchParams?.status)
 
     const query: ListResourcesParams = {
         limit: pageSize,
@@ -23,6 +25,7 @@ export async function ResourceTableSection({ searchParams }: Readonly<{ searchPa
         sort: "ASC",
         q: searchQuery || undefined,
         resourceTypeId: resourceTypeId || undefined,
+        status: isResourceStatus(statusParam) ? statusParam : undefined,
     }
 
     let results: ResourceDto[] = []
@@ -56,6 +59,7 @@ export async function ResourceTableSection({ searchParams }: Readonly<{ searchPa
             totalCount={total}
             resourceTypeNames={resourceTypeNames}
             activeResourceTypeId={resourceTypeId}
+            activeStatus={isResourceStatus(statusParam) ? statusParam : undefined}
         />
     )
 }

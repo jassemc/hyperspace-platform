@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { createResource, updateResource } from "@/lib/service"
-import type { CreateResourceDto, UpdateResourceDto } from "@/lib/service/HsService"
+import type { AvailabilityPeriodDto, CreateResourceDto, UpdateResourceDto } from "@/lib/service/HsService"
 
 
 type ApiErrorProperty = {
@@ -33,6 +33,32 @@ export type ActionState = {
   success?: boolean
   error?: string
   fieldErrors?: Record<string, string[]>
+}
+
+function idList(formData: FormData, field: string): string[] {
+  return formData
+    .getAll(field)
+    .map((value) => String(value).trim())
+    .filter(Boolean)
+}
+
+/**
+ * Availability rows are submitted as index-aligned start/end pairs. An empty
+ * start drops the row; an empty end means "indefinite".
+ */
+function availabilityPeriods(formData: FormData): AvailabilityPeriodDto[] {
+  const starts = formData.getAll("availabilityStart").map((value) => String(value))
+  const ends = formData.getAll("availabilityEnd").map((value) => String(value))
+
+  return starts.reduce<AvailabilityPeriodDto[]>((periods, start, index) => {
+    if (!start.trim()) return periods
+    const end = ends[index]?.trim()
+    periods.push({
+      startDate: new Date(start).toISOString(),
+      endDate: end ? new Date(end).toISOString() : null,
+    })
+    return periods
+  }, [])
 }
 
 export async function createResourceAction(
@@ -81,6 +107,9 @@ export async function createResourceAction(
       name: name.trim(),
       description: description?.trim() || undefined,
       capacity,
+      amenityIds: idList(formData, "amenityIds"),
+      rateIds: idList(formData, "rateIds"),
+      availability: availabilityPeriods(formData),
     }
 
     console.log("Creating resource with data:", JSON.stringify(data, null, 2))
@@ -145,6 +174,10 @@ export async function updateResourceAction(
       capacity: Number(formData.get("capacity")) || undefined,
       resourceTypeId,
       locationId,
+      // Full-replace semantics: what the form submits becomes the new set.
+      amenityIds: idList(formData, "amenityIds"),
+      rateIds: idList(formData, "rateIds"),
+      availability: availabilityPeriods(formData),
     }
 
     await updateResource(id, data)
@@ -177,18 +210,30 @@ export async function updateResourceAction(
   }
 }
 
-export async function deleteResourceAction(
+/**
+ * The API exposes no DELETE for resources, so retiring one is a soft delete:
+ * `active: false` takes it out of circulation and can be reversed. See
+ * docs/backend-api-issues.md if a hard delete is added later.
+ */
+export async function setResourceActiveAction(
   prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   try {
-    // TODO: Implement deleteResource when API endpoint is available
+    const id = formData.get("id") as string
+    if (!id) {
+      return { success: false, error: "Resource ID is required" }
+    }
+
+    const active = formData.get("active") === "true"
+
+    await updateResource(id, { active })
     revalidatePath("/space/resources")
-    return { success: true, error: "Delete not yet implemented" }
+    return { success: true }
   } catch (error) {
-    return { 
-      success: false, 
-      error: error instanceof Error ? error.message : "Failed to delete resource" 
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to update the resource",
     }
   }
 }

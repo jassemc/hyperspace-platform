@@ -41,40 +41,6 @@ export interface ResponseErrorDto {
   properties?: Array<Record<string, string>>;
 }
 
-export interface OtpRequestedDto {
-  /** Confirmation message */
-  message: string;
-}
-
-export interface RegisterDto {
-  /** @example "user@example.com" */
-  email: string;
-}
-
-export interface AuthTokensDto {
-  /** JWT access token */
-  accessToken: string;
-  /** Refresh token for obtaining new access tokens */
-  refreshToken: string;
-  /**
-   * Token type
-   * @example "Bearer"
-   */
-  tokenType: string;
-  /** Access token expiry in seconds */
-  expiresIn: number;
-}
-
-export interface VerifyOtpDto {
-  /** @example "user@example.com" */
-  email: string;
-  /**
-   * 6-digit OTP code
-   * @example "123456"
-   */
-  token: string;
-}
-
 export interface PageMetaDto {
   /**
    * The current page number.
@@ -105,7 +71,7 @@ export interface PageMetaDto {
 
 export interface PageDto {
   /** An array of results for the current page. */
-  results: Array<Array<any>>;
+  results: Array<string>;
   /** Metadata for the paginated response, including pagination details. */
   meta: PageMetaDto;
 }
@@ -239,6 +205,12 @@ export interface UpdateLocationDto {
   active?: boolean;
 }
 
+/**
+ * DERIVED status (OfficeRnD vocabulary) — computed from membership,
+ * charge and opportunity data, never stored, never manually set.
+ */
+export type CompanyStatus = "lead" | "drop-in" | "pending" | "active" | "former" | "inactive";
+
 export interface CompanyDto {
   /**
    * Unique identifier
@@ -253,11 +225,20 @@ export interface CompanyDto {
    * @example "1234567/A/M/000"
    */
   taxId?: string | null;
+  /** @example "2026-08-01" */
+  startDate?: string | null;
+  billingName?: string | null;
+  registrationNumber?: string | null;
   billingAddress?: AddressDto | null;
   email?: string | null;
   phone?: string | null;
   description?: string | null;
   website?: string | null;
+  /**
+   * DERIVED status (OfficeRnD vocabulary) — computed from membership,
+   * charge and opportunity data, never stored, never manually set.
+   */
+  status: CompanyStatus;
   tags: Array<string>;
   metadata: Record<string, any>;
   /**
@@ -282,6 +263,21 @@ export interface CreateCompanyDto {
    * @example "1234567/A/M/000"
    */
   taxId?: string;
+  /**
+   * First business day of the relationship (Africa/Tunis date).
+   * @example "2026-08-01"
+   */
+  startDate?: string;
+  /**
+   * Name printed on invoices when it differs from the display name.
+   * @example "ACME CONSULTING SARL"
+   */
+  billingName?: string;
+  /**
+   * Registre de commerce (RC) number.
+   * @example "B0123452012"
+   */
+  registrationNumber?: string;
   billingAddress?: AddressDto;
   /** @example "billing@acme.tn" */
   email?: string;
@@ -302,6 +298,16 @@ export interface UpdateCompanyDto {
    * @example "1234567/A/M/000"
    */
   taxId?: string;
+  /**
+   * Name printed on invoices when it differs from the display name.
+   * @example "ACME CONSULTING SARL"
+   */
+  billingName?: string;
+  /**
+   * Registre de commerce (RC) number.
+   * @example "B0123452012"
+   */
+  registrationNumber?: string;
   billingAddress?: AddressDto;
   /** @example "billing@acme.tn" */
   email?: string;
@@ -312,6 +318,14 @@ export interface UpdateCompanyDto {
   website?: string;
   tags?: Array<string>;
   metadata?: Record<string, any>;
+  /**
+   * First business day of the relationship. `null` clears the date — and
+   * with it the membership start-date floor — so a date set by mistake is
+   * not permanent. (`@IsOptional` skips validation for null as well as
+   * undefined, so null passes without a `@ValidateIf`.)
+   * @example "2026-08-01"
+   */
+  startDate?: string | null;
 }
 
 export type MemberSegment =
@@ -326,10 +340,15 @@ export type MemberSegment =
 export type MemberKindHint = "lead" | "visitor" | "member";
 
 /**
- * DERIVED status (OfficeRnD vocabulary) — computed, never stored.
- * Phase 1 derives from kindHint; Phase 2 from membership data.
+ * DERIVED status (OfficeRnD vocabulary) — computed on read, never stored.
+ * A manual `statusOverride` pin (`former`/`contact`) wins when set;
+ * otherwise it derives from memberships, then one-off charges, then open
+ * opportunities, then kindHint.
  */
-export type MemberStatus = "lead" | "drop-in" | "pending" | "active" | "former";
+export type MemberStatus = "lead" | "drop-in" | "pending" | "active" | "former" | "contact";
+
+/** Manual lifecycle pin (staff-set via PUT /members/:id/status); null = auto. */
+export type MemberStatusOverride = "former" | "contact";
 
 export interface MemberDto {
   /**
@@ -344,15 +363,21 @@ export interface MemberDto {
   phone?: string | null;
   /** @format uuid */
   companyId?: string | null;
+  /** True if this member receives their company's invoices. */
+  isBillingPerson: boolean;
+  /** True if this member is their company's contact person. */
+  isContactPerson: boolean;
   segment?: MemberSegment | null;
   kindHint: MemberKindHint;
   /**
-   * DERIVED status (OfficeRnD vocabulary) — computed, never stored.
-   * Phase 1 derives from kindHint; Phase 2 from membership data.
+   * DERIVED status (OfficeRnD vocabulary) — computed on read, never stored.
+   * A manual `statusOverride` pin (`former`/`contact`) wins when set;
+   * otherwise it derives from memberships, then one-off charges, then open
+   * opportunities, then kindHint.
    */
   status: MemberStatus;
-  /** True when a portal user has claimed this member (§6.5). */
-  hasPortalAccess: boolean;
+  /** Manual lifecycle pin (staff-set via PUT /members/:id/status); null = auto. */
+  statusOverride?: MemberStatusOverride | null;
   notes?: string | null;
   tags: Array<string>;
   metadata: Record<string, any>;
@@ -382,6 +407,16 @@ export interface CreateMemberDto {
    * @format uuid
    */
   companyId?: string;
+  /**
+   * Marks the company's invoice recipient; requires companyId.
+   * @default false
+   */
+  isBillingPerson?: boolean;
+  /**
+   * Marks the company's contact person; requires companyId.
+   * @default false
+   */
+  isContactPerson?: boolean;
   segment?: MemberSegment;
   /**
    * Defaults to `lead` — the CRM entry point.
@@ -401,10 +436,15 @@ export interface UpdateMemberDto {
   /** @example "+21622123456" */
   phone?: string;
   /**
-   * Employer company id.
-   * @format uuid
+   * Marks the company's invoice recipient; requires companyId.
+   * @default false
    */
-  companyId?: string;
+  isBillingPerson?: boolean;
+  /**
+   * Marks the company's contact person; requires companyId.
+   * @default false
+   */
+  isContactPerson?: boolean;
   segment?: MemberSegment;
   /**
    * Defaults to `lead` — the CRM entry point.
@@ -416,23 +456,20 @@ export interface UpdateMemberDto {
   metadata?: Record<string, any>;
 }
 
-export interface InviteResponseDto {
-  /**
-   * Single-use claim token — deliver to the customer out-of-band
-   * (email/WhatsApp). v1 displays it to staff.
-   * @example "3f1c9a…48 hex chars"
-   */
-  inviteToken: string;
-  /** @format date-time */
-  inviteExpiresAt: string;
+/** `former`/`contact` pins the status; `auto` clears the pin. */
+export type MemberStatusUpdate = "former" | "contact" | "auto";
+
+export interface UpdateMemberStatusDto {
+  /** `former`/`contact` pins the status; `auto` clears the pin. */
+  status: MemberStatusUpdate;
 }
 
-export interface ClaimMemberDto {
+export interface UpdateMemberCompanyDto {
   /**
-   * The invite token received from staff.
-   * @example "a3f1c9…"
+   * Target employer company; `null` detaches into a solo member.
+   * @format uuid
    */
-  inviteToken: string;
+  companyId: string | null;
 }
 
 export type BookingMode = "hourly" | "daily" | "none";
@@ -449,6 +486,18 @@ export interface ResourceTypeDto {
   /** @example "Meeting Room" */
   name: string;
   bookingMode: BookingMode;
+  /** @example false */
+  canAssign: boolean;
+  /**
+   * Whether resources of this type can be booked.
+   * @example true
+   */
+  canBook: boolean;
+  /**
+   * True for pre-defined types; custom types are always false.
+   * @example false
+   */
+  isDefault: boolean;
   /**
    * The date of creation of the resource
    * @format date-time
@@ -472,6 +521,10 @@ export interface CreateResourceTypeDto {
   /** @example "Meeting Room" */
   name: string;
   bookingMode: BookingMode;
+  /** @default false */
+  canAssign?: boolean;
+  /** Defaults to true whenever bookingMode is not `none`. */
+  canBook?: boolean;
 }
 
 export interface UpdateResourceTypeDto {
@@ -483,6 +536,157 @@ export interface UpdateResourceTypeDto {
   /** @example "Meeting Room" */
   name?: string;
   bookingMode?: BookingMode;
+  /** @default false */
+  canAssign?: boolean;
+  /** Defaults to true whenever bookingMode is not `none`. */
+  canBook?: boolean;
+}
+
+export interface AvailabilityPeriodDto {
+  /**
+   * When availability begins.
+   * @format date-time
+   * @example "2026-01-01T00:00:00.000Z"
+   */
+  startDate: string;
+  /**
+   * When availability ends (exclusive); null = indefinite.
+   * @format date-time
+   * @example "2026-06-30T23:00:00.000Z"
+   */
+  endDate?: string | null;
+}
+
+/**
+ * Derived at read time (never stored): the resource's own occupancy
+ * combined with its parent chain and, for parents, its children.
+ */
+export type ResourceStatus = "available" | "reserved" | "partially_occupied" | "occupied" | "unavailable";
+
+export interface AmenityDto {
+  /**
+   * Unique identifier
+   * @format uuid
+   * @example "9df3cd63-ad9a-48fb-8d48-2744da103c39"
+   */
+  id: string;
+  /** @example "projector" */
+  slug: string;
+  /** @example "Projector" */
+  name: string;
+  /** @example "projector" */
+  icon?: string | null;
+  /**
+   * The date of creation of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  createdAt: string;
+  /**
+   * The date of the last update of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  updatedAt: string;
+}
+
+export type RateIntervalType = "once" | "hour" | "half_day" | "day" | "week" | "month";
+
+export interface ExtraDto {
+  /**
+   * Unique identifier
+   * @format uuid
+   * @example "9df3cd63-ad9a-48fb-8d48-2744da103c39"
+   */
+  id: string;
+  /** @example "Locker" */
+  name: string;
+  description?: string | null;
+  /**
+   * Price excluding VAT, in dinars (30 = 30 TND).
+   * @example 30
+   */
+  priceHt: number;
+  /**
+   * VAT rate as a percentage (19 = 19%, 20.5 = 20.5%).
+   * @example 19
+   */
+  vatRate: number;
+  /** @example 0 */
+  deposit: number;
+  /**
+   * Links this extra to the shared amenity vocabulary (name + icon).
+   * @format uuid
+   */
+  amenityId?: string | null;
+  /** @example "Screen" */
+  amenityName?: string | null;
+  /** @example "screen" */
+  amenityIcon?: string | null;
+  /**
+   * The date of creation of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  createdAt: string;
+  /**
+   * The date of the last update of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  updatedAt: string;
+}
+
+export interface ResourceRateDto {
+  /**
+   * Unique identifier
+   * @format uuid
+   * @example "9df3cd63-ad9a-48fb-8d48-2744da103c39"
+   */
+  id: string;
+  /** @example "Meeting Room — hourly" */
+  name: string;
+  /**
+   * Unique short code — the line-item code on invoice exports.
+   * @example "ROOM-H"
+   */
+  code?: string | null;
+  description?: string | null;
+  /**
+   * The rate attaches only to resources of this type.
+   * @format uuid
+   */
+  resourceTypeId: string;
+  intervalType: RateIntervalType;
+  /**
+   * Weekend variant (Sat/Sun): overrides the standard rate of the same interval.
+   * @example false
+   */
+  isWeekendRate: boolean;
+  /**
+   * Price of the option excluding VAT, in dinars (20.5 = 20.5 TND):
+   * per unit for hour/day/week/month, flat for once/half_day.
+   * @example 20.5
+   */
+  priceHt: number;
+  /**
+   * VAT rate as a percentage (19 = 19%, 20.5 = 20.5%).
+   * @example 19
+   */
+  vatRate: number;
+  extras: Array<ExtraDto>;
+  /**
+   * The date of creation of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  createdAt: string;
+  /**
+   * The date of the last update of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  updatedAt: string;
 }
 
 export interface ResourceDto {
@@ -508,8 +712,21 @@ export interface ResourceDto {
   maxDurationMin?: number | null;
   /** @example 24 */
   cancellationHours: number;
+  /**
+   * Periods during which the resource is available for booking or
+   * assignment; empty = always available.
+   */
+  availability: Array<AvailabilityPeriodDto>;
   hidden: boolean;
   active: boolean;
+  /**
+   * Derived at read time (never stored): the resource's own occupancy
+   * combined with its parent chain and, for parents, its children.
+   */
+  status: ResourceStatus;
+  amenities: Array<AmenityDto>;
+  /** Attached price options — at most one per (interval, weekend) slot. */
+  rates: Array<ResourceRateDto>;
   /**
    * The date of creation of the resource
    * @format date-time
@@ -524,6 +741,16 @@ export interface ResourceDto {
   updatedAt: string;
 }
 
+export interface ResourceStatusDto {
+  /**
+   * Overall status: for children this reflects the parent chain, for
+   * parents it includes the children's occupancy.
+   */
+  status: ResourceStatus;
+  /** Status from the resource's own window and assignments only. */
+  ownStatus: ResourceStatus;
+}
+
 export interface CreateResourceDto {
   /** @format uuid */
   locationId: string;
@@ -534,6 +761,12 @@ export interface CreateResourceDto {
    * @format uuid
    */
   parentId?: string;
+  /**
+   * Rates to attach (shareable price options of this resource's exact
+   * type, at most one per (interval, weekend) slot). Full-replace
+   * semantics on update, like amenityIds.
+   */
+  rateIds?: Array<string>;
   /** @example "Meeting Room" */
   name: string;
   description?: string;
@@ -550,10 +783,18 @@ export interface CreateResourceDto {
    * @example 24
    */
   cancellationHours?: number;
+  /**
+   * Availability periods (non-overlapping); outside every period the
+   * status derives as `unavailable`. Omit or send `[]` for always
+   * available. Full-replace semantics on update.
+   */
+  availability?: Array<AvailabilityPeriodDto>;
   /** @default false */
   hidden?: boolean;
   /** @default true */
   active?: boolean;
+  /** Amenity ids to attach; full-replace semantics on update. */
+  amenityIds?: Array<string>;
 }
 
 export interface UpdateResourceDto {
@@ -566,6 +807,12 @@ export interface UpdateResourceDto {
    * @format uuid
    */
   parentId?: string;
+  /**
+   * Rates to attach (shareable price options of this resource's exact
+   * type, at most one per (interval, weekend) slot). Full-replace
+   * semantics on update, like amenityIds.
+   */
+  rateIds?: Array<string>;
   /** @example "Meeting Room" */
   name?: string;
   description?: string;
@@ -582,81 +829,83 @@ export interface UpdateResourceDto {
    * @example 24
    */
   cancellationHours?: number;
+  /**
+   * Availability periods (non-overlapping); outside every period the
+   * status derives as `unavailable`. Omit or send `[]` for always
+   * available. Full-replace semantics on update.
+   */
+  availability?: Array<AvailabilityPeriodDto>;
   /** @default false */
   hidden?: boolean;
   /** @default true */
   active?: boolean;
-}
-
-export type RateType = "hourly" | "daily";
-
-export type RateAudience = "member" | "visitor";
-
-export interface ResourceRateDto {
-  /**
-   * Unique identifier
-   * @format uuid
-   * @example "9df3cd63-ad9a-48fb-8d48-2744da103c39"
-   */
-  id: string;
-  /** @format uuid */
-  resourceId: string;
-  rateType: RateType;
-  audience: RateAudience;
-  /**
-   * Price per unit excluding VAT, in millimes (20 TND = 20000).
-   * @example 20000
-   */
-  priceHtMillimes: number;
-  /**
-   * VAT in basis points (1900 = 19%).
-   * @example 1900
-   */
-  vatRateBp: number;
-  /**
-   * The date of creation of the resource
-   * @format date-time
-   * @example "2025-05-25T10:03:33.169Z"
-   */
-  createdAt: string;
-  /**
-   * The date of the last update of the resource
-   * @format date-time
-   * @example "2025-05-25T10:03:33.169Z"
-   */
-  updatedAt: string;
+  /** Amenity ids to attach; full-replace semantics on update. */
+  amenityIds?: Array<string>;
 }
 
 export interface CreateResourceRateDto {
-  /** @format uuid */
-  resourceId: string;
-  rateType: RateType;
-  audience: RateAudience;
+  /** @example "Meeting Room — hourly" */
+  name: string;
   /**
-   * Price per unit excluding VAT, in millimes.
-   * @example 20000
+   * Unique short code — becomes the line-item code on invoice exports.
+   * @example "ROOM-H"
    */
-  priceHtMillimes: number;
+  code?: string;
+  description?: string;
   /**
-   * VAT in basis points. Defaults to 1900 (19%).
-   * @default 1900
-   * @example 1900
+   * Resource type the rate belongs to; its booking mode gates the interval.
+   * @format uuid
    */
-  vatRateBp?: number;
+  resourceTypeId: string;
+  intervalType: RateIntervalType;
+  /**
+   * Weekend variant; only hour/half_day/day intervals accept it.
+   * @default false
+   */
+  isWeekendRate?: boolean;
+  /**
+   * Price of the option excluding VAT, in dinars (TND).
+   * @example 20.5
+   */
+  priceHt: number;
+  /**
+   * VAT rate as a percentage. Defaults to 19 (19%).
+   * @default 19
+   * @example 19
+   */
+  vatRate?: number;
+  /**
+   * Extras (add-ons) offered with this rate. Full-replace semantics on
+   * update, like amenityIds/rateIds elsewhere in the catalog.
+   */
+  extraIds?: Array<string>;
 }
 
 export interface UpdateResourceRateDto {
+  /** @example "Meeting Room — hourly" */
+  name?: string;
   /**
-   * Price per unit excluding VAT, in millimes.
-   * @example 20000
+   * Unique short code — becomes the line-item code on invoice exports.
+   * @example "ROOM-H"
    */
-  priceHtMillimes?: number;
+  code?: string;
+  description?: string;
   /**
-   * VAT in basis points. Defaults to 1900 (19%).
-   * @default 1900
-   * @example 1900
+   * Price of the option excluding VAT, in dinars (TND).
+   * @example 20.5
    */
-  vatRateBp?: number;
+  priceHt?: number;
+  /**
+   * VAT rate as a percentage. Defaults to 19 (19%).
+   * @default 19
+   * @example 19
+   */
+  vatRate?: number;
+  /**
+   * Extras (add-ons) offered with this rate. Full-replace semantics on
+   * update, like amenityIds/rateIds elsewhere in the catalog.
+   */
+  extraIds?: Array<string>;
 }
 
 export type PlanKind = "recurring" | "one_off";
@@ -684,6 +933,15 @@ export interface PlanBenefitDto {
   expiresAfterDays?: number | null;
   /** @format uuid */
   resourceTypeId?: string | null;
+  /**
+   * Links an amenity-kind benefit to the structured amenities table.
+   * @format uuid
+   */
+  amenityId?: string | null;
+  /** @example "Locker" */
+  amenityName?: string | null;
+  /** @example "locker" */
+  amenityIcon?: string | null;
   config: Record<string, any>;
   /**
    * The date of creation of the resource
@@ -713,12 +971,15 @@ export interface PlanDto {
   kind: PlanKind;
   /** @example 1 */
   cycleMonths?: number | null;
-  /** @example 240000 */
-  priceHtMillimes: number;
-  /** @example 1900 */
-  vatRateBp: number;
+  /** @example 240 */
+  priceHt: number;
+  /**
+   * VAT rate as a percentage (19 = 19%, 20.5 = 20.5%).
+   * @example 19
+   */
+  vatRate: number;
   /** @example 0 */
-  depositMillimes: number;
+  deposit: number;
   /** @example 0 */
   cancellationDays: number;
   status: PlanStatus;
@@ -726,6 +987,14 @@ export interface PlanDto {
   description?: string | null;
   terms: Record<string, any>;
   benefits: Array<PlanBenefitDto>;
+  extras: Array<ExtraDto>;
+  /**
+   * OfficeRnD "Active" column: memberships on this plan that are not yet
+   * ended (currently active + pending). 0 for a plan nothing points at
+   * yet (freshly created or cloned).
+   * @example 4
+   */
+  activeMemberships: number;
   /**
    * The date of creation of the resource
    * @format date-time
@@ -763,6 +1032,11 @@ export interface CreatePlanBenefitDto {
    * @format uuid
    */
   resourceTypeId?: string;
+  /**
+   * Only allowed on amenity benefits; must reference an existing amenity.
+   * @format uuid
+   */
+  amenityId?: string;
   config?: Record<string, any>;
 }
 
@@ -778,14 +1052,17 @@ export interface CreatePlanDto {
    */
   cycleMonths?: number;
   /**
-   * Price excluding VAT, in millimes (240 TND = 240000).
-   * @example 240000
+   * Price excluding VAT, in dinars (240 = 240 TND).
+   * @example 240
    */
-  priceHtMillimes: number;
-  /** @default 1900 */
-  vatRateBp?: number;
+  priceHt: number;
+  /**
+   * VAT rate as a percentage (19 = 19%, 20.5 = 20.5%).
+   * @default 19
+   */
+  vatRate?: number;
   /** @default 0 */
-  depositMillimes?: number;
+  deposit?: number;
   /** @default 0 */
   cancellationDays?: number;
   /** @default false */
@@ -793,6 +1070,11 @@ export interface CreatePlanDto {
   description?: string;
   terms?: Record<string, any>;
   benefits?: Array<CreatePlanBenefitDto>;
+  /**
+   * Extras (add-ons) offered with this plan. Full-replace semantics on
+   * update, like benefits.
+   */
+  extraIds?: Array<string>;
 }
 
 export interface UpdatePlanDto {
@@ -807,14 +1089,17 @@ export interface UpdatePlanDto {
    */
   cycleMonths?: number;
   /**
-   * Price excluding VAT, in millimes (240 TND = 240000).
-   * @example 240000
+   * Price excluding VAT, in dinars (240 = 240 TND).
+   * @example 240
    */
-  priceHtMillimes?: number;
-  /** @default 1900 */
-  vatRateBp?: number;
+  priceHt?: number;
+  /**
+   * VAT rate as a percentage (19 = 19%, 20.5 = 20.5%).
+   * @default 19
+   */
+  vatRate?: number;
   /** @default 0 */
-  depositMillimes?: number;
+  deposit?: number;
   /** @default 0 */
   cancellationDays?: number;
   /** @default false */
@@ -822,6 +1107,85 @@ export interface UpdatePlanDto {
   description?: string;
   terms?: Record<string, any>;
   benefits?: Array<CreatePlanBenefitDto>;
+  /**
+   * Extras (add-ons) offered with this plan. Full-replace semantics on
+   * update, like benefits.
+   */
+  extraIds?: Array<string>;
+}
+
+export interface CreateAmenityDto {
+  /**
+   * Stable machine identifier (snake_case).
+   * @example "projector"
+   */
+  slug: string;
+  /** @example "Projector" */
+  name: string;
+  /** @example "projector" */
+  icon?: string;
+}
+
+export interface UpdateAmenityDto {
+  /**
+   * Stable machine identifier (snake_case).
+   * @example "projector"
+   */
+  slug?: string;
+  /** @example "Projector" */
+  name?: string;
+  /** @example "projector" */
+  icon?: string;
+}
+
+export interface CreateExtraDto {
+  /** @example "Locker" */
+  name: string;
+  description?: string;
+  /**
+   * Price excluding VAT, in dinars (30 = 30 TND).
+   * @example 30
+   */
+  priceHt: number;
+  /**
+   * VAT rate as a percentage (19 = 19%, 20.5 = 20.5%).
+   * @default 19
+   */
+  vatRate?: number;
+  /** @default 0 */
+  deposit?: number;
+  /**
+   * Optional link to the shared amenity vocabulary (name + icon). On
+   * update: omit to leave the existing link untouched, or send `null`
+   * to clear it.
+   * @format uuid
+   */
+  amenityId?: string | null;
+}
+
+export interface UpdateExtraDto {
+  /** @example "Locker" */
+  name?: string;
+  description?: string;
+  /**
+   * Price excluding VAT, in dinars (30 = 30 TND).
+   * @example 30
+   */
+  priceHt?: number;
+  /**
+   * VAT rate as a percentage (19 = 19%, 20.5 = 20.5%).
+   * @default 19
+   */
+  vatRate?: number;
+  /** @default 0 */
+  deposit?: number;
+  /**
+   * Optional link to the shared amenity vocabulary (name + icon). On
+   * update: omit to leave the existing link untouched, or send `null`
+   * to clear it.
+   * @format uuid
+   */
+  amenityId?: string | null;
 }
 
 export type ChargeKind = "plan_fee" | "booking" | "store" | "one_off" | "deposit";
@@ -841,15 +1205,17 @@ export interface ChargeDto {
   membershipId?: object;
   /** @format uuid */
   bookingId?: object;
+  /** @format uuid */
+  planId?: object;
   kind: ChargeKind;
   /** @example "Part time — cycle 1 (2026-07-12)" */
   description: string;
-  /** @example 120000 */
-  amountHtMillimes: number;
-  /** @example 1900 */
-  vatRateBp: number;
-  /** @example 22800 */
-  vatMillimes: number;
+  /** @example 120 */
+  amountHt: number;
+  /** @example 19 */
+  vatRate: number;
+  /** @example 22.8 */
+  vat: number;
   accountingCode?: object;
   /** @format uuid */
   invoiceId?: object;
@@ -872,13 +1238,15 @@ export interface CreateChargeDto {
   memberId?: string;
   /** @format uuid */
   companyId?: string;
+  /** @format uuid */
+  planId?: string;
   kind: "one_off" | "store";
   /** @example "Printing — 50 pages" */
-  description: string;
-  /** @example 25000 */
-  amountHtMillimes: number;
-  /** @default 1900 */
-  vatRateBp?: number;
+  description?: string;
+  /** @example 25 */
+  amountHt?: number;
+  /** @default 19 */
+  vatRate?: number;
   /** @example "707" */
   accountingCode?: string;
 }
@@ -903,14 +1271,14 @@ export interface InvoiceDto {
   /** @example "2026-07-12" */
   dueAt: string;
   status: InvoiceStatus;
-  /** @example 325000 */
-  totalHtMillimes: number;
-  /** @example 61750 */
-  totalVatMillimes: number;
-  /** @example 386750 */
-  totalTtcMillimes: number;
-  /** @example 200000 */
-  paidMillimes: number;
+  /** @example 325 */
+  totalHt: number;
+  /** @example 61.75 */
+  totalVat: number;
+  /** @example 386.75 */
+  totalTtc: number;
+  /** @example 200 */
+  paid: number;
   charges: Array<ChargeDto>;
   /**
    * The date of creation of the resource
@@ -947,8 +1315,8 @@ export interface PaymentDto {
   id: string;
   /** @format uuid */
   invoiceId: string;
-  /** @example 200000 */
-  amountMillimes: number;
+  /** @example 200 */
+  amount: number;
   method: PaymentMethod;
   /** @example "VIR-2026-4471" */
   reference?: object;
@@ -972,20 +1340,107 @@ export interface PaymentDto {
 
 export interface RecordPaymentResultDto {
   payment: PaymentDto;
-  /** @example 386750 */
-  paidMillimes: number;
+  /** @example 386.75 */
+  paid: number;
   /** @example true */
   settled: boolean;
 }
 
 export interface CreatePaymentDto {
-  /** @example 200000 */
-  amountMillimes: number;
+  /** @example 200 */
+  amount: number;
   method: PaymentMethod;
   /** @example "VIR-2026-4471" */
   reference?: string;
   /** @example "2026-07-12T14:30:00Z" */
   paidAt?: string;
+}
+
+export interface CreditTransactionDto {
+  /**
+   * Unique identifier
+   * @format uuid
+   * @example "9df3cd63-ad9a-48fb-8d48-2744da103c39"
+   */
+  id: string;
+  /** @example "half_day" */
+  creditType: string;
+  /** @example -1 */
+  delta: number;
+  /** @format uuid */
+  bookingId?: object;
+  /** @format uuid */
+  checkinId?: object;
+  /** @format uuid */
+  resourceTypeId?: object;
+  /** @format date-time */
+  expiresAt?: string;
+  reason?: object;
+  /** @format date-time */
+  occurredAt: string;
+  /**
+   * The date of creation of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  createdAt: string;
+  /**
+   * The date of the last update of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  updatedAt: string;
+}
+
+export type CreditTransactionKind = "grant" | "consumption";
+
+export interface CreditBalanceDto {
+  /** @example "half_day" */
+  creditType: string;
+  /** @example 18 */
+  available: number;
+  /** @example 20 */
+  granted: number;
+  /** @example 2 */
+  consumed: number;
+  /** @example 0 */
+  expired: number;
+  /** @format date-time */
+  nextExpiry?: string;
+}
+
+export interface MembershipCreditBalancesDto {
+  /** @format uuid */
+  membershipId: string;
+  balances: Array<CreditBalanceDto>;
+}
+
+export interface CreditBalancesDto {
+  memberships: Array<MembershipCreditBalancesDto>;
+}
+
+export interface GrantCreditDto {
+  /** @format uuid */
+  membershipId: string;
+  /** @example "room_hour" */
+  creditType: string;
+  /** @example 5 */
+  amount: number;
+  /** @format date-time */
+  expiresAt?: string;
+  /** @format uuid */
+  resourceTypeId?: string;
+  /** @example "goodwill — meeting overran the booked slot" */
+  reason?: string;
+}
+
+export interface UpdateCreditDto {
+  /** @format date-time */
+  expiresAt?: string | null;
+  /** @format uuid */
+  resourceTypeId?: object | null;
+  /** @example "granted for the wrong resource type" */
+  reason?: string;
 }
 
 /** Derived from dates on every read. */
@@ -1009,6 +1464,11 @@ export interface MembershipDto {
   planId: string;
   /** The contractual terms this membership runs on — frozen at creation. */
   planSnapshot: Record<string, any>;
+  /**
+   * Custom label; falls back to the snapshot plan name when unset.
+   * @example "Office 3 — Acme"
+   */
+  name: string;
   /** @example "2026-08-01" */
   startsAt: string;
   /** @example "2026-12-31" */
@@ -1047,34 +1507,111 @@ export interface CreateMembershipDto {
    * @example "2026-08-01"
    */
   startsAt: string;
+  /**
+   * Optional fixed term: the LAST active day (inclusive — same semantics
+   * as the derived lifecycle). Omitted = open-ended until cancelled.
+   * @example "2027-01-31"
+   */
+  endsAt?: string;
+  notes?: string;
+  /** Plan extras selected at creation (must be attached to the plan). */
+  extraIds?: Array<string>;
+  /**
+   * Overrides the plan's price for THIS membership only (the quoted
+   * figure when converting a website request). Null/omitted = plan price.
+   * VAT, deposit and extras are unaffected.
+   * @example 180
+   */
+  priceHt?: number;
+  /**
+   * Optional custom label; omitted = the plan name is displayed.
+   * @example "Office 3 — Acme"
+   */
+  name?: string;
+  /**
+   * Overrides the plan's deposit for THIS membership only (0 = waived).
+   * Written into the snapshot; extras' deposits are unaffected.
+   * @example 100
+   */
+  deposit?: number;
+}
+
+export interface UpdateMembershipDto {
+  /**
+   * New custom label. Omit to keep the current one.
+   * @example "Office 3 — Acme"
+   */
+  name?: string;
   notes?: string;
 }
 
-export interface CreditBalanceDto {
-  /** @example "half_day" */
-  creditType: string;
-  /** @example 18 */
-  available: number;
-  /** @example 20 */
-  granted: number;
-  /** @example 2 */
-  consumed: number;
-  /** @example 0 */
-  expired: number;
-  /** @format date-time */
-  nextExpiry?: string;
-}
-
-export interface MembershipCreditBalancesDto {
+export interface AssignmentDto {
+  /**
+   * Unique identifier
+   * @format uuid
+   * @example "9df3cd63-ad9a-48fb-8d48-2744da103c39"
+   */
+  id: string;
+  /** @format uuid */
+  resourceId: string;
   /** @format uuid */
   membershipId: string;
-  balances: Array<CreditBalanceDto>;
+  /** @example "2026-08-01" */
+  startsAt: string;
+  /** @example "2026-12-31" */
+  endsAt?: string | null;
+  notes?: string | null;
+  /**
+   * The date of creation of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  createdAt: string;
+  /**
+   * The date of the last update of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  updatedAt: string;
 }
 
-export interface MeDto {
-  member: MemberDto;
-  memberships: Array<MembershipDto>;
-  creditBalances: Array<MembershipCreditBalancesDto>;
+export interface CreateAssignmentDto {
+  /** @format uuid */
+  resourceId: string;
+  /** @format uuid */
+  membershipId: string;
+  /**
+   * First day of the assignment (Africa/Tunis business date).
+   * @example "2026-08-01"
+   */
+  startsAt: string;
+  /**
+   * Optional planned end; omit for open-ended.
+   * @example "2026-12-31"
+   */
+  endsAt?: string;
+  notes?: string;
+}
+
+export interface EndAssignmentDto {
+  /**
+   * Last day (exclusive — half-open range like memberships).
+   * @example "2026-09-01"
+   */
+  endsAt: string;
+}
+
+export interface RelocateAssignmentDto {
+  /**
+   * Destination resource (must be assignable).
+   * @format uuid
+   */
+  resourceId: string;
+  /**
+   * Day the move takes effect: old assignment ends, new one starts.
+   * @example "2026-09-01"
+   */
+  effectiveDate: string;
 }
 
 export type CheckinMethod = "qr" | "manual";
@@ -1160,6 +1697,19 @@ export type BookingStatus = "pending" | "confirmed" | "cancelled" | "no_show";
 
 export type BookingSource = "portal" | "staff" | "public";
 
+export interface QuoteExtraDto {
+  /** @format uuid */
+  extraId: string;
+  /** @example "Catering" */
+  name: string;
+  /** @example 50 */
+  priceHt: number;
+  /** @example 7 */
+  vatRate: number;
+  /** @example 53.5 */
+  totalTtc: number;
+}
+
 export interface BookingDto {
   /**
    * Unique identifier
@@ -1182,10 +1732,12 @@ export interface BookingDto {
    * NULL = fully credit-covered (§4.11).
    * @example null
    */
-  priceHtMillimes?: number | null;
+  priceHt?: number | null;
   source: BookingSource;
   title?: string | null;
   notes?: string | null;
+  /** Snapshot of the extras priced at booking time (§6.3 Task 6). */
+  extras?: Array<QuoteExtraDto>;
   /**
    * The date of creation of the resource
    * @format date-time
@@ -1218,6 +1770,8 @@ export interface CreateBookingDto {
   /** @example "Sprint planning" */
   title?: string;
   notes?: string;
+  /** Extras offered by the booked resource's rates (§6.3 Task 6). */
+  extraIds?: Array<string>;
 }
 
 export interface QuoteConsumptionDto {
@@ -1230,9 +1784,17 @@ export interface QuoteConsumptionDto {
   amount: number;
 }
 
+/** Which rate audience applies to the charged remainder. */
+export type RateAudience = "member" | "visitor";
+
 export interface BookingQuoteDto {
   /** @format uuid */
   resourceId: string;
+  /**
+   * Resource type of the booked resource — the credit scope consumed.
+   * @format uuid
+   */
+  resourceTypeId: string;
   bookingMode: BookingMode;
   /**
    * Billable units: ceil(duration / hour|day).
@@ -1253,11 +1815,23 @@ export interface BookingQuoteDto {
    * NULL when fully credit-covered (§4.11).
    * @example null
    */
-  priceHtMillimes?: number | null;
-  /** @example 1900 */
-  vatRateBp?: number | null;
+  priceHt?: number | null;
+  /** @example 19 */
+  vatRate?: number | null;
   /** @example null */
-  totalTtcMillimes?: number | null;
+  totalTtc?: number | null;
+  /** Flat per-booking add-ons (§6.3 Task 6) — never credit-covered. */
+  extras: Array<QuoteExtraDto>;
+  /**
+   * priceHt + the sum of extras' priceHt (0 when fully free).
+   * @example 90
+   */
+  grandTotalHt: number;
+  /**
+   * totalTtc + the sum of extras' totalTtc (0 when fully free).
+   * @example 107.1
+   */
+  grandTotalTtc: number;
 }
 
 export interface UpdateBookingDto {
@@ -1300,6 +1874,17 @@ export type OpportunityInterest = "coworking" | "domiciliation" | "private_offic
 
 export type OpportunityStage = "new" | "contacted" | "tour" | "quote" | "won" | "lost";
 
+export interface RequestedExtraDto {
+  /** @format uuid */
+  extraId: string;
+  /** @example "Locker" */
+  name: string;
+  /** @example 30 */
+  priceHt: number;
+  /** @example 19 */
+  vatRate: number;
+}
+
 export interface OpportunityDto {
   /**
    * Unique identifier
@@ -1311,13 +1896,18 @@ export interface OpportunityDto {
   memberId: string;
   interest: OpportunityInterest;
   stage: OpportunityStage;
-  /** @example 240000 */
-  expectedValueMillimes?: object;
+  /** @example 240 */
+  expectedValue?: object;
   /** @example "website" */
   source?: object;
   notes?: object;
   /** @format date-time */
   closedAt?: string;
+  /** @format uuid */
+  requestedPlanId?: object;
+  requestedExtras: Array<RequestedExtraDto>;
+  /** @example 200 */
+  requestedPlanPriceHt?: object;
   /**
    * The date of creation of the resource
    * @format date-time
@@ -1338,11 +1928,16 @@ export interface CreateOpportunityDto {
   interest: OpportunityInterest;
   /** @default "new" */
   stage?: OpportunityStage;
-  /** @example 240000 */
-  expectedValueMillimes?: number;
+  /** @example 240 */
+  expectedValue?: number;
   /** @example "walk-in" */
   source?: string;
   notes?: string;
+  /** @format uuid */
+  requestedPlanId?: string;
+  requestedExtras?: Array<RequestedExtraDto>;
+  /** @example 200 */
+  requestedPlanPriceHt?: number;
 }
 
 export interface UpdateOpportunityDto {
@@ -1351,22 +1946,27 @@ export interface UpdateOpportunityDto {
   interest?: OpportunityInterest;
   /** @default "new" */
   stage?: OpportunityStage;
-  /** @example 240000 */
-  expectedValueMillimes?: number;
+  /** @example 240 */
+  expectedValue?: number;
   /** @example "walk-in" */
   source?: string;
   notes?: string;
+  /** @format uuid */
+  requestedPlanId?: string;
+  requestedExtras?: Array<RequestedExtraDto>;
+  /** @example 200 */
+  requestedPlanPriceHt?: number;
 }
 
 export interface RevenueBucketDto {
   /** @example "2026-07" */
   bucket: string;
-  /** @example 305000 */
-  totalHtMillimes: number;
-  /** @example 57950 */
-  totalVatMillimes: number;
-  /** @example 362950 */
-  totalTtcMillimes: number;
+  /** @example 305 */
+  totalHt: number;
+  /** @example 57.95 */
+  totalVat: number;
+  /** @example 362.95 */
+  totalTtc: number;
   /** @example 4 */
   chargeCount: number;
 }
@@ -1415,27 +2015,141 @@ export interface PublicPlanBenefitDto {
   type: string;
   /** @example 20 */
   amount?: object;
+  /** @example "Locker" */
+  amenityName?: object;
+  /** @example "locker" */
+  amenityIcon?: object;
+}
+
+export interface PublicPlanExtraDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Locker" */
+  name: string;
+  /** @example 30 */
+  priceHt: number;
+  /** @example 19 */
+  vatRate: number;
+  /** @example "Locker" */
+  amenityName?: object;
+  /** @example "lock" */
+  amenityIcon?: object;
 }
 
 export interface PublicPlanDto {
-  /** @format uuid */
+  /**
+   * Unique identifier
+   * @format uuid
+   * @example "9df3cd63-ad9a-48fb-8d48-2744da103c39"
+   */
   id: string;
   /** @example "Part time" */
   name: string;
   /** @example "PART_TIME" */
   code?: object;
   /** @example "recurring" */
-  kind: string;
+  kind: "recurring" | "one_off";
   /** @example 1 */
   cycleMonths?: object;
-  /** @example 120000 */
-  priceHtMillimes: number;
-  /** @example 1900 */
-  vatRateBp: number;
-  /** @example 142800 */
-  priceTtcMillimes: number;
+  /** @example 120 */
+  priceHt: number;
+  /** @example 19 */
+  vatRate: number;
+  /** @example 142.8 */
+  priceTtc: number;
   description?: object;
   benefits: Array<PublicPlanBenefitDto>;
+  extras: Array<PublicPlanExtraDto>;
+  /**
+   * The date of creation of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  createdAt: string;
+  /**
+   * The date of the last update of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  updatedAt: string;
+}
+
+export interface PublicAmenityDto {
+  /** @example "projector" */
+  slug: string;
+  /** @example "Projector" */
+  name: string;
+  /** @example "projector" */
+  icon?: object;
+}
+
+export interface PublicRateExtraDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Locker" */
+  name: string;
+  /** @example 30 */
+  priceHt: number;
+  /** @example 19 */
+  vatRate: number;
+  /** @example "Locker" */
+  amenityName?: object;
+  /** @example "lock" */
+  amenityIcon?: object;
+}
+
+export interface PublicResourceRateDto {
+  /** @example "hour" */
+  intervalType: string;
+  /** @example false */
+  isWeekendRate: boolean;
+  /** @example 30 */
+  priceHt: number;
+  /** @example 19 */
+  vatRate: number;
+  /** @example 35.7 */
+  priceTtc: number;
+  extras: Array<PublicRateExtraDto>;
+}
+
+export interface PublicResourceDto {
+  /**
+   * Unique identifier
+   * @format uuid
+   * @example "9df3cd63-ad9a-48fb-8d48-2744da103c39"
+   */
+  id: string;
+  /** @example "Meeting Room" */
+  name: string;
+  description?: object;
+  /** @example "meeting_room" */
+  resourceTypeSlug: string;
+  /** @example "Meeting Room" */
+  resourceTypeName: string;
+  /** @example "hourly" */
+  bookingMode: string;
+  /** @example 8 */
+  capacity: number;
+  /** @example 60 */
+  minDurationMin?: object;
+  /** @example 480 */
+  maxDurationMin?: object;
+  /** @example 24 */
+  cancellationHours: number;
+  amenities: Array<PublicAmenityDto>;
+  rates: Array<PublicResourceRateDto>;
+  /**
+   * The date of creation of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  createdAt: string;
+  /**
+   * The date of the last update of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  updatedAt: string;
 }
 
 export interface BookingRequestResultDto {
@@ -1443,6 +2157,13 @@ export interface BookingRequestResultDto {
   bookingId: string;
   /** @example "pending" */
   status: string;
+  /** @example null */
+  priceHt?: object;
+  extras: Array<QuoteExtraDto>;
+  /** @example 80 */
+  grandTotalHt: number;
+  /** @example 89.2 */
+  grandTotalTtc: number;
 }
 
 export interface CreateBookingRequestDto {
@@ -1460,6 +2181,39 @@ export interface CreateBookingRequestDto {
   endsAt: string;
   /** @example "Team workshop, 6 people" */
   notes?: string;
+  extraIds?: Array<string>;
+}
+
+export interface PlanRequestResultDto {
+  /** @format uuid */
+  opportunityId: string;
+  /** @format uuid */
+  planId: string;
+  /** @example 200 */
+  priceHt: number;
+  extras: Array<QuoteExtraDto>;
+  /** @example 230 */
+  totalHt: number;
+  /** @example 273.7 */
+  totalTtc: number;
+}
+
+export interface CreatePlanRequestDto {
+  /** @example "Sami Ben Salah" */
+  fullName: string;
+  /** @example "sami@company.tn" */
+  email: string;
+  /** @example "+21622123456" */
+  phone?: string;
+  /** @example "Acme SARL" */
+  companyName?: string;
+  /** @format uuid */
+  planId: string;
+  extraIds?: Array<string>;
+  /** @example "Interested in starting next month" */
+  notes?: string;
+  /** @default "coworking" */
+  interest?: OpportunityInterest;
 }
 
 export interface ListLocationsParams {
@@ -1564,6 +2318,8 @@ export interface ListResourcesParams {
   locationId?: string;
   /** @format uuid */
   resourceTypeId?: string;
+  /** Keep only resources whose derived status matches. */
+  status?: ResourceStatus;
   /** The search term to filter results. */
   q?: string;
 }
@@ -1584,7 +2340,7 @@ export interface ListResourceRatesParams {
   /** The direction to sort the results, either 'ASC' or 'DESC'. */
   sort: Sort;
   /** @format uuid */
-  resourceId?: string;
+  resourceTypeId?: string;
   /** The search term to filter results. */
   q?: string;
 }
@@ -1606,6 +2362,45 @@ export interface ListPlansParams {
   sort: Sort;
   /** Admin-only filter; ignored for other roles. */
   status?: PlanStatus;
+  kind?: PlanKind;
+  /** The search term to filter results. */
+  q?: string;
+}
+
+export interface ListAmenitiesParams {
+  /**
+   * The number of items to skip before starting to collect the result set, starting from 0.
+   * @default 0
+   * @example 0
+   */
+  offset: number;
+  /**
+   * The number of items to retrieve per page.
+   * @default 10
+   * @example 10
+   */
+  limit: number;
+  /** The direction to sort the results, either 'ASC' or 'DESC'. */
+  sort: Sort;
+  /** The search term to filter results. */
+  q?: string;
+}
+
+export interface ListExtrasParams {
+  /**
+   * The number of items to skip before starting to collect the result set, starting from 0.
+   * @default 0
+   * @example 0
+   */
+  offset: number;
+  /**
+   * The number of items to retrieve per page.
+   * @default 10
+   * @example 10
+   */
+  limit: number;
+  /** The direction to sort the results, either 'ASC' or 'DESC'. */
+  sort: Sort;
   /** The search term to filter results. */
   q?: string;
 }
@@ -1659,6 +2454,55 @@ export interface ListInvoicesParams {
   q?: string;
 }
 
+export interface ListCreditsParams {
+  /**
+   * The number of items to skip before starting to collect the result set, starting from 0.
+   * @default 0
+   * @example 0
+   */
+  offset: number;
+  /**
+   * The number of items to retrieve per page.
+   * @default 10
+   * @example 10
+   */
+  limit: number;
+  /** The direction to sort the results, either 'ASC' or 'DESC'. */
+  sort: Sort;
+  /** @format uuid */
+  membershipId?: string;
+  /** @format uuid */
+  memberId?: string;
+  /** @format uuid */
+  companyId?: string;
+  /** @format uuid */
+  bookingId?: string;
+  /** @format uuid */
+  checkinId?: string;
+  /** @example "room_hour" */
+  creditType?: string;
+  kind?: CreditTransactionKind;
+  /** @format date-time */
+  startDate?: string;
+  /** @format date-time */
+  endDate?: string;
+  /** The search term to filter results. */
+  q?: string;
+}
+
+export interface GetCreditBalancesParams {
+  /** @format uuid */
+  membershipId?: string;
+  /** @format uuid */
+  memberId?: string;
+  /** @format uuid */
+  companyId?: string;
+  /** @format date-time */
+  startDate?: string;
+  /** @format date-time */
+  endDate?: string;
+}
+
 export interface ListMembershipsParams {
   /**
    * The number of items to skip before starting to collect the result set, starting from 0.
@@ -1679,10 +2523,45 @@ export interface ListMembershipsParams {
   /** @format uuid */
   planId?: string;
   /**
+   * Memberships held DIRECTLY by this member (no employer-company pooling).
+   * @format uuid
+   */
+  memberId?: string;
+  /** @format uuid */
+  companyId?: string;
+  /**
    * Memberships whose ends_at falls on or before this date.
    * @example "2026-09-01"
    */
   expiringBefore?: string;
+  /** The search term to filter results. */
+  q?: string;
+}
+
+export interface ListAssignmentsParams {
+  /**
+   * The number of items to skip before starting to collect the result set, starting from 0.
+   * @default 0
+   * @example 0
+   */
+  offset: number;
+  /**
+   * The number of items to retrieve per page.
+   * @default 10
+   * @example 10
+   */
+  limit: number;
+  /** The direction to sort the results, either 'ASC' or 'DESC'. */
+  sort: Sort;
+  /** @format uuid */
+  resourceId?: string;
+  /** @format uuid */
+  membershipId?: string;
+  /**
+   * Only assignments covering this business date.
+   * @example "2026-08-01"
+   */
+  activeOn?: string;
   /** The search term to filter results. */
   q?: string;
 }
@@ -1818,74 +2697,6 @@ export interface PublicResourceAvailabilityParams {
 
 export namespace Api {
   /**
-   * @description Sends a 6-digit OTP to the provided email. Works for both new and existing users — Supabase creates the account on first use.
-   * @tags Auth (Deprecated)
-   * @name RequestEmailOtp
-   * @summary Request an Email OTP (sign-in or sign-up)
-   * @request POST:/api/v1/auth/otp/request
-   * @response `200` `(OtpRequestedDto)` 200
-   * @response `400` `(ResponseErrorDto)` Bad Request
-   * @response `403` `(ResponseErrorDto)` Rejected outside development
-   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
-   * @response `429` `(ResponseErrorDto)` Too Many Requests
-   * @response `500` `(ResponseErrorDto)` Internal Server Error
-   * @response `default` `OtpRequestedDto`
-   */
-  export namespace RequestEmailOtp {
-    export type RequestParams = {};
-    export type RequestQuery = {};
-    export type RequestBody = RegisterDto;
-    export type RequestHeaders = {};
-    export type ResponseBody = OtpRequestedDto;
-  }
-
-  /**
-   * @description Validates the OTP and returns access + refresh tokens on success.
-   * @tags Auth (Deprecated)
-   * @name VerifyEmailOtp
-   * @summary Verify Email OTP and obtain tokens
-   * @request POST:/api/v1/auth/otp/verify
-   * @response `200` `(AuthTokensDto)` 200
-   * @response `400` `(ResponseErrorDto)` Bad Request
-   * @response `401` `((ResponseErrorDto))` 401
-   * @response `403` `(ResponseErrorDto)` Rejected outside development
-   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
-   * @response `429` `(ResponseErrorDto)` Too Many Requests
-   * @response `500` `(ResponseErrorDto)` Internal Server Error
-   * @response `default` `AuthTokensDto`
-   */
-  export namespace VerifyEmailOtp {
-    export type RequestParams = {};
-    export type RequestQuery = {};
-    export type RequestBody = VerifyOtpDto;
-    export type RequestHeaders = {};
-    export type ResponseBody = AuthTokensDto;
-  }
-
-  /**
-   * @description Invalidates the current Supabase session server-side.
-   * @tags Auth (Deprecated)
-   * @name SignOut
-   * @summary Sign out and revoke session
-   * @request POST:/api/v1/auth/sign-out
-   * @secure
-   * @response `204` `void` 204
-   * @response `401` `((ResponseErrorDto))` 401
-   * @response `403` `(ResponseErrorDto)` Rejected outside development
-   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
-   * @response `429` `(ResponseErrorDto)` Too Many Requests
-   * @response `500` `(ResponseErrorDto)` Internal Server Error
-   * @response `default` `void`
-   */
-  export namespace SignOut {
-    export type RequestParams = {};
-    export type RequestQuery = {};
-    export type RequestBody = never;
-    export type RequestHeaders = {};
-    export type ResponseBody = void;
-  }
-
-  /**
  * @description Paginated list of locations. `q` filters by name.
  * @tags Locations
  * @name ListLocations
@@ -2006,7 +2817,7 @@ export namespace Api {
   }
 
   /**
- * @description Paginated list. `q` fuzzy-matches name/email; `name` is exact-match.
+ * @description Paginated list. `q` fuzzy-matches name/email; `name` is exact-match. `status` is derived from membership/charge/opportunity data — never stored.
  * @tags Companies
  * @name ListCompanies
  * @summary List companies
@@ -2053,7 +2864,7 @@ export namespace Api {
   }
 
   /**
-   * No description
+   * @description `status` is derived from membership/charge/opportunity data — never stored.
    * @tags Companies
    * @name CreateCompany
    * @summary Create a company
@@ -2076,7 +2887,7 @@ export namespace Api {
   }
 
   /**
-   * No description
+   * @description `status` is derived from membership/charge/opportunity data — never stored.
    * @tags Companies
    * @name GetCompany
    * @summary Get a company
@@ -2102,7 +2913,7 @@ export namespace Api {
   }
 
   /**
-   * No description
+   * @description `status` is derived from membership/charge/opportunity data — never stored. `startDate: null` clears the date and with it the membership start-date floor.
    * @tags Companies
    * @name UpdateCompany
    * @summary Update a company
@@ -2128,7 +2939,7 @@ export namespace Api {
   }
 
   /**
- * @description Paginated list. `q` fuzzy-matches name/email/phone; `email` is exact-match; filter by `kindHint` and `companyId`. The `status` field on each result is derived, never stored.
+ * @description Paginated list. `q` fuzzy-matches name/email/phone; `email` is exact-match; filter by `kindHint` and `companyId`. The `status` field on each result is derived on read, never stored: a manual `statusOverride` pin (set via PUT /members/:id/status) wins, otherwise it derives from memberships, then one-off charges, then open opportunities, then `kindHint`.
  * @tags Members
  * @name ListMembers
  * @summary List members
@@ -2228,7 +3039,7 @@ export namespace Api {
   }
 
   /**
-   * @description Staff/admin may update all business fields. A member-role caller may only update their own record, restricted to fullName, email and phone — any other field is rejected with 403. The user link (portal access) is never updatable here; it belongs to the invite/claim flow.
+   * @description Staff/admin may update all business fields except `companyId` — sending it is rejected with 422; moving a member is PUT /members/:id/company. A member-role caller may only update their own record, restricted to fullName, email and phone — any other field is rejected with 403. The user link is never updatable here.
    * @tags Members
    * @name UpdateMember
    * @summary Update a member
@@ -2254,76 +3065,53 @@ export namespace Api {
   }
 
   /**
-   * @description Provisions the Supabase identity (public signup is disabled) and returns a single-use claim token valid for 7 days. Deliver the token to the customer out-of-band. Re-inviting regenerates the token and invalidates the previous one.
+   * @description Manually pins the derived `status` to `former` or `contact`; a pinned status never auto-updates. Send `auto` to clear the pin and let the status derive from membership, charge and opportunity data again.
    * @tags Members
-   * @name InviteMember
-   * @summary Issue a portal-access invite for a member
-   * @request POST:/api/v1/members/{id}/invite
+   * @name UpdateMemberStatus
+   * @summary Pin or clear a member lifecycle status
+   * @request PUT:/api/v1/members/{id}/status
    * @secure
-   * @response `201` `(InviteResponseDto)` 201
-   * @response `401` `(ResponseErrorDto)` Unauthorized
-   * @response `403` `((ResponseErrorDto))` 403
-   * @response `409` `(ResponseErrorDto)` Conflict
-   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
-   * @response `429` `(ResponseErrorDto)` Too Many Requests
-   * @response `500` `(ResponseErrorDto)` Internal Server Error
-   * @response `default` `InviteResponseDto`
-   */
-  export namespace InviteMember {
-    export type RequestParams = {
-      id: string;
-    };
-    export type RequestQuery = {};
-    export type RequestBody = never;
-    export type RequestHeaders = {};
-    export type ResponseBody = InviteResponseDto;
-  }
-
-  /**
-   * @description Clears the user link and revokes the member role. The member record and all its history remain intact.
-   * @tags Members
-   * @name UnlinkMember
-   * @summary Revoke portal access
-   * @request DELETE:/api/v1/members/{id}/portal-access
-   * @secure
-   * @response `204` `void` 204
+   * @response `200` `(MemberDto)` 200
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
    * @response `404` `(ResponseErrorDto)` Not Found
    * @response `422` `(ResponseErrorDto)` Unprocessable Entity
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
-   * @response `default` `void`
+   * @response `default` `MemberDto`
    */
-  export namespace UnlinkMember {
+  export namespace UpdateMemberStatus {
     export type RequestParams = {
       id: string;
     };
     export type RequestQuery = {};
-    export type RequestBody = never;
+    export type RequestBody = UpdateMemberStatusDto;
     export type RequestHeaders = {};
-    export type ResponseBody = void;
+    export type ResponseBody = MemberDto;
   }
 
   /**
-   * @description Links the CALLING user to the invited member, grants the `member` role and consumes the token — the explicit token is the only linking path; email equality never links (§6.5).
-   * @tags Me
-   * @name ClaimMember
-   * @summary Claim portal access with an invite token
-   * @request POST:/api/v1/me/claim
+   * @description The only way to re-assign a member — `companyId` is not accepted by PATCH /members/:id, which rejects it with 422. Send `null` to detach the member into a solo member. A move that really changes the company clears `isBillingPerson`/`isContactPerson`: those roles are held within a company and are never carried across. Re-sending the current company is a no-op and keeps the flags.
+   * @tags Members
+   * @name UpdateMemberCompany
+   * @summary Move a member to another company
+   * @request PUT:/api/v1/members/{id}/company
    * @secure
    * @response `200` `(MemberDto)` 200
-   * @response `401` `((ResponseErrorDto))` 401
-   * @response `409` `(ResponseErrorDto)` Conflict
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `((ResponseErrorDto))` 404
    * @response `422` `(ResponseErrorDto)` Unprocessable Entity
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
    * @response `default` `MemberDto`
    */
-  export namespace ClaimMember {
-    export type RequestParams = {};
+  export namespace UpdateMemberCompany {
+    export type RequestParams = {
+      id: string;
+    };
     export type RequestQuery = {};
-    export type RequestBody = ClaimMemberDto;
+    export type RequestBody = UpdateMemberCompanyDto;
     export type RequestHeaders = {};
     export type ResponseBody = MemberDto;
   }
@@ -2450,7 +3238,7 @@ export namespace Api {
   }
 
   /**
- * @description Admins see all resources; staff and members see only non-hidden ones. Filter by locationId / resourceTypeId; `q` matches the name.
+ * @description Admins see all resources; staff and members see only non-hidden ones. Filter by locationId / resourceTypeId; `q` matches the name. `status` keeps only resources whose derived status matches (computed over the full result set, then paginated).
  * @tags Catalog — Resources
  * @name ListResources
  * @summary List resources
@@ -2488,6 +3276,8 @@ export namespace Api {
       locationId?: string;
       /** @format uuid */
       resourceTypeId?: string;
+      /** Keep only resources whose derived status matches. */
+      status?: ResourceStatus;
       /** The search term to filter results. */
       q?: string;
     };
@@ -2509,7 +3299,7 @@ export namespace Api {
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
    * @response `404` `(ResponseErrorDto)` Not Found
-   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
    * @response `default` `ResourceDto`
@@ -2559,7 +3349,7 @@ export namespace Api {
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
    * @response `404` `(ResponseErrorDto)` Not Found
-   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
    * @response `default` `ResourceDto`
@@ -2575,7 +3365,33 @@ export namespace Api {
   }
 
   /**
- * @description Prices are integer millimes HT; VAT in basis points.
+   * @description OfficeRnD-style derived occupancy. `status` reflects the parent chain and, for parents, the children; `ownStatus` derives from the resource's own availability window and assignments only.
+   * @tags Catalog — Resources
+   * @name GetResourceStatus
+   * @summary Get a resource status
+   * @request GET:/api/v1/resources/{id}/status
+   * @secure
+   * @response `200` `(ResourceStatusDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `ResourceStatusDto`
+   */
+  export namespace GetResourceStatus {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = ResourceStatusDto;
+  }
+
+  /**
+ * @description Rates are standalone, shareable, single-price objects typed by resource type; resources attach a set of them via `rateIds` (one per interval/weekend slot). Prices are dinars (TND) HT; VAT as a percentage rate. Filter by resourceTypeId; `q` matches the name.
  * @tags Catalog — Resource Rates
  * @name ListResourceRates
  * @summary List resource rates
@@ -2610,7 +3426,7 @@ export namespace Api {
       /** The direction to sort the results, either 'ASC' or 'DESC'. */
       sort: Sort;
       /** @format uuid */
-      resourceId?: string;
+      resourceTypeId?: string;
       /** The search term to filter results. */
       q?: string;
     };
@@ -2622,7 +3438,7 @@ export namespace Api {
   }
 
   /**
-   * @description One rate per (resource, rateType, audience). The rate type must match the resource type's booking mode.
+   * @description Creates a standalone single-price rate for one resource type; attach it to resources via their `rateIds`. Intervals must fit the type's booking mode (hourly → once/hour/half_day/day, daily → once/day/week/month); weekend variants exist only for hour/half_day/day.
    * @tags Catalog — Resource Rates
    * @name CreateResourceRate
    * @summary Create a resource rate
@@ -2631,6 +3447,7 @@ export namespace Api {
    * @response `201` `(ResourceRateDto)` 201
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
    * @response `409` `(ResponseErrorDto)` Conflict
    * @response `422` `(ResponseErrorDto)` Unprocessable Entity
    * @response `429` `(ResponseErrorDto)` Too Many Requests
@@ -2675,13 +3492,14 @@ export namespace Api {
    * No description
    * @tags Catalog — Resource Rates
    * @name UpdateResourceRate
-   * @summary Update a resource rate (price/VAT only)
+   * @summary Update a resource rate (type/interval/weekend are immutable)
    * @request PATCH:/api/v1/resource-rates/{id}
    * @secure
    * @response `200` `(ResourceRateDto)` 200
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
    * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `409` `(ResponseErrorDto)` Conflict
    * @response `422` `(ResponseErrorDto)` Unprocessable Entity
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
@@ -2698,7 +3516,7 @@ export namespace Api {
   }
 
   /**
- * @description Staff and members see active, non-hidden plans only; admins see everything and may filter by `status`. Benefits are embedded. Prices are integer millimes HT; VAT in basis points.
+ * @description Staff and members see active, non-hidden plans only; admins see everything and may filter by `status`; any caller may filter by `kind`. Benefits are embedded, and each plan reports its current `activeMemberships` count (active + pending). Prices are dinars (TND) HT; VAT as a percentage rate.
  * @tags Catalog — Plans
  * @name ListPlans
  * @summary List plans
@@ -2734,6 +3552,7 @@ export namespace Api {
       sort: Sort;
       /** Admin-only filter; ignored for other roles. */
       status?: PlanStatus;
+      kind?: PlanKind;
       /** The search term to filter results. */
       q?: string;
     };
@@ -2794,7 +3613,7 @@ export namespace Api {
   }
 
   /**
-   * @description ⚠ When price, VAT, deposit, kind/cycle or benefits change on a plan that has memberships, the plan is ARCHIVED and an active clone carrying the changes is returned — the response then has a DIFFERENT id than the request. Existing memberships keep their snapshot of the archived terms. Cosmetic edits (name, description, hidden, cancellationDays, code) always edit in place. Archived plans are immutable (409).
+   * @description ⚠ When price, VAT, deposit, kind/cycle, benefits or extras change on a plan that has memberships, the plan is ARCHIVED and an active clone carrying the changes is returned — the response then has a DIFFERENT id than the request. Existing memberships keep their snapshot of the archived terms. Cosmetic edits (name, description, hidden, cancellationDays, code) always edit in place. Archived plans are immutable (409).
    * @tags Catalog — Plans
    * @name UpdatePlan
    * @summary Update a plan (archive+clone when in use)
@@ -2818,6 +3637,247 @@ export namespace Api {
     export type RequestBody = UpdatePlanDto;
     export type RequestHeaders = {};
     export type ResponseBody = PlanDto;
+  }
+
+  /**
+ * No description
+ * @tags Catalog — Amenities
+ * @name ListAmenities
+ * @summary List amenities
+ * @request GET:/api/v1/amenities
+ * @secure
+ * @response `200` `(PageDto & {
+    results?: Array<AmenityDto>,
+
+})` 200
+ * @response `401` `(ResponseErrorDto)` Unauthorized
+ * @response `403` `((ResponseErrorDto))` 403
+ * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+ * @response `429` `(ResponseErrorDto)` Too Many Requests
+ * @response `500` `(ResponseErrorDto)` Internal Server Error
+ * @response `default` `void`
+*/
+  export namespace ListAmenities {
+    export type RequestParams = {};
+    export type RequestQuery = {
+      /**
+       * The number of items to skip before starting to collect the result set, starting from 0.
+       * @default 0
+       * @example 0
+       */
+      offset: number;
+      /**
+       * The number of items to retrieve per page.
+       * @default 10
+       * @example 10
+       */
+      limit: number;
+      /** The direction to sort the results, either 'ASC' or 'DESC'. */
+      sort: Sort;
+      /** The search term to filter results. */
+      q?: string;
+    };
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = PageDto & {
+      results?: Array<AmenityDto>;
+    };
+  }
+
+  /**
+   * No description
+   * @tags Catalog — Amenities
+   * @name CreateAmenity
+   * @summary Create an amenity
+   * @request POST:/api/v1/amenities
+   * @secure
+   * @response `201` `(AmenityDto)` 201
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `409` `(ResponseErrorDto)` Conflict
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `AmenityDto`
+   */
+  export namespace CreateAmenity {
+    export type RequestParams = {};
+    export type RequestQuery = {};
+    export type RequestBody = CreateAmenityDto;
+    export type RequestHeaders = {};
+    export type ResponseBody = AmenityDto;
+  }
+
+  /**
+   * No description
+   * @tags Catalog — Amenities
+   * @name GetAmenity
+   * @summary Get an amenity
+   * @request GET:/api/v1/amenities/{id}
+   * @secure
+   * @response `200` `(AmenityDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `AmenityDto`
+   */
+  export namespace GetAmenity {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = AmenityDto;
+  }
+
+  /**
+   * No description
+   * @tags Catalog — Amenities
+   * @name UpdateAmenity
+   * @summary Update an amenity
+   * @request PATCH:/api/v1/amenities/{id}
+   * @secure
+   * @response `200` `(AmenityDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `AmenityDto`
+   */
+  export namespace UpdateAmenity {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = UpdateAmenityDto;
+    export type RequestHeaders = {};
+    export type ResponseBody = AmenityDto;
+  }
+
+  /**
+ * @description Priced add-ons (lockers, parking, catering) attached to plans (per cycle) or resource rates (per booking). Prices are dinars (TND) HT; VAT as a percentage rate.
+ * @tags Catalog — Extras
+ * @name ListExtras
+ * @summary List extras
+ * @request GET:/api/v1/extras
+ * @secure
+ * @response `200` `(PageDto & {
+    results?: Array<ExtraDto>,
+
+})` 200
+ * @response `401` `(ResponseErrorDto)` Unauthorized
+ * @response `403` `((ResponseErrorDto))` 403
+ * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+ * @response `429` `(ResponseErrorDto)` Too Many Requests
+ * @response `500` `(ResponseErrorDto)` Internal Server Error
+ * @response `default` `void`
+*/
+  export namespace ListExtras {
+    export type RequestParams = {};
+    export type RequestQuery = {
+      /**
+       * The number of items to skip before starting to collect the result set, starting from 0.
+       * @default 0
+       * @example 0
+       */
+      offset: number;
+      /**
+       * The number of items to retrieve per page.
+       * @default 10
+       * @example 10
+       */
+      limit: number;
+      /** The direction to sort the results, either 'ASC' or 'DESC'. */
+      sort: Sort;
+      /** The search term to filter results. */
+      q?: string;
+    };
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = PageDto & {
+      results?: Array<ExtraDto>;
+    };
+  }
+
+  /**
+   * No description
+   * @tags Catalog — Extras
+   * @name CreateExtra
+   * @summary Create an extra
+   * @request POST:/api/v1/extras
+   * @secure
+   * @response `201` `(ExtraDto)` 201
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `ExtraDto`
+   */
+  export namespace CreateExtra {
+    export type RequestParams = {};
+    export type RequestQuery = {};
+    export type RequestBody = CreateExtraDto;
+    export type RequestHeaders = {};
+    export type ResponseBody = ExtraDto;
+  }
+
+  /**
+   * No description
+   * @tags Catalog — Extras
+   * @name GetExtra
+   * @summary Get an extra
+   * @request GET:/api/v1/extras/{id}
+   * @secure
+   * @response `200` `(ExtraDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `ExtraDto`
+   */
+  export namespace GetExtra {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = ExtraDto;
+  }
+
+  /**
+   * No description
+   * @tags Catalog — Extras
+   * @name UpdateExtra
+   * @summary Update an extra
+   * @request PATCH:/api/v1/extras/{id}
+   * @secure
+   * @response `200` `(ExtraDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `ExtraDto`
+   */
+  export namespace UpdateExtra {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = UpdateExtraDto;
+    export type RequestHeaders = {};
+    export type ResponseBody = ExtraDto;
   }
 
   /**
@@ -2872,7 +3932,7 @@ export namespace Api {
   }
 
   /**
-   * @description plan_fee, deposit and booking charges are flow-generated and cannot be created here. Negative amounts are credit-note lines.
+   * @description plan_fee, deposit and booking charges are flow-generated and cannot be created here. Negative amounts are credit-note lines. Passing `planId` derives amountHt/description/vatRate/accountingCode from a one-off catalog plan (any may still be overridden) — OfficeRnD’s "add a fee from a plan".
    * @tags Billing
    * @name CreateCharge
    * @summary Create a manual charge (one_off / store)
@@ -2881,7 +3941,7 @@ export namespace Api {
    * @response `201` `(ChargeDto)` 201
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
-   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
    * @response `default` `ChargeDto`
@@ -3049,7 +4109,208 @@ export namespace Api {
   }
 
   /**
- * @description Staff/admin only. `status` filters the derived lifecycle; `expiringBefore` matches ends_at ≤ date (renewal follow-ups).
+ * @description Cross-cutting ledger listing. Filters: membership, booking, check-in, credit type, kind (grant/consumption), member (memberships held by the member or their employer company — the pool they actually spend), company, and an occurred_at range (startDate/endDate, both inclusive and independently optional). Balances live on GET /credits/balances — they are per-membership computations, not row queries.
+ * @tags Credits
+ * @name ListCredits
+ * @summary List credit ledger rows
+ * @request GET:/api/v1/credits
+ * @secure
+ * @response `200` `(PageDto & {
+    results?: Array<CreditTransactionDto>,
+
+})` 200
+ * @response `401` `(ResponseErrorDto)` Unauthorized
+ * @response `403` `((ResponseErrorDto))` 403
+ * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+ * @response `429` `(ResponseErrorDto)` Too Many Requests
+ * @response `500` `(ResponseErrorDto)` Internal Server Error
+ * @response `default` `void`
+*/
+  export namespace ListCredits {
+    export type RequestParams = {};
+    export type RequestQuery = {
+      /**
+       * The number of items to skip before starting to collect the result set, starting from 0.
+       * @default 0
+       * @example 0
+       */
+      offset: number;
+      /**
+       * The number of items to retrieve per page.
+       * @default 10
+       * @example 10
+       */
+      limit: number;
+      /** The direction to sort the results, either 'ASC' or 'DESC'. */
+      sort: Sort;
+      /** @format uuid */
+      membershipId?: string;
+      /** @format uuid */
+      memberId?: string;
+      /** @format uuid */
+      companyId?: string;
+      /** @format uuid */
+      bookingId?: string;
+      /** @format uuid */
+      checkinId?: string;
+      /** @example "room_hour" */
+      creditType?: string;
+      kind?: CreditTransactionKind;
+      /** @format date-time */
+      startDate?: string;
+      /** @format date-time */
+      endDate?: string;
+      /** The search term to filter results. */
+      q?: string;
+    };
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = PageDto & {
+      results?: Array<CreditTransactionDto>;
+    };
+  }
+
+  /**
+   * @description Staff/admin comps, goodwill and corrections — the only entry path for credits outside plan create/renew. An optional resource-type scope restricts where the credits are spendable (NULL = any); an optional future expiry bounds them in time.
+   * @tags Credits
+   * @name GrantCredit
+   * @summary Manually grant credits to a membership
+   * @request POST:/api/v1/credits
+   * @secure
+   * @response `201` `(CreditTransactionDto)` 201
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `((ResponseErrorDto))` 404
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `CreditTransactionDto`
+   */
+  export namespace GrantCredit {
+    export type RequestParams = {};
+    export type RequestQuery = {};
+    export type RequestBody = GrantCreditDto;
+    export type RequestHeaders = {};
+    export type ResponseBody = CreditTransactionDto;
+  }
+
+  /**
+   * @description FIFO, expiry-aware balances grouped per membership, one entry per credit type. `memberId` covers memberships held by the member or their employer company; at least one id filter is required. With startDate/endDate the result is a STATEMENT for that window: granted/consumed/expired count only movement inside it, while available is the balance as of endDate (cumulative — the start bound cannot apply to it), so granted = consumed + expired + available holds only without a startDate. Members see their own balances via GET /me.
+   * @tags Credits
+   * @name GetCreditBalances
+   * @summary Credit balances of a membership, member or company
+   * @request GET:/api/v1/credits/balances
+   * @secure
+   * @response `200` `(CreditBalancesDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `422` `((ResponseErrorDto))` 422
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `CreditBalancesDto`
+   */
+  export namespace GetCreditBalances {
+    export type RequestParams = {};
+    export type RequestQuery = {
+      /** @format uuid */
+      membershipId?: string;
+      /** @format uuid */
+      memberId?: string;
+      /** @format uuid */
+      companyId?: string;
+      /** @format date-time */
+      startDate?: string;
+      /** @format date-time */
+      endDate?: string;
+    };
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = CreditBalancesDto;
+  }
+
+  /**
+   * No description
+   * @tags Credits
+   * @name GetCredit
+   * @summary Get a credit ledger row
+   * @request GET:/api/v1/credits/{id}
+   * @secure
+   * @response `200` `(CreditTransactionDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `CreditTransactionDto`
+   */
+  export namespace GetCredit {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = CreditTransactionDto;
+  }
+
+  /**
+   * @description Grants only — consumptions are immutable (they belong to their booking/check-in). Explicit null clears a field (open-ended expiry / wildcard scope). A scope change that would orphan an already-allocated consumption is refused.
+   * @tags Credits
+   * @name UpdateCredit
+   * @summary Correct a credit GRANT row
+   * @request PATCH:/api/v1/credits/{id}
+   * @secure
+   * @response `200` `(CreditTransactionDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `((ResponseErrorDto))` 404
+   * @response `409` `((ResponseErrorDto))` 409
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `CreditTransactionDto`
+   */
+  export namespace UpdateCredit {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = UpdateCreditDto;
+    export type RequestHeaders = {};
+    export type ResponseBody = CreditTransactionDto;
+  }
+
+  /**
+   * @description Deletes a grant no consumption has been allocated against (fat-fingered manual grant). Anything already touched by consumption — and every consumption row — is refused: the ledger is append-only and corrections are compensating entries.
+   * @tags Credits
+   * @name DeleteCredit
+   * @summary Void an UNCONSUMED grant (admin)
+   * @request DELETE:/api/v1/credits/{id}
+   * @secure
+   * @response `204` `void` 204
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `409` `((ResponseErrorDto))` 409
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `void`
+   */
+  export namespace DeleteCredit {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = void;
+  }
+
+  /**
+ * @description Staff/admin only. `status` filters the derived lifecycle; `expiringBefore` matches ends_at ≤ date (renewal follow-ups); `memberId`/`companyId` filter the direct holder (no employer-company pooling — query both for the pooled view).
  * @tags Memberships
  * @name ListMemberships
  * @summary List memberships
@@ -3088,6 +4349,13 @@ export namespace Api {
       /** @format uuid */
       planId?: string;
       /**
+       * Memberships held DIRECTLY by this member (no employer-company pooling).
+       * @format uuid
+       */
+      memberId?: string;
+      /** @format uuid */
+      companyId?: string;
+      /**
        * Memberships whose ends_at falls on or before this date.
        * @example "2026-09-01"
        */
@@ -3103,7 +4371,7 @@ export namespace Api {
   }
 
   /**
-   * @description Single transaction: validates the customer (member XOR company), snapshots the plan + benefits, grants initial credits (with expiry), writes the plan_fee (and deposit) charge. Status is active when startsAt ≤ today, else pending.
+   * @description Single transaction: validates the customer (member XOR company), snapshots the plan + benefits, grants initial credits (with expiry), writes the plan_fee (and deposit) charge. Status is derived from the dates. An optional endsAt makes the membership fixed-term (inclusive last active day). Optional overrides: priceHt and deposit (0 = waived) write into the snapshot only; name defaults to the plan name.
    * @tags Memberships
    * @name CreateMembership
    * @summary Create a membership (§6.1)
@@ -3152,33 +4420,33 @@ export namespace Api {
   }
 
   /**
-   * @description Balances per credit type (FIFO, expiry-aware) plus the full transaction history. Members reach only their own memberships.
+   * @description Cosmetic fields only — contractual terms are frozen in planSnapshot and cannot be edited.
    * @tags Memberships
-   * @name GetMembershipCredits
-   * @summary Credit balances and ledger of a membership
-   * @request GET:/api/v1/memberships/{id}/credits
+   * @name UpdateMembership
+   * @summary Update a membership label/notes
+   * @request PATCH:/api/v1/memberships/{id}
    * @secure
-   * @response `200` `void` 200
+   * @response `200` `(MembershipDto)` 200
    * @response `401` `(ResponseErrorDto)` Unauthorized
-   * @response `403` `(ResponseErrorDto)` Forbidden
+   * @response `403` `((ResponseErrorDto))` 403
    * @response `404` `(ResponseErrorDto)` Not Found
    * @response `422` `(ResponseErrorDto)` Unprocessable Entity
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
-   * @response `default` `void`
+   * @response `default` `MembershipDto`
    */
-  export namespace GetMembershipCredits {
+  export namespace UpdateMembership {
     export type RequestParams = {
       id: string;
     };
     export type RequestQuery = {};
-    export type RequestBody = never;
+    export type RequestBody = UpdateMembershipDto;
     export type RequestHeaders = {};
-    export type ResponseBody = void;
+    export type ResponseBody = MembershipDto;
   }
 
   /**
-   * @description Sets cancelled_at = today and ends_at per the SNAPSHOT's cancellationDays notice period. The membership stays active until ends_at passes.
+   * @description Sets cancelled_at = today and ends_at per the SNAPSHOT's cancellationDays notice period — never later than an agreed fixed-term ends_at. The membership stays active until ends_at passes.
    * @tags Memberships
    * @name CancelMembership
    * @summary Cancel a membership
@@ -3216,7 +4484,7 @@ export namespace Api {
    * @response `403` `((ResponseErrorDto))` 403
    * @response `404` `(ResponseErrorDto)` Not Found
    * @response `409` `(ResponseErrorDto)` Conflict
-   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
    * @response `default` `MembershipDto`
@@ -3232,26 +4500,133 @@ export namespace Api {
   }
 
   /**
-   * @description Resolves JWT → user → linked member and returns the member, all memberships benefiting them (own + employer company) and credit balances of the active ones. Users with no linked member (e.g. staff) get 404 no_linked_member.
-   * @tags Me
-   * @name GetMe
-   * @summary Current member portal home
-   * @request GET:/api/v1/me
+ * @description Staff/admin only. `activeOn` matches assignments covering that business date (startsAt ≤ date < endsAt, endsAt NULL = open).
+ * @tags Assignments
+ * @name ListAssignments
+ * @summary List resource assignments
+ * @request GET:/api/v1/assignments
+ * @secure
+ * @response `200` `(PageDto & {
+    results?: Array<AssignmentDto>,
+
+})` 200
+ * @response `401` `(ResponseErrorDto)` Unauthorized
+ * @response `403` `((ResponseErrorDto))` 403
+ * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+ * @response `429` `(ResponseErrorDto)` Too Many Requests
+ * @response `500` `(ResponseErrorDto)` Internal Server Error
+ * @response `default` `void`
+*/
+  export namespace ListAssignments {
+    export type RequestParams = {};
+    export type RequestQuery = {
+      /**
+       * The number of items to skip before starting to collect the result set, starting from 0.
+       * @default 0
+       * @example 0
+       */
+      offset: number;
+      /**
+       * The number of items to retrieve per page.
+       * @default 10
+       * @example 10
+       */
+      limit: number;
+      /** The direction to sort the results, either 'ASC' or 'DESC'. */
+      sort: Sort;
+      /** @format uuid */
+      resourceId?: string;
+      /** @format uuid */
+      membershipId?: string;
+      /**
+       * Only assignments covering this business date.
+       * @example "2026-08-01"
+       */
+      activeOn?: string;
+      /** The search term to filter results. */
+      q?: string;
+    };
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = PageDto & {
+      results?: Array<AssignmentDto>;
+    };
+  }
+
+  /**
+   * @description The resource type must be canAssign and the membership must not be ended. Overlaps for the same resource are rejected at the database (GiST exclusion) — 23P01 → 409. On a fixed-term membership an omitted or later `endsAt` is silently CAPPED to the day after the membership ends (its ends_at is the last active day, an assignment ends_at is the first free day), never rejected — read the response to see the stored boundary.
+   * @tags Assignments
+   * @name CreateAssignment
+   * @summary Assign a resource to a membership
+   * @request POST:/api/v1/assignments
    * @secure
-   * @response `200` `(MeDto)` 200
+   * @response `201` `(AssignmentDto)` 201
    * @response `401` `(ResponseErrorDto)` Unauthorized
-   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `409` `(ResponseErrorDto)` Conflict
+   * @response `422` `((ResponseErrorDto))` 422
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `AssignmentDto`
+   */
+  export namespace CreateAssignment {
+    export type RequestParams = {};
+    export type RequestQuery = {};
+    export type RequestBody = CreateAssignmentDto;
+    export type RequestHeaders = {};
+    export type ResponseBody = AssignmentDto;
+  }
+
+  /**
+   * @description Sets ends_at on an open assignment (half-open: endsAt is the first free day). Already-ended assignments are rejected.
+   * @tags Assignments
+   * @name EndAssignment
+   * @summary End an open assignment
+   * @request POST:/api/v1/assignments/{id}/end
+   * @secure
+   * @response `200` `(AssignmentDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `409` `(ResponseErrorDto)` Conflict
    * @response `422` `(ResponseErrorDto)` Unprocessable Entity
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
-   * @response `default` `MeDto`
+   * @response `default` `AssignmentDto`
    */
-  export namespace GetMe {
-    export type RequestParams = {};
+  export namespace EndAssignment {
+    export type RequestParams = {
+      id: string;
+    };
     export type RequestQuery = {};
-    export type RequestBody = never;
+    export type RequestBody = EndAssignmentDto;
     export type RequestHeaders = {};
-    export type ResponseBody = MeDto;
+    export type ResponseBody = AssignmentDto;
+  }
+
+  /**
+   * @description OfficeRnD relocate: ends the current assignment at effectiveDate and opens a new one on the destination resource, in one transaction. On a fixed-term membership the successor is silently CAPPED to the day after the membership ends (its ends_at is the last active day, an assignment ends_at is the first free day), never rejected — read the response to see the stored boundary.
+   * @tags Assignments
+   * @name RelocateAssignment
+   * @summary Relocate an assignment to another resource
+   * @request POST:/api/v1/assignments/{id}/relocate
+   * @secure
+   * @response `201` `(AssignmentDto)` 201
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `409` `(ResponseErrorDto)` Conflict
+   * @response `422` `((ResponseErrorDto))` 422
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `AssignmentDto`
+   */
+  export namespace RelocateAssignment {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = RelocateAssignmentDto;
+    export type RequestHeaders = {};
+    export type ResponseBody = AssignmentDto;
   }
 
   /**
@@ -3440,7 +4815,7 @@ export namespace Api {
   }
 
   /**
-   * @description Members book for themselves (source=portal); staff book for any member XOR company (source=staff). Pricing: room_hour credits first (scope from membership snapshots, drained soonest-expiring first), remainder at the member rate — or the visitor rate without a membership. price_ht_millimes is NULL when fully credit-covered. Conflicts are impossible at the database level (GiST exclusion constraint).
+   * @description Members book for themselves (source=portal); staff book for any member XOR company (source=staff). Pricing: room_hour credits first (scope from membership snapshots, drained soonest-expiring first), remainder at the member rate — or the visitor rate without a membership. price_ht is NULL when fully credit-covered. Conflicts are impossible at the database level (GiST exclusion constraint).
    * @tags Bookings
    * @name CreateBooking
    * @summary Create a booking (§6.3 credit-first pricing)
@@ -3751,7 +5126,7 @@ export namespace Api {
   }
 
   /**
-   * @description HT/VAT/TTC sums in millimes. group_by=plan buckets membership-linked charges by their snapshot plan name; other charges by kind.
+   * @description HT/VAT/TTC sums in dinars (TND). group_by=plan buckets membership-linked charges by their snapshot plan name; other charges by kind.
    * @tags Analytics
    * @name AnalyticsRevenue
    * @summary Revenue by month or plan (accrual over charges)
@@ -3834,10 +5209,10 @@ export namespace Api {
   }
 
   /**
-   * @description Meeting room only (§5). Bookable windows + busy intervals.
+   * @description Any bookable, visible resource. Bookable windows + busy intervals.
    * @tags Public (website)
    * @name PublicResourceAvailability
-   * @summary Meeting-room availability for the website
+   * @summary Resource availability for the website
    * @request GET:/api/v1/public/resources/{id}/availability
    * @response `200` `(AvailabilityDto)` 200
    * @response `401` `(ResponseErrorDto)` Unauthorized
@@ -3864,6 +5239,29 @@ export namespace Api {
   }
 
   /**
+   * @description Active, non-hidden, bookable resources with amenities and rates. Server-to-server only.
+   * @tags Public (website)
+   * @name PublicListResources
+   * @summary Bookable resources for the website
+   * @request GET:/api/v1/public/resources
+   * @response `200` `(PublicResourceDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   */
+  export namespace PublicListResources {
+    export type RequestParams = {};
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {
+      /** Pre-provisioned service key (see SERVICE_API_KEYS). No user identity is attached to this group. */
+      "X-Api-Key": string;
+    };
+    export type ResponseBody = PublicResourceDto;
+  }
+
+  /**
    * @description Creates member (visitor) + PENDING booking + opportunity in one transaction; staff confirms (and prices) later. Identity comes only from the body — no user account involved.
    * @tags Public (website)
    * @name PublicCreateBookingRequest
@@ -3884,6 +5282,29 @@ export namespace Api {
       "X-Api-Key": string;
     };
     export type ResponseBody = BookingRequestResultDto;
+  }
+
+  /**
+   * @description Creates member (visitor) + opportunity carrying the requested plan, its selected extras and the quoted value in one transaction; staff convert it into a membership at the price the visitor saw. Identity comes only from the body — no user account involved.
+   * @tags Public (website)
+   * @name PublicCreatePlanRequest
+   * @summary Website plan request
+   * @request POST:/api/v1/public/plan-requests
+   * @response `201` `(PlanRequestResultDto)` 201
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   */
+  export namespace PublicCreatePlanRequest {
+    export type RequestParams = {};
+    export type RequestQuery = {};
+    export type RequestBody = CreatePlanRequestDto;
+    export type RequestHeaders = {
+      /** Pre-provisioned service key (see SERVICE_API_KEYS). No user identity is attached to this group. */
+      "X-Api-Key": string;
+    };
+    export type ResponseBody = PlanRequestResultDto;
   }
 
   /**
@@ -4361,81 +5782,6 @@ export class HsService<SecurityDataType extends unknown> {
 
   api = {
     /**
-     * @description Sends a 6-digit OTP to the provided email. Works for both new and existing users — Supabase creates the account on first use.
-     *
-     * @tags Auth (Deprecated)
-     * @name RequestEmailOtp
-     * @summary Request an Email OTP (sign-in or sign-up)
-     * @request POST:/api/v1/auth/otp/request
-     * @response `200` `(OtpRequestedDto)` 200
-     * @response `400` `(ResponseErrorDto)` Bad Request
-     * @response `403` `(ResponseErrorDto)` Rejected outside development
-     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
-     * @response `429` `(ResponseErrorDto)` Too Many Requests
-     * @response `500` `(ResponseErrorDto)` Internal Server Error
-     * @response `default` `OtpRequestedDto`
-     */
-    requestEmailOtp: (data: RegisterDto, params: RequestParams = {}) =>
-      this.http.request<OtpRequestedDto, ResponseErrorDto | OtpRequestedDto>({
-        path: `/api/v1/auth/otp/request`,
-        method: "POST",
-        body: data,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * @description Validates the OTP and returns access + refresh tokens on success.
-     *
-     * @tags Auth (Deprecated)
-     * @name VerifyEmailOtp
-     * @summary Verify Email OTP and obtain tokens
-     * @request POST:/api/v1/auth/otp/verify
-     * @response `200` `(AuthTokensDto)` 200
-     * @response `400` `(ResponseErrorDto)` Bad Request
-     * @response `401` `((ResponseErrorDto))` 401
-     * @response `403` `(ResponseErrorDto)` Rejected outside development
-     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
-     * @response `429` `(ResponseErrorDto)` Too Many Requests
-     * @response `500` `(ResponseErrorDto)` Internal Server Error
-     * @response `default` `AuthTokensDto`
-     */
-    verifyEmailOtp: (data: VerifyOtpDto, params: RequestParams = {}) =>
-      this.http.request<AuthTokensDto, ResponseErrorDto | ResponseErrorDto | AuthTokensDto>({
-        path: `/api/v1/auth/otp/verify`,
-        method: "POST",
-        body: data,
-        type: ContentType.Json,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * @description Invalidates the current Supabase session server-side.
-     *
-     * @tags Auth (Deprecated)
-     * @name SignOut
-     * @summary Sign out and revoke session
-     * @request POST:/api/v1/auth/sign-out
-     * @secure
-     * @response `204` `void` 204
-     * @response `401` `((ResponseErrorDto))` 401
-     * @response `403` `(ResponseErrorDto)` Rejected outside development
-     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
-     * @response `429` `(ResponseErrorDto)` Too Many Requests
-     * @response `500` `(ResponseErrorDto)` Internal Server Error
-     * @response `default` `void`
-     */
-    signOut: (params: RequestParams = {}) =>
-      this.http.request<void, ResponseErrorDto | ResponseErrorDto | void>({
-        path: `/api/v1/auth/sign-out`,
-        method: "POST",
-        secure: true,
-        ...params,
-      }),
-
-    /**
  * @description Paginated list of locations. `q` filters by name.
  *
  * @tags Locations
@@ -4551,7 +5897,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
- * @description Paginated list. `q` fuzzy-matches name/email; `name` is exact-match.
+ * @description Paginated list. `q` fuzzy-matches name/email; `name` is exact-match. `status` is derived from membership/charge/opportunity data — never stored.
  *
  * @tags Companies
  * @name ListCompanies
@@ -4585,7 +5931,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * No description
+     * @description `status` is derived from membership/charge/opportunity data — never stored.
      *
      * @tags Companies
      * @name CreateCompany
@@ -4612,7 +5958,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * No description
+     * @description `status` is derived from membership/charge/opportunity data — never stored.
      *
      * @tags Companies
      * @name GetCompany
@@ -4638,7 +5984,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * No description
+     * @description `status` is derived from membership/charge/opportunity data — never stored. `startDate: null` clears the date and with it the membership start-date floor.
      *
      * @tags Companies
      * @name UpdateCompany
@@ -4666,7 +6012,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
- * @description Paginated list. `q` fuzzy-matches name/email/phone; `email` is exact-match; filter by `kindHint` and `companyId`. The `status` field on each result is derived, never stored.
+ * @description Paginated list. `q` fuzzy-matches name/email/phone; `email` is exact-match; filter by `kindHint` and `companyId`. The `status` field on each result is derived on read, never stored: a manual `statusOverride` pin (set via PUT /members/:id/status) wins, otherwise it derives from memberships, then one-off charges, then open opportunities, then `kindHint`.
  *
  * @tags Members
  * @name ListMembers
@@ -4754,7 +6100,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Staff/admin may update all business fields. A member-role caller may only update their own record, restricted to fullName, email and phone — any other field is rejected with 403. The user link (portal access) is never updatable here; it belongs to the invite/claim flow.
+     * @description Staff/admin may update all business fields except `companyId` — sending it is rejected with 422; moving a member is PUT /members/:id/company. A member-role caller may only update their own record, restricted to fullName, email and phone — any other field is rejected with 403. The user link is never updatable here.
      *
      * @tags Members
      * @name UpdateMember
@@ -4782,76 +6128,54 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Provisions the Supabase identity (public signup is disabled) and returns a single-use claim token valid for 7 days. Deliver the token to the customer out-of-band. Re-inviting regenerates the token and invalidates the previous one.
+     * @description Manually pins the derived `status` to `former` or `contact`; a pinned status never auto-updates. Send `auto` to clear the pin and let the status derive from membership, charge and opportunity data again.
      *
      * @tags Members
-     * @name InviteMember
-     * @summary Issue a portal-access invite for a member
-     * @request POST:/api/v1/members/{id}/invite
+     * @name UpdateMemberStatus
+     * @summary Pin or clear a member lifecycle status
+     * @request PUT:/api/v1/members/{id}/status
      * @secure
-     * @response `201` `(InviteResponseDto)` 201
-     * @response `401` `(ResponseErrorDto)` Unauthorized
-     * @response `403` `((ResponseErrorDto))` 403
-     * @response `409` `(ResponseErrorDto)` Conflict
-     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
-     * @response `429` `(ResponseErrorDto)` Too Many Requests
-     * @response `500` `(ResponseErrorDto)` Internal Server Error
-     * @response `default` `InviteResponseDto`
-     */
-    inviteMember: (id: string, params: RequestParams = {}) =>
-      this.http.request<InviteResponseDto, ResponseErrorDto | ResponseErrorDto | InviteResponseDto>({
-        path: `/api/v1/members/${id}/invite`,
-        method: "POST",
-        secure: true,
-        format: "json",
-        ...params,
-      }),
-
-    /**
-     * @description Clears the user link and revokes the member role. The member record and all its history remain intact.
-     *
-     * @tags Members
-     * @name UnlinkMember
-     * @summary Revoke portal access
-     * @request DELETE:/api/v1/members/{id}/portal-access
-     * @secure
-     * @response `204` `void` 204
+     * @response `200` `(MemberDto)` 200
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
      * @response `404` `(ResponseErrorDto)` Not Found
      * @response `422` `(ResponseErrorDto)` Unprocessable Entity
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
-     * @response `default` `void`
+     * @response `default` `MemberDto`
      */
-    unlinkMember: (id: string, params: RequestParams = {}) =>
-      this.http.request<void, ResponseErrorDto | ResponseErrorDto | void>({
-        path: `/api/v1/members/${id}/portal-access`,
-        method: "DELETE",
+    updateMemberStatus: (id: string, data: UpdateMemberStatusDto, params: RequestParams = {}) =>
+      this.http.request<MemberDto, ResponseErrorDto | ResponseErrorDto | MemberDto>({
+        path: `/api/v1/members/${id}/status`,
+        method: "PUT",
+        body: data,
         secure: true,
+        type: ContentType.Json,
+        format: "json",
         ...params,
       }),
 
     /**
-     * @description Links the CALLING user to the invited member, grants the `member` role and consumes the token — the explicit token is the only linking path; email equality never links (§6.5).
+     * @description The only way to re-assign a member — `companyId` is not accepted by PATCH /members/:id, which rejects it with 422. Send `null` to detach the member into a solo member. A move that really changes the company clears `isBillingPerson`/`isContactPerson`: those roles are held within a company and are never carried across. Re-sending the current company is a no-op and keeps the flags.
      *
-     * @tags Me
-     * @name ClaimMember
-     * @summary Claim portal access with an invite token
-     * @request POST:/api/v1/me/claim
+     * @tags Members
+     * @name UpdateMemberCompany
+     * @summary Move a member to another company
+     * @request PUT:/api/v1/members/{id}/company
      * @secure
      * @response `200` `(MemberDto)` 200
-     * @response `401` `((ResponseErrorDto))` 401
-     * @response `409` `(ResponseErrorDto)` Conflict
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `((ResponseErrorDto))` 404
      * @response `422` `(ResponseErrorDto)` Unprocessable Entity
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
      * @response `default` `MemberDto`
      */
-    claimMember: (data: ClaimMemberDto, params: RequestParams = {}) =>
+    updateMemberCompany: (id: string, data: UpdateMemberCompanyDto, params: RequestParams = {}) =>
       this.http.request<MemberDto, ResponseErrorDto | ResponseErrorDto | MemberDto>({
-        path: `/api/v1/me/claim`,
-        method: "POST",
+        path: `/api/v1/members/${id}/company`,
+        method: "PUT",
         body: data,
         secure: true,
         type: ContentType.Json,
@@ -4976,7 +6300,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
- * @description Admins see all resources; staff and members see only non-hidden ones. Filter by locationId / resourceTypeId; `q` matches the name.
+ * @description Admins see all resources; staff and members see only non-hidden ones. Filter by locationId / resourceTypeId; `q` matches the name. `status` keeps only resources whose derived status matches (computed over the full result set, then paginated).
  *
  * @tags Catalog — Resources
  * @name ListResources
@@ -5021,7 +6345,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
      * @response `404` `(ResponseErrorDto)` Not Found
-     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
      * @response `default` `ResourceDto`
@@ -5075,7 +6399,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
      * @response `404` `(ResponseErrorDto)` Not Found
-     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
      * @response `default` `ResourceDto`
@@ -5092,7 +6416,33 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
- * @description Prices are integer millimes HT; VAT in basis points.
+     * @description OfficeRnD-style derived occupancy. `status` reflects the parent chain and, for parents, the children; `ownStatus` derives from the resource's own availability window and assignments only.
+     *
+     * @tags Catalog — Resources
+     * @name GetResourceStatus
+     * @summary Get a resource status
+     * @request GET:/api/v1/resources/{id}/status
+     * @secure
+     * @response `200` `(ResourceStatusDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `ResourceStatusDto`
+     */
+    getResourceStatus: (id: string, params: RequestParams = {}) =>
+      this.http.request<ResourceStatusDto, ResponseErrorDto | ResponseErrorDto | ResourceStatusDto>({
+        path: `/api/v1/resources/${id}/status`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+ * @description Rates are standalone, shareable, single-price objects typed by resource type; resources attach a set of them via `rateIds` (one per interval/weekend slot). Prices are dinars (TND) HT; VAT as a percentage rate. Filter by resourceTypeId; `q` matches the name.
  *
  * @tags Catalog — Resource Rates
  * @name ListResourceRates
@@ -5126,7 +6476,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description One rate per (resource, rateType, audience). The rate type must match the resource type's booking mode.
+     * @description Creates a standalone single-price rate for one resource type; attach it to resources via their `rateIds`. Intervals must fit the type's booking mode (hourly → once/hour/half_day/day, daily → once/day/week/month); weekend variants exist only for hour/half_day/day.
      *
      * @tags Catalog — Resource Rates
      * @name CreateResourceRate
@@ -5136,6 +6486,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `201` `(ResourceRateDto)` 201
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
      * @response `409` `(ResponseErrorDto)` Conflict
      * @response `422` `(ResponseErrorDto)` Unprocessable Entity
      * @response `429` `(ResponseErrorDto)` Too Many Requests
@@ -5184,13 +6535,14 @@ export class HsService<SecurityDataType extends unknown> {
      *
      * @tags Catalog — Resource Rates
      * @name UpdateResourceRate
-     * @summary Update a resource rate (price/VAT only)
+     * @summary Update a resource rate (type/interval/weekend are immutable)
      * @request PATCH:/api/v1/resource-rates/{id}
      * @secure
      * @response `200` `(ResourceRateDto)` 200
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
      * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `409` `(ResponseErrorDto)` Conflict
      * @response `422` `(ResponseErrorDto)` Unprocessable Entity
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
@@ -5208,7 +6560,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
- * @description Staff and members see active, non-hidden plans only; admins see everything and may filter by `status`. Benefits are embedded. Prices are integer millimes HT; VAT in basis points.
+ * @description Staff and members see active, non-hidden plans only; admins see everything and may filter by `status`; any caller may filter by `kind`. Benefits are embedded, and each plan reports its current `activeMemberships` count (active + pending). Prices are dinars (TND) HT; VAT as a percentage rate.
  *
  * @tags Catalog — Plans
  * @name ListPlans
@@ -5295,7 +6647,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description ⚠ When price, VAT, deposit, kind/cycle or benefits change on a plan that has memberships, the plan is ARCHIVED and an active clone carrying the changes is returned — the response then has a DIFFERENT id than the request. Existing memberships keep their snapshot of the archived terms. Cosmetic edits (name, description, hidden, cancellationDays, code) always edit in place. Archived plans are immutable (409).
+     * @description ⚠ When price, VAT, deposit, kind/cycle, benefits or extras change on a plan that has memberships, the plan is ARCHIVED and an active clone carrying the changes is returned — the response then has a DIFFERENT id than the request. Existing memberships keep their snapshot of the archived terms. Cosmetic edits (name, description, hidden, cancellationDays, code) always edit in place. Archived plans are immutable (409).
      *
      * @tags Catalog — Plans
      * @name UpdatePlan
@@ -5315,6 +6667,237 @@ export class HsService<SecurityDataType extends unknown> {
     updatePlan: (id: string, data: UpdatePlanDto, params: RequestParams = {}) =>
       this.http.request<PlanDto, ResponseErrorDto | ResponseErrorDto | PlanDto>({
         path: `/api/v1/plans/${id}`,
+        method: "PATCH",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+ * No description
+ *
+ * @tags Catalog — Amenities
+ * @name ListAmenities
+ * @summary List amenities
+ * @request GET:/api/v1/amenities
+ * @secure
+ * @response `200` `(PageDto & {
+    results?: Array<AmenityDto>,
+
+})` 200
+ * @response `401` `(ResponseErrorDto)` Unauthorized
+ * @response `403` `((ResponseErrorDto))` 403
+ * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+ * @response `429` `(ResponseErrorDto)` Too Many Requests
+ * @response `500` `(ResponseErrorDto)` Internal Server Error
+ * @response `default` `void`
+ */
+    listAmenities: (query: ListAmenitiesParams, params: RequestParams = {}) =>
+      this.http.request<
+        PageDto & {
+          results?: Array<AmenityDto>;
+        },
+        ResponseErrorDto | ResponseErrorDto | void
+      >({
+        path: `/api/v1/amenities`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Catalog — Amenities
+     * @name CreateAmenity
+     * @summary Create an amenity
+     * @request POST:/api/v1/amenities
+     * @secure
+     * @response `201` `(AmenityDto)` 201
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `409` `(ResponseErrorDto)` Conflict
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `AmenityDto`
+     */
+    createAmenity: (data: CreateAmenityDto, params: RequestParams = {}) =>
+      this.http.request<AmenityDto, ResponseErrorDto | ResponseErrorDto | AmenityDto>({
+        path: `/api/v1/amenities`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Catalog — Amenities
+     * @name GetAmenity
+     * @summary Get an amenity
+     * @request GET:/api/v1/amenities/{id}
+     * @secure
+     * @response `200` `(AmenityDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `AmenityDto`
+     */
+    getAmenity: (id: string, params: RequestParams = {}) =>
+      this.http.request<AmenityDto, ResponseErrorDto | ResponseErrorDto | AmenityDto>({
+        path: `/api/v1/amenities/${id}`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Catalog — Amenities
+     * @name UpdateAmenity
+     * @summary Update an amenity
+     * @request PATCH:/api/v1/amenities/{id}
+     * @secure
+     * @response `200` `(AmenityDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `AmenityDto`
+     */
+    updateAmenity: (id: string, data: UpdateAmenityDto, params: RequestParams = {}) =>
+      this.http.request<AmenityDto, ResponseErrorDto | ResponseErrorDto | AmenityDto>({
+        path: `/api/v1/amenities/${id}`,
+        method: "PATCH",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+ * @description Priced add-ons (lockers, parking, catering) attached to plans (per cycle) or resource rates (per booking). Prices are dinars (TND) HT; VAT as a percentage rate.
+ *
+ * @tags Catalog — Extras
+ * @name ListExtras
+ * @summary List extras
+ * @request GET:/api/v1/extras
+ * @secure
+ * @response `200` `(PageDto & {
+    results?: Array<ExtraDto>,
+
+})` 200
+ * @response `401` `(ResponseErrorDto)` Unauthorized
+ * @response `403` `((ResponseErrorDto))` 403
+ * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+ * @response `429` `(ResponseErrorDto)` Too Many Requests
+ * @response `500` `(ResponseErrorDto)` Internal Server Error
+ * @response `default` `void`
+ */
+    listExtras: (query: ListExtrasParams, params: RequestParams = {}) =>
+      this.http.request<
+        PageDto & {
+          results?: Array<ExtraDto>;
+        },
+        ResponseErrorDto | ResponseErrorDto | void
+      >({
+        path: `/api/v1/extras`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Catalog — Extras
+     * @name CreateExtra
+     * @summary Create an extra
+     * @request POST:/api/v1/extras
+     * @secure
+     * @response `201` `(ExtraDto)` 201
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `ExtraDto`
+     */
+    createExtra: (data: CreateExtraDto, params: RequestParams = {}) =>
+      this.http.request<ExtraDto, ResponseErrorDto | ResponseErrorDto | ExtraDto>({
+        path: `/api/v1/extras`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Catalog — Extras
+     * @name GetExtra
+     * @summary Get an extra
+     * @request GET:/api/v1/extras/{id}
+     * @secure
+     * @response `200` `(ExtraDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `ExtraDto`
+     */
+    getExtra: (id: string, params: RequestParams = {}) =>
+      this.http.request<ExtraDto, ResponseErrorDto | ResponseErrorDto | ExtraDto>({
+        path: `/api/v1/extras/${id}`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Catalog — Extras
+     * @name UpdateExtra
+     * @summary Update an extra
+     * @request PATCH:/api/v1/extras/{id}
+     * @secure
+     * @response `200` `(ExtraDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `ExtraDto`
+     */
+    updateExtra: (id: string, data: UpdateExtraDto, params: RequestParams = {}) =>
+      this.http.request<ExtraDto, ResponseErrorDto | ResponseErrorDto | ExtraDto>({
+        path: `/api/v1/extras/${id}`,
         method: "PATCH",
         body: data,
         secure: true,
@@ -5358,7 +6941,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description plan_fee, deposit and booking charges are flow-generated and cannot be created here. Negative amounts are credit-note lines.
+     * @description plan_fee, deposit and booking charges are flow-generated and cannot be created here. Negative amounts are credit-note lines. Passing `planId` derives amountHt/description/vatRate/accountingCode from a one-off catalog plan (any may still be overridden) — OfficeRnD’s "add a fee from a plan".
      *
      * @tags Billing
      * @name CreateCharge
@@ -5368,7 +6951,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `201` `(ChargeDto)` 201
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
-     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
      * @response `default` `ChargeDto`
@@ -5529,7 +7112,177 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
- * @description Staff/admin only. `status` filters the derived lifecycle; `expiringBefore` matches ends_at ≤ date (renewal follow-ups).
+ * @description Cross-cutting ledger listing. Filters: membership, booking, check-in, credit type, kind (grant/consumption), member (memberships held by the member or their employer company — the pool they actually spend), company, and an occurred_at range (startDate/endDate, both inclusive and independently optional). Balances live on GET /credits/balances — they are per-membership computations, not row queries.
+ *
+ * @tags Credits
+ * @name ListCredits
+ * @summary List credit ledger rows
+ * @request GET:/api/v1/credits
+ * @secure
+ * @response `200` `(PageDto & {
+    results?: Array<CreditTransactionDto>,
+
+})` 200
+ * @response `401` `(ResponseErrorDto)` Unauthorized
+ * @response `403` `((ResponseErrorDto))` 403
+ * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+ * @response `429` `(ResponseErrorDto)` Too Many Requests
+ * @response `500` `(ResponseErrorDto)` Internal Server Error
+ * @response `default` `void`
+ */
+    listCredits: (query: ListCreditsParams, params: RequestParams = {}) =>
+      this.http.request<
+        PageDto & {
+          results?: Array<CreditTransactionDto>;
+        },
+        ResponseErrorDto | ResponseErrorDto | void
+      >({
+        path: `/api/v1/credits`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Staff/admin comps, goodwill and corrections — the only entry path for credits outside plan create/renew. An optional resource-type scope restricts where the credits are spendable (NULL = any); an optional future expiry bounds them in time.
+     *
+     * @tags Credits
+     * @name GrantCredit
+     * @summary Manually grant credits to a membership
+     * @request POST:/api/v1/credits
+     * @secure
+     * @response `201` `(CreditTransactionDto)` 201
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `((ResponseErrorDto))` 404
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `CreditTransactionDto`
+     */
+    grantCredit: (data: GrantCreditDto, params: RequestParams = {}) =>
+      this.http.request<CreditTransactionDto, ResponseErrorDto | ResponseErrorDto | CreditTransactionDto>({
+        path: `/api/v1/credits`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description FIFO, expiry-aware balances grouped per membership, one entry per credit type. `memberId` covers memberships held by the member or their employer company; at least one id filter is required. With startDate/endDate the result is a STATEMENT for that window: granted/consumed/expired count only movement inside it, while available is the balance as of endDate (cumulative — the start bound cannot apply to it), so granted = consumed + expired + available holds only without a startDate. Members see their own balances via GET /me.
+     *
+     * @tags Credits
+     * @name GetCreditBalances
+     * @summary Credit balances of a membership, member or company
+     * @request GET:/api/v1/credits/balances
+     * @secure
+     * @response `200` `(CreditBalancesDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `422` `((ResponseErrorDto))` 422
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `CreditBalancesDto`
+     */
+    getCreditBalances: (query: GetCreditBalancesParams, params: RequestParams = {}) =>
+      this.http.request<CreditBalancesDto, ResponseErrorDto | ResponseErrorDto | CreditBalancesDto>({
+        path: `/api/v1/credits/balances`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Credits
+     * @name GetCredit
+     * @summary Get a credit ledger row
+     * @request GET:/api/v1/credits/{id}
+     * @secure
+     * @response `200` `(CreditTransactionDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `CreditTransactionDto`
+     */
+    getCredit: (id: string, params: RequestParams = {}) =>
+      this.http.request<CreditTransactionDto, ResponseErrorDto | ResponseErrorDto | CreditTransactionDto>({
+        path: `/api/v1/credits/${id}`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Grants only — consumptions are immutable (they belong to their booking/check-in). Explicit null clears a field (open-ended expiry / wildcard scope). A scope change that would orphan an already-allocated consumption is refused.
+     *
+     * @tags Credits
+     * @name UpdateCredit
+     * @summary Correct a credit GRANT row
+     * @request PATCH:/api/v1/credits/{id}
+     * @secure
+     * @response `200` `(CreditTransactionDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `((ResponseErrorDto))` 404
+     * @response `409` `((ResponseErrorDto))` 409
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `CreditTransactionDto`
+     */
+    updateCredit: (id: string, data: UpdateCreditDto, params: RequestParams = {}) =>
+      this.http.request<CreditTransactionDto, ResponseErrorDto | ResponseErrorDto | CreditTransactionDto>({
+        path: `/api/v1/credits/${id}`,
+        method: "PATCH",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Deletes a grant no consumption has been allocated against (fat-fingered manual grant). Anything already touched by consumption — and every consumption row — is refused: the ledger is append-only and corrections are compensating entries.
+     *
+     * @tags Credits
+     * @name DeleteCredit
+     * @summary Void an UNCONSUMED grant (admin)
+     * @request DELETE:/api/v1/credits/{id}
+     * @secure
+     * @response `204` `void` 204
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `409` `((ResponseErrorDto))` 409
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `void`
+     */
+    deleteCredit: (id: string, params: RequestParams = {}) =>
+      this.http.request<void, ResponseErrorDto | ResponseErrorDto | void>({
+        path: `/api/v1/credits/${id}`,
+        method: "DELETE",
+        secure: true,
+        ...params,
+      }),
+
+    /**
+ * @description Staff/admin only. `status` filters the derived lifecycle; `expiringBefore` matches ends_at ≤ date (renewal follow-ups); `memberId`/`companyId` filter the direct holder (no employer-company pooling — query both for the pooled view).
  *
  * @tags Memberships
  * @name ListMemberships
@@ -5563,7 +7316,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Single transaction: validates the customer (member XOR company), snapshots the plan + benefits, grants initial credits (with expiry), writes the plan_fee (and deposit) charge. Status is active when startsAt ≤ today, else pending.
+     * @description Single transaction: validates the customer (member XOR company), snapshots the plan + benefits, grants initial credits (with expiry), writes the plan_fee (and deposit) charge. Status is derived from the dates. An optional endsAt makes the membership fixed-term (inclusive last active day). Optional overrides: priceHt and deposit (0 = waived) write into the snapshot only; name defaults to the plan name.
      *
      * @tags Memberships
      * @name CreateMembership
@@ -5616,32 +7369,35 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Balances per credit type (FIFO, expiry-aware) plus the full transaction history. Members reach only their own memberships.
+     * @description Cosmetic fields only — contractual terms are frozen in planSnapshot and cannot be edited.
      *
      * @tags Memberships
-     * @name GetMembershipCredits
-     * @summary Credit balances and ledger of a membership
-     * @request GET:/api/v1/memberships/{id}/credits
+     * @name UpdateMembership
+     * @summary Update a membership label/notes
+     * @request PATCH:/api/v1/memberships/{id}
      * @secure
-     * @response `200` `void` 200
+     * @response `200` `(MembershipDto)` 200
      * @response `401` `(ResponseErrorDto)` Unauthorized
-     * @response `403` `(ResponseErrorDto)` Forbidden
+     * @response `403` `((ResponseErrorDto))` 403
      * @response `404` `(ResponseErrorDto)` Not Found
      * @response `422` `(ResponseErrorDto)` Unprocessable Entity
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
-     * @response `default` `void`
+     * @response `default` `MembershipDto`
      */
-    getMembershipCredits: (id: string, params: RequestParams = {}) =>
-      this.http.request<void, ResponseErrorDto | void>({
-        path: `/api/v1/memberships/${id}/credits`,
-        method: "GET",
+    updateMembership: (id: string, data: UpdateMembershipDto, params: RequestParams = {}) =>
+      this.http.request<MembershipDto, ResponseErrorDto | ResponseErrorDto | MembershipDto>({
+        path: `/api/v1/memberships/${id}`,
+        method: "PATCH",
+        body: data,
         secure: true,
+        type: ContentType.Json,
+        format: "json",
         ...params,
       }),
 
     /**
-     * @description Sets cancelled_at = today and ends_at per the SNAPSHOT's cancellationDays notice period. The membership stays active until ends_at passes.
+     * @description Sets cancelled_at = today and ends_at per the SNAPSHOT's cancellationDays notice period — never later than an agreed fixed-term ends_at. The membership stays active until ends_at passes.
      *
      * @tags Memberships
      * @name CancelMembership
@@ -5680,7 +7436,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `403` `((ResponseErrorDto))` 403
      * @response `404` `(ResponseErrorDto)` Not Found
      * @response `409` `(ResponseErrorDto)` Conflict
-     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
      * @response `default` `MembershipDto`
@@ -5695,26 +7451,119 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Resolves JWT → user → linked member and returns the member, all memberships benefiting them (own + employer company) and credit balances of the active ones. Users with no linked member (e.g. staff) get 404 no_linked_member.
+ * @description Staff/admin only. `activeOn` matches assignments covering that business date (startsAt ≤ date < endsAt, endsAt NULL = open).
+ *
+ * @tags Assignments
+ * @name ListAssignments
+ * @summary List resource assignments
+ * @request GET:/api/v1/assignments
+ * @secure
+ * @response `200` `(PageDto & {
+    results?: Array<AssignmentDto>,
+
+})` 200
+ * @response `401` `(ResponseErrorDto)` Unauthorized
+ * @response `403` `((ResponseErrorDto))` 403
+ * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+ * @response `429` `(ResponseErrorDto)` Too Many Requests
+ * @response `500` `(ResponseErrorDto)` Internal Server Error
+ * @response `default` `void`
+ */
+    listAssignments: (query: ListAssignmentsParams, params: RequestParams = {}) =>
+      this.http.request<
+        PageDto & {
+          results?: Array<AssignmentDto>;
+        },
+        ResponseErrorDto | ResponseErrorDto | void
+      >({
+        path: `/api/v1/assignments`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The resource type must be canAssign and the membership must not be ended. Overlaps for the same resource are rejected at the database (GiST exclusion) — 23P01 → 409. On a fixed-term membership an omitted or later `endsAt` is silently CAPPED to the day after the membership ends (its ends_at is the last active day, an assignment ends_at is the first free day), never rejected — read the response to see the stored boundary.
      *
-     * @tags Me
-     * @name GetMe
-     * @summary Current member portal home
-     * @request GET:/api/v1/me
+     * @tags Assignments
+     * @name CreateAssignment
+     * @summary Assign a resource to a membership
+     * @request POST:/api/v1/assignments
      * @secure
-     * @response `200` `(MeDto)` 200
+     * @response `201` `(AssignmentDto)` 201
      * @response `401` `(ResponseErrorDto)` Unauthorized
-     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `409` `(ResponseErrorDto)` Conflict
+     * @response `422` `((ResponseErrorDto))` 422
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `AssignmentDto`
+     */
+    createAssignment: (data: CreateAssignmentDto, params: RequestParams = {}) =>
+      this.http.request<AssignmentDto, ResponseErrorDto | ResponseErrorDto | AssignmentDto>({
+        path: `/api/v1/assignments`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Sets ends_at on an open assignment (half-open: endsAt is the first free day). Already-ended assignments are rejected.
+     *
+     * @tags Assignments
+     * @name EndAssignment
+     * @summary End an open assignment
+     * @request POST:/api/v1/assignments/{id}/end
+     * @secure
+     * @response `200` `(AssignmentDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `409` `(ResponseErrorDto)` Conflict
      * @response `422` `(ResponseErrorDto)` Unprocessable Entity
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
-     * @response `default` `MeDto`
+     * @response `default` `AssignmentDto`
      */
-    getMe: (params: RequestParams = {}) =>
-      this.http.request<MeDto, ResponseErrorDto | MeDto>({
-        path: `/api/v1/me`,
-        method: "GET",
+    endAssignment: (id: string, data: EndAssignmentDto, params: RequestParams = {}) =>
+      this.http.request<AssignmentDto, ResponseErrorDto | ResponseErrorDto | AssignmentDto>({
+        path: `/api/v1/assignments/${id}/end`,
+        method: "POST",
+        body: data,
         secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description OfficeRnD relocate: ends the current assignment at effectiveDate and opens a new one on the destination resource, in one transaction. On a fixed-term membership the successor is silently CAPPED to the day after the membership ends (its ends_at is the last active day, an assignment ends_at is the first free day), never rejected — read the response to see the stored boundary.
+     *
+     * @tags Assignments
+     * @name RelocateAssignment
+     * @summary Relocate an assignment to another resource
+     * @request POST:/api/v1/assignments/{id}/relocate
+     * @secure
+     * @response `201` `(AssignmentDto)` 201
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `409` `(ResponseErrorDto)` Conflict
+     * @response `422` `((ResponseErrorDto))` 422
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `AssignmentDto`
+     */
+    relocateAssignment: (id: string, data: RelocateAssignmentDto, params: RequestParams = {}) =>
+      this.http.request<AssignmentDto, ResponseErrorDto | ResponseErrorDto | AssignmentDto>({
+        path: `/api/v1/assignments/${id}/relocate`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),
@@ -5869,7 +7718,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Members book for themselves (source=portal); staff book for any member XOR company (source=staff). Pricing: room_hour credits first (scope from membership snapshots, drained soonest-expiring first), remainder at the member rate — or the visitor rate without a membership. price_ht_millimes is NULL when fully credit-covered. Conflicts are impossible at the database level (GiST exclusion constraint).
+     * @description Members book for themselves (source=portal); staff book for any member XOR company (source=staff). Pricing: room_hour credits first (scope from membership snapshots, drained soonest-expiring first), remainder at the member rate — or the visitor rate without a membership. price_ht is NULL when fully credit-covered. Conflicts are impossible at the database level (GiST exclusion constraint).
      *
      * @tags Bookings
      * @name CreateBooking
@@ -6171,7 +8020,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description HT/VAT/TTC sums in millimes. group_by=plan buckets membership-linked charges by their snapshot plan name; other charges by kind.
+     * @description HT/VAT/TTC sums in dinars (TND). group_by=plan buckets membership-linked charges by their snapshot plan name; other charges by kind.
      *
      * @tags Analytics
      * @name AnalyticsRevenue
@@ -6244,11 +8093,11 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Meeting room only (§5). Bookable windows + busy intervals.
+     * @description Any bookable, visible resource. Bookable windows + busy intervals.
      *
      * @tags Public (website)
      * @name PublicResourceAvailability
-     * @summary Meeting-room availability for the website
+     * @summary Resource availability for the website
      * @request GET:/api/v1/public/resources/{id}/availability
      * @response `200` `(AvailabilityDto)` 200
      * @response `401` `(ResponseErrorDto)` Unauthorized
@@ -6261,6 +8110,27 @@ export class HsService<SecurityDataType extends unknown> {
         path: `/api/v1/public/resources/${id}/availability`,
         method: "GET",
         query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Active, non-hidden, bookable resources with amenities and rates. Server-to-server only.
+     *
+     * @tags Public (website)
+     * @name PublicListResources
+     * @summary Bookable resources for the website
+     * @request GET:/api/v1/public/resources
+     * @response `200` `(PublicResourceDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     */
+    publicListResources: (params: RequestParams = {}) =>
+      this.http.request<PublicResourceDto, ResponseErrorDto>({
+        path: `/api/v1/public/resources`,
+        method: "GET",
         format: "json",
         ...params,
       }),
@@ -6281,6 +8151,29 @@ export class HsService<SecurityDataType extends unknown> {
     publicCreateBookingRequest: (data: CreateBookingRequestDto, params: RequestParams = {}) =>
       this.http.request<BookingRequestResultDto, ResponseErrorDto>({
         path: `/api/v1/public/booking-requests`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Creates member (visitor) + opportunity carrying the requested plan, its selected extras and the quoted value in one transaction; staff convert it into a membership at the price the visitor saw. Identity comes only from the body — no user account involved.
+     *
+     * @tags Public (website)
+     * @name PublicCreatePlanRequest
+     * @summary Website plan request
+     * @request POST:/api/v1/public/plan-requests
+     * @response `201` `(PlanRequestResultDto)` 201
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     */
+    publicCreatePlanRequest: (data: CreatePlanRequestDto, params: RequestParams = {}) =>
+      this.http.request<PlanRequestResultDto, ResponseErrorDto>({
+        path: `/api/v1/public/plan-requests`,
         method: "POST",
         body: data,
         type: ContentType.Json,

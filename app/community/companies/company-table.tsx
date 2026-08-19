@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { DataTable } from "@/app/dashboard/resources/data-table"
+import { DataTable } from "@/components/data-table"
 import { AddCompanyForm } from "./add-company-form"
 import type { CompanyDto } from "@/lib/service/HsService"
 import { createColumns } from "./columns"

@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useActionState, useRef } from "react"
+import { useEffect, useActionState, useRef, useState } from "react"
 import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -42,6 +42,7 @@ interface AddMemberFormProps {
   isOpen: boolean
   onClose: () => void
   editingMember?: MemberDto | null
+  companyNames?: Record<string, string>
 }
 
 function SubmitButton({ editingMember }: Readonly<{ editingMember?: MemberDto | null }>) {
@@ -61,9 +62,15 @@ function SubmitButton({ editingMember }: Readonly<{ editingMember?: MemberDto | 
   )
 }
 
-export function AddMemberForm({ isOpen, onClose, editingMember }: Readonly<AddMemberFormProps>) {
+export function AddMemberForm({
+  isOpen,
+  onClose,
+  editingMember,
+  companyNames = {},
+}: Readonly<AddMemberFormProps>) {
   const [createState, createFormAction] = useActionState(createMemberAction, {})
   const [updateState, updateFormAction] = useActionState(updateMemberAction, {})
+  const [companyId, setCompanyId] = useState("")
 
   const createNotifiedRef = useRef(false)
   const updateNotifiedRef = useRef(false)
@@ -72,8 +79,9 @@ export function AddMemberForm({ isOpen, onClose, editingMember }: Readonly<AddMe
     if (isOpen) {
       createNotifiedRef.current = false
       updateNotifiedRef.current = false
+      setCompanyId(editingMember?.companyId ?? "")
     }
-  }, [isOpen])
+  }, [isOpen, editingMember])
 
   useEffect(() => {
     if (createState.success && !createNotifiedRef.current) {
@@ -173,6 +181,64 @@ export function AddMemberForm({ isOpen, onClose, editingMember }: Readonly<AddMe
                   </select>
                 </div>
                 <div className="grid gap-2">
+                  <Label htmlFor="companyId">Employer</Label>
+                  {/* Employment moves via PUT /members/:id/company; the action
+                      only calls it when this value actually changed. */}
+                  {editingMember && (
+                    <input type="hidden" name="previousCompanyId" value={editingMember.companyId ?? ""} />
+                  )}
+                  <select
+                    id="companyId"
+                    name="companyId"
+                    className={selectClassName}
+                    value={companyId}
+                    onChange={(e) => setCompanyId(e.target.value)}
+                  >
+                    <option value="">Solo (no company)</option>
+                    {Object.entries(companyNames).map(([id, name]) => (
+                      <option key={id} value={id}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {/* Both roles are company-scoped and rejected without an employer. */}
+                {companyId && (
+                  <div className="grid gap-2">
+                    <Label>Company roles</Label>
+                    <div className="grid gap-2 rounded-md border border-input p-3">
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          name="isBillingPerson"
+                          defaultChecked={editingMember?.isBillingPerson || false}
+                          className="h-4 w-4 rounded border-input"
+                        />
+                        Receives the company&apos;s invoices
+                      </label>
+                      <label className="flex items-center gap-2 text-sm">
+                        <input
+                          type="checkbox"
+                          name="isContactPerson"
+                          defaultChecked={editingMember?.isContactPerson || false}
+                          className="h-4 w-4 rounded border-input"
+                        />
+                        Is the company&apos;s contact person
+                      </label>
+                    </div>
+                  </div>
+                )}
+                <div className="grid gap-2">
+                  <Label htmlFor="tags">Tags</Label>
+                  <Input
+                    id="tags"
+                    name="tags"
+                    placeholder="vip, founder"
+                    defaultValue={(editingMember?.tags ?? []).join(", ")}
+                  />
+                  <p className="text-xs text-muted-foreground">Comma separated.</p>
+                </div>
+                <div className="grid gap-2">
                   <Label htmlFor="segment">Segment</Label>
                   <select
                     id="segment"
@@ -202,8 +268,10 @@ export function AddMemberForm({ isOpen, onClose, editingMember }: Readonly<AddMe
                 {editingMember && (
                   <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
                     Status <span className="font-medium text-foreground">{editingMember.status}</span> is
-                    derived and cannot be edited here.
-                    {editingMember.hasPortalAccess ? " Portal access is linked." : " No portal access yet."}
+                    derived from membership activity.
+                    {editingMember.statusOverride
+                      ? ` It is currently pinned to "${editingMember.statusOverride}".`
+                      : " Use the status action in the table to pin it."}
                   </div>
                 )}
                 {currentState.error && (

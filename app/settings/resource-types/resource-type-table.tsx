@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useOptimistic } from "react"
-import { DataTable } from "@/app/dashboard/resources/data-table"
+import { DataTable } from "@/components/data-table"
 import { AddResourceTypeForm } from "./add-resource-type-form"
 import type { ResourceTypeDto } from "@/lib/service/HsService"
 import { createColumns } from "./columns"

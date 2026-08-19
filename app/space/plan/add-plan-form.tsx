@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useActionState, useRef } from "react"
+import { useEffect, useActionState, useRef, useState } from "react"
 import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,7 +15,9 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer"
 import { X } from "lucide-react"
-import type { PlanDto } from "@/lib/service/HsService"
+import { getListExtras } from "@/lib/service"
+import type { ExtraDto, PlanDto, PlanKind } from "@/lib/service/HsService"
+import { formatPriceHt } from "@/lib/format"
 import { createPlanAction, updatePlanAction } from "./actions"
 import { toast } from "sonner"
 
@@ -43,6 +45,10 @@ function SubmitButton({ editingPlan }: Readonly<{ editingPlan?: PlanDto | null }
 export function AddPlanForm({ isOpen, onClose, editingPlan }: Readonly<AddPlanFormProps>) {
   const [createState, createFormAction] = useActionState(createPlanAction, {})
   const [updateState, updateFormAction] = useActionState(updatePlanAction, {})
+  const [kind, setKind] = useState<PlanKind>("recurring")
+  const [extras, setExtras] = useState<ExtraDto[]>([])
+  const [isLoadingExtras, setIsLoadingExtras] = useState(false)
+  const [selectedExtraIds, setSelectedExtraIds] = useState<string[]>([])
 
   const createNotifiedRef = useRef(false)
   const updateNotifiedRef = useRef(false)
@@ -51,8 +57,14 @@ export function AddPlanForm({ isOpen, onClose, editingPlan }: Readonly<AddPlanFo
     if (isOpen) {
       createNotifiedRef.current = false
       updateNotifiedRef.current = false
+      setKind(editingPlan?.kind ?? "recurring")
+      setSelectedExtraIds((editingPlan?.extras ?? []).map((extra) => extra.id))
+      fetchExtras()
+    } else {
+      setExtras([])
+      setSelectedExtraIds([])
     }
-  }, [isOpen])
+  }, [isOpen, editingPlan])
 
   useEffect(() => {
     if (createState.success && !createNotifiedRef.current) {
@@ -75,6 +87,24 @@ export function AddPlanForm({ isOpen, onClose, editingPlan }: Readonly<AddPlanFo
       toast.error(updateState.error)
     }
   }, [updateState.success, updateState.error, onClose])
+
+  const fetchExtras = async () => {
+    setIsLoadingExtras(true)
+    try {
+      const response = await getListExtras({ limit: 100, offset: 0, sort: "ASC" })
+      setExtras((response.results ?? []) as ExtraDto[])
+    } catch (error) {
+      console.error("Failed to fetch extras", error)
+    } finally {
+      setIsLoadingExtras(false)
+    }
+  }
+
+  const toggleExtra = (id: string) => {
+    setSelectedExtraIds((previous) =>
+      previous.includes(id) ? previous.filter((value) => value !== id) : [...previous, id]
+    )
+  }
 
   const currentState = editingPlan ? updateState : createState
   const formAction = editingPlan ? updateFormAction : createFormAction
@@ -113,31 +143,110 @@ export function AddPlanForm({ isOpen, onClose, editingPlan }: Readonly<AddPlanFo
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="kind">Kind</Label>
-                  <select id="kind" name="kind" className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" defaultValue={editingPlan?.kind || "recurring"}>
+                  <select
+                    id="kind"
+                    name="kind"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    value={kind}
+                    onChange={(e) => setKind(e.target.value as PlanKind)}
+                  >
                     <option value="recurring">Recurring</option>
                     <option value="one_off">One-off</option>
                   </select>
                 </div>
+                {/* Required for recurring plans, forbidden for one-off ones. */}
+                {kind === "recurring" && (
+                  <div className="grid gap-2">
+                    <Label htmlFor="cycleMonths">Cycle months</Label>
+                    <Input
+                      id="cycleMonths"
+                      name="cycleMonths"
+                      type="number"
+                      min="1"
+                      defaultValue={editingPlan?.cycleMonths ?? 1}
+                      required
+                    />
+                  </div>
+                )}
                 <div className="grid gap-2">
-                  <Label htmlFor="cycleMonths">Cycle months</Label>
-                  <Input id="cycleMonths" name="cycleMonths" type="number" min="1" defaultValue={editingPlan?.cycleMonths || ""} />
+                  <Label htmlFor="priceHt">Price excl. VAT (TND)</Label>
+                  <Input
+                    id="priceHt"
+                    name="priceHt"
+                    type="number"
+                    min="0"
+                    step="0.001"
+                    defaultValue={editingPlan?.priceHt ?? 0}
+                    required
+                  />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="priceHtMillimes">Price (millimes)</Label>
-                  <Input id="priceHtMillimes" name="priceHtMillimes" type="number" min="0" defaultValue={editingPlan?.priceHtMillimes || 0} required />
+                  <Label htmlFor="vatRate">VAT rate (%)</Label>
+                  <Input
+                    id="vatRate"
+                    name="vatRate"
+                    type="number"
+                    min="0"
+                    step="0.5"
+                    defaultValue={editingPlan?.vatRate ?? 19}
+                  />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="vatRateBp">VAT (basis points)</Label>
-                  <Input id="vatRateBp" name="vatRateBp" type="number" min="0" defaultValue={editingPlan?.vatRateBp || 1900} />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="depositMillimes">Deposit (millimes)</Label>
-                  <Input id="depositMillimes" name="depositMillimes" type="number" min="0" defaultValue={editingPlan?.depositMillimes || 0} />
+                  <Label htmlFor="deposit">Deposit (TND)</Label>
+                  <Input
+                    id="deposit"
+                    name="deposit"
+                    type="number"
+                    min="0"
+                    step="0.001"
+                    defaultValue={editingPlan?.deposit ?? 0}
+                  />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="cancellationDays">Cancellation days</Label>
-                  <Input id="cancellationDays" name="cancellationDays" type="number" min="0" defaultValue={editingPlan?.cancellationDays || 0} />
+                  <Input
+                    id="cancellationDays"
+                    name="cancellationDays"
+                    type="number"
+                    min="0"
+                    defaultValue={editingPlan?.cancellationDays ?? 0}
+                  />
                 </div>
+
+                <div className="grid gap-2">
+                  <Label>Extras</Label>
+                  {(() => {
+                    if (isLoadingExtras) {
+                      return <p className="text-sm text-muted-foreground">Loading extras...</p>
+                    }
+                    if (extras.length === 0) {
+                      return <p className="text-sm text-muted-foreground">No extras defined yet.</p>
+                    }
+                    return (
+                      <div className="grid gap-2 rounded-md border border-input p-3">
+                        {extras.map((extra) => (
+                          <label key={extra.id} className="flex items-start gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              name="extraIds"
+                              value={extra.id}
+                              checked={selectedExtraIds.includes(extra.id)}
+                              onChange={() => toggleExtra(extra.id)}
+                              className="mt-0.5 h-4 w-4 rounded border-input"
+                            />
+                            <span>
+                              {extra.name}
+                              <span className="block text-xs text-muted-foreground">
+                                {formatPriceHt(extra.priceHt)}
+                              </span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )
+                  })()}
+                </div>
+
                 <div className="grid gap-2">
                   <Label htmlFor="description">Description</Label>
                   <textarea id="description" name="description" rows={3} defaultValue={editingPlan?.description || ""} className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm" />

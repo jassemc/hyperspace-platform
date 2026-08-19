@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { UsersIcon, UserPlusIcon, LinkIcon, UserCheckIcon } from "lucide-react"
+import { UsersIcon, UserPlusIcon, Building2Icon, UserCheckIcon } from "lucide-react"
 
 type MembersPage = {
   results?: MemberDto[]
@@ -19,7 +19,7 @@ type MemberStats = {
   total: number
   leads: number
   active: number
-  withPortal: number
+  withCompany: number
 }
 
 async function loadMemberStats(): Promise<MemberStats> {
@@ -37,11 +37,11 @@ async function loadMemberStats(): Promise<MemberStats> {
       total,
       leads: members.filter((member) => member.status === "lead").length,
       active: members.filter((member) => member.status === "active").length,
-      withPortal: members.filter((member) => member.hasPortalAccess).length,
+      withCompany: members.filter((member) => Boolean(member.companyId)).length,
     }
   } catch (error) {
     console.warn("Failed to load member stats", error)
-    return { total: 0, leads: 0, active: 0, withPortal: 0 }
+    return { total: 0, leads: 0, active: 0, withCompany: 0 }
   }
 }
 
@@ -106,19 +106,19 @@ export async function SectionCards() {
 
       <Card className="@container/card">
         <CardHeader className="relative">
-          <CardDescription>Portal linked</CardDescription>
+          <CardDescription>With employer</CardDescription>
           <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
-            {stats.withPortal}
+            {stats.withCompany}
           </CardTitle>
           <div className="absolute right-4 top-4">
             <Badge variant="outline" className="flex gap-1 rounded-lg text-xs">
-              <LinkIcon className="size-3" />
-              Access
+              <Building2Icon className="size-3" />
+              Company
             </Badge>
           </div>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1 text-sm">
-          <div className="text-muted-foreground">Members with claimed portal access</div>
+          <div className="text-muted-foreground">Members attached to a company</div>
         </CardFooter>
       </Card>
     </div>

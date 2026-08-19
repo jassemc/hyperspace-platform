@@ -21,14 +21,11 @@ import {
   subscribeMemberToPlanAction,
 } from "./actions"
 import { toast } from "sonner"
+import { formatPriceHt } from "@/lib/format"
 import { useRouter } from "next/navigation"
 
 const selectClassName =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-
-function formatPrice(millimes: number) {
-  return `${(millimes / 1000).toLocaleString("en-US")} TND`
-}
 
 /** Opens the date picker explicitly, since the drawer swallows the click that would. */
 function openNativePicker(event: React.MouseEvent<HTMLInputElement>) {
@@ -161,7 +158,7 @@ export function SubscribePlanButton({ companyId }: Readonly<{ companyId: string 
                       <option value="">{isLoading ? "Loading plans..." : "Select a plan"}</option>
                       {plans.map((plan) => (
                         <option key={plan.id} value={plan.id}>
-                          {plan.name} — {formatPrice(plan.priceHtMillimes)}
+                          {plan.name} — {formatPriceHt(plan.priceHt)}
                         </option>
                       ))}
                     </select>
