@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { ResourceDto, ResourceStatus } from "@/lib/service/HsService"
@@ -14,6 +15,23 @@ interface ColumnsProps {
 }
 
 export const createColumns = ({ onEdit, resourceTypeNames = {} }: ColumnsProps): ColumnDef<ResourceDto>[] => [
+    {
+        id: "photo",
+        header: "",
+        enableSorting: false,
+        cell: ({ row }) => {
+            const url = row.original.imageUrl
+            // Served from a public bucket whose host is unknown at build time.
+            if (!url) {
+                return <div className="h-10 w-14 rounded border border-dashed bg-muted/40" />
+            }
+            return (
+                <div className="relative h-10 w-14 overflow-hidden rounded border">
+                    <Image src={url} alt="" fill unoptimized className="object-cover" sizes="56px" />
+                </div>
+            )
+        },
+    },
     {
         accessorKey: "name",
         header: ({ column }) => (
@@ -74,6 +92,16 @@ export const createColumns = ({ onEdit, resourceTypeNames = {} }: ColumnsProps):
                     {rates.length} {rates.length === 1 ? "rate" : "rates"}
                 </span>
             )
+        },
+    },
+    {
+        id: "soldUnder",
+        accessorFn: (resource) => (resource.targetPlanIds ?? []).length,
+        header: "Sold under",
+        cell: ({ row }) => {
+            const count = (row.original.targetPlanIds ?? []).length
+            if (count === 0) return <span className="text-muted-foreground">-</span>
+            return <span>{count} {count === 1 ? "plan" : "plans"}</span>
         },
     },
     {

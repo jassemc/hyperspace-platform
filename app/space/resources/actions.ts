@@ -1,7 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { createResource, updateResource } from "@/lib/service"
+import { createResource, updateResource, uploadResourceImage, deleteResourceImage } from "@/lib/service"
 import type { AvailabilityPeriodDto, CreateResourceDto, UpdateResourceDto } from "@/lib/service/HsService"
 
 
@@ -109,6 +109,8 @@ export async function createResourceAction(
       capacity,
       amenityIds: idList(formData, "amenityIds"),
       rateIds: idList(formData, "rateIds"),
+      // Link only — nothing is auto-assigned; this drives the public catalog.
+      targetPlanIds: idList(formData, "targetPlanIds"),
       availability: availabilityPeriods(formData),
     }
 
@@ -177,6 +179,7 @@ export async function updateResourceAction(
       // Full-replace semantics: what the form submits becomes the new set.
       amenityIds: idList(formData, "amenityIds"),
       rateIds: idList(formData, "rateIds"),
+      targetPlanIds: idList(formData, "targetPlanIds"),
       availability: availabilityPeriods(formData),
     }
 
@@ -234,6 +237,54 @@ export async function setResourceActiveAction(
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to update the resource",
+    }
+  }
+}
+
+/**
+ * The catalog photo is server-managed: PUT /resources/:id/image stores it and
+ * sets `imageUrl`, replacing any previous one. jpg/jpeg/png only, and the
+ * resource must already exist — so this is separate from create and update.
+ */
+export async function uploadResourceImageAction(
+  prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  try {
+    const id = formData.get("id") as string
+    if (!id) return { success: false, error: "Resource ID is required" }
+
+    const file = formData.get("file")
+    if (!(file instanceof File) || file.size === 0) {
+      return { success: false, error: "Choose an image to upload" }
+    }
+
+    await uploadResourceImage(id, { file })
+    revalidatePath("/space/resources")
+    return { success: true }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to upload the image",
+    }
+  }
+}
+
+export async function deleteResourceImageAction(
+  prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  try {
+    const id = formData.get("id") as string
+    if (!id) return { success: false, error: "Resource ID is required" }
+
+    await deleteResourceImage(id)
+    revalidatePath("/space/resources")
+    return { success: true }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to remove the image",
     }
   }
 }
