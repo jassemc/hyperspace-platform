@@ -5,7 +5,7 @@ import type { ColumnDef } from "@tanstack/react-table"
 import type { InvoiceDto, InvoiceStatus } from "@/lib/service/HsService"
 import Link from "next/link"
 import { Button } from "@/components/ui/button"
-import { FileText } from "lucide-react"
+import { FileText, Download } from "lucide-react"
 import { formatDate, formatPriceHt } from "@/lib/format"
 import { apiName } from "@/lib/api-value"
 import { INVOICE_STATUS_CLASSES, INVOICE_STATUS_LABELS } from "./invoice-status"
@@ -118,6 +118,13 @@ export const createColumns = ({
               <FileText className="h-4 w-4" />
               <span className="sr-only">Open invoice</span>
             </Link>
+          </Button>
+          {/* The API renders the PDF; this is a plain link so the browser saves it. */}
+          <Button variant="outline" size="sm" asChild title="Download PDF">
+            <a href={`/api/invoices/${invoice.id}/download`}>
+              <Download className="h-4 w-4" />
+              <span className="sr-only">Download PDF</span>
+            </a>
           </Button>
           <InvoiceActionButtons
             invoiceId={invoice.id}
