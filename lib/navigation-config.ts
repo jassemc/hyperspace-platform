@@ -25,6 +25,7 @@ import {
     DoorOpen,
     Armchair,
     Sparkles,
+    LayoutGrid,
     Package,
     MapPin,
 } from "lucide-react"
@@ -250,6 +251,11 @@ export const navigationConfig: NavigationConfig = {
                     title: "Resource types",
                     url: "/settings/resource-types",
                     icon: Database,
+                },
+                {
+                    title: "Plan categories",
+                    url: "/settings/plan-categories",
+                    icon: LayoutGrid,
                 },
                 {
                     title: "Amenities",

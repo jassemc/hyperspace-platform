@@ -38,6 +38,8 @@ function planFields(formData: FormData, kind: PlanKind | undefined) {
     code: text(formData, "code"),
     kind,
     cycleMonths: kind === "one_off" ? undefined : num(formData, "cycleMonths"),
+    // null = uncategorized; the select submits "" for that.
+    categoryId: text(formData, "categoryId"),
     priceHt: num(formData, "priceHt"),
     vatRate: num(formData, "vatRate"),
     deposit: num(formData, "deposit"),
