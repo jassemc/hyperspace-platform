@@ -43,21 +43,28 @@ send `auto` again.
 
 ---
 
-## Two doors in
+## Three doors in
 
 ### Door 1 — the website (self-service)
 
-Two public endpoints create everything in a single transaction, with no user
+Three public endpoints create everything in a single transaction, with no user
 account involved. Identity comes from the form body alone.
 
 | Endpoint | Creates |
 |---|---|
 | `POST /public/plan-requests` | member (`visitor`) **+** opportunity carrying the requested plan, its extras and the quoted price |
 | `POST /public/booking-requests` | member (`visitor`) **+** a **pending** booking **+** opportunity |
+| `POST /public/contact-requests` | member (`visitor`) **+** opportunity for a lighter lead — someone asking about a service category, or wanting a free day |
 
-Both land in staff screens: the opportunity in **Community → Opportunities**,
-the pending booking in **Booking → Bookings** awaiting confirmation. The quoted
-price is carried on the opportunity so staff can honour what the visitor saw.
+All three land in staff screens: the opportunity in **Community →
+Opportunities**, the pending booking in **Booking → Bookings** awaiting
+confirmation. The quoted price is carried on the opportunity so staff can
+honour what the visitor saw.
+
+Contact requests are the lightest door: the visitor names a **plan category**
+(the sections in Settings → Plan Categories) rather than a specific plan, and
+may ask for a free day or a preferred date. They arrive as an opportunity with
+no plan attached, for staff to qualify.
 
 ### Door 2 — staff (walk-in, phone, referral)
 
@@ -318,23 +325,16 @@ row. That opens the printable invoice at `/billing/invoices/{id}`: issuer block,
 billed-to block, line items with code / HT / VAT / total, then subtotal → VAT →
 TTC → paid → outstanding.
 
-**Print / Save as PDF** prints it. There is no PDF endpoint in the API, so the
-browser does the rendering and "Save as PDF" in the print dialog is how you get a
-file to email or file away. The print stylesheet drops the sidebar and header, so
-only the document reaches the paper.
+**Download PDF** — on the detail page, or the download icon straight from the
+table row — fetches the document from the API. It is a French VAT facture named
+after the invoice number (`HS-2026-0042.pdf`), with totals printed from the
+frozen invoice columns and void invoices marked **ANNULÉE**.
 
-Three things to know before you send one:
+The document is rendered entirely by the API. Nothing about it is built in the
+app, so what a client receives does not depend on whose browser produced it.
 
-- **Our own legal details are hardcoded** in `lib/invoice-identity.ts` — name,
-  address, tax ID, registration number, footer note. There is no organisation
-  endpoint to read them from. **Tax ID and registration number are currently
-  empty and will not print until someone fills them in.** Changing the company
-  address is a code change today.
-- **Company invoices are complete; individual ones are not.** A company carries
-  `billingName`, a full billing address, tax ID and registration number. A member
-  carries only name, email and phone — so an invoice billed to an individual
-  prints no address.
-- **A negative total prints as "Credit note"**, not "Invoice".
+The screen view alongside it is for reading and reconciling — line items,
+totals and payment progress — not for printing.
 
 ### Payments
 **Record payment** on the row. Payments accumulate; when the total reaches TTC
@@ -367,8 +367,8 @@ In order, because each step depends on the one before:
    It stays active until then
 4. **Invoice what is left** — filter *Uninvoiced* in Billing → Charges. Do this
    *after* cancelling so the final `plan_fee` is included
-5. **Send the final invoice** — open it and Print / Save as PDF, then email the
-   file. Nothing is sent automatically
+5. **Send the final invoice** — download the PDF and email it. Nothing is sent
+   automatically
 6. **Collect** — record the final payment
 7. **Settle the deposit** — refund with a negative `one_off` charge, or keep it.
    A negative invoice prints as a credit note
@@ -395,7 +395,9 @@ is what you want for accounting and for winning them back.
 | Comp someone | Billing → Credits → Grant | the only manual credit entry |
 | Charge an extra | Billing → Charges | `one_off` / `store` only |
 | Send a bill | Billing → Invoices | freezes totals, numbers it, status `sent` |
-| Print or PDF an invoice | Invoice number → Print | browser print; no PDF endpoint exists |
+| Get the PDF | Invoice row → Download | `GET /invoices/{id}/download`, a French VAT facture |
+| Group plans for the website | Settings → Plan Categories | sales sections the public catalog filters by |
+| Put a photo on a resource | Space → Resources → edit | `PUT /resources/{id}/image`, uploads immediately |
 | Take payment | Invoice row → Record payment | auto-flips to `paid` at full TTC |
 | Undo a bill | Invoice row → Void | needs zero payments |
 | Retire a resource | Space → Resources → Archive | `active: false` — reversible, no hard delete |
@@ -416,9 +418,9 @@ is what you want for accounting and for winning them back.
 - **Moving a member between companies clears their billing and contact roles.**
 - **You cannot hand-write a `plan_fee`.** If one is missing, the membership was
   not created or renewed through the proper flow.
-- **Nothing is emailed automatically.** Printing or saving a PDF and sending it
-  is a manual step.
+- **Nothing is emailed automatically.** Downloading the PDF and sending it is a
+  manual step.
 - **Payment history is not readable.** Only the paid total comes back, so keep
   your own record of method and reference if you need to reconcile.
-- **Our tax ID does not print yet** — `lib/invoice-identity.ts` ships with it
-  blank. Fill it in before issuing real invoices.
+- **A resource photo saves immediately**, not when you submit the drawer — and
+  only on a resource that already exists.
