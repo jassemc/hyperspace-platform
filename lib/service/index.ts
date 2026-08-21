@@ -12,6 +12,7 @@ import type {
   CreateChargeDto,
   CreateCheckinDto,
   CreateCompanyDto,
+  CreateContactRequestDto,
   CreateExtraDto,
   CreateInvoiceDto,
   CreateLocationDto,
@@ -19,12 +20,14 @@ import type {
   CreateMembershipDto,
   CreateOpportunityDto,
   CreatePaymentDto,
+  CreatePlanCategoryDto,
   CreatePlanDto,
   CreatePlanRequestDto,
   CreateResourceDto,
   CreateResourceRateDto,
   CreateResourceTypeDto,
   EndAssignmentDto,
+  FileDto,
   GetCreditBalancesParams,
   GetOccupancyParams,
   GetResourceAvailabilityParams,
@@ -42,10 +45,13 @@ import type {
   ListMembershipsParams,
   ListMembersParams,
   ListOpportunitiesParams,
+  ListPlanCategoriesParams,
   ListPlansParams,
   ListResourceRatesParams,
   ListResourcesParams,
   ListResourceTypesParams,
+  PublicListPlansParams,
+  PublicListResourcesParams,
   PublicResourceAvailabilityParams,
   RelocateAssignmentDto,
   UpdateAmenityDto,
@@ -59,6 +65,7 @@ import type {
   UpdateMembershipDto,
   UpdateMemberStatusDto,
   UpdateOpportunityDto,
+  UpdatePlanCategoryDto,
   UpdatePlanDto,
   UpdateResourceDto,
   UpdateResourceRateDto,
@@ -159,6 +166,14 @@ export async function getResourceStatus(id: string, params?: RequestParams) {
   return hsService.api.getResourceStatus(id, params);
 }
 
+export async function uploadResourceImage(id: string, data: FileDto, params?: RequestParams) {
+  return hsService.api.uploadResourceImage(id, data, params);
+}
+
+export async function deleteResourceImage(id: string, params?: RequestParams) {
+  return hsService.api.deleteResourceImage(id, params);
+}
+
 export async function getListResourceRates(query: ListResourceRatesParams, params?: RequestParams) {
   return hsService.api.listResourceRates(query, params);
 }
@@ -189,6 +204,22 @@ export async function getPlan(id: string, params?: RequestParams) {
 
 export async function updatePlan(id: string, data: UpdatePlanDto, params?: RequestParams) {
   return hsService.api.updatePlan(id, data, params);
+}
+
+export async function getListPlanCategories(query: ListPlanCategoriesParams, params?: RequestParams) {
+  return hsService.api.listPlanCategories(query, params);
+}
+
+export async function createPlanCategory(data: CreatePlanCategoryDto, params?: RequestParams) {
+  return hsService.api.createPlanCategory(data, params);
+}
+
+export async function getPlanCategory(id: string, params?: RequestParams) {
+  return hsService.api.getPlanCategory(id, params);
+}
+
+export async function updatePlanCategory(id: string, data: UpdatePlanCategoryDto, params?: RequestParams) {
+  return hsService.api.updatePlanCategory(id, data, params);
 }
 
 export async function getListAmenities(query: ListAmenitiesParams, params?: RequestParams) {
@@ -237,6 +268,10 @@ export async function getListInvoices(query: ListInvoicesParams, params?: Reques
 
 export async function createInvoice(data: CreateInvoiceDto, params?: RequestParams) {
   return hsService.api.createInvoice(data, params);
+}
+
+export async function getDownloadInvoicePdf(id: string, params?: RequestParams) {
+  return hsService.api.downloadInvoicePdf(id, params);
 }
 
 export async function getInvoice(id: string, params?: RequestParams) {
@@ -387,8 +422,12 @@ export async function getAnalyticsMemberships(query: AnalyticsMembershipsParams,
   return hsService.api.analyticsMemberships(query, params);
 }
 
-export async function getPublicListPlans(params?: RequestParams) {
-  return hsService.api.publicListPlans(params);
+export async function getPublicListPlans(query: PublicListPlansParams, params?: RequestParams) {
+  return hsService.api.publicListPlans(query, params);
+}
+
+export async function getPublicListPlanCategories(params?: RequestParams) {
+  return hsService.api.publicListPlanCategories(params);
 }
 
 export async function getPublicResourceAvailability(
@@ -398,8 +437,12 @@ export async function getPublicResourceAvailability(
   return hsService.api.publicResourceAvailability({ id, ...query }, params);
 }
 
-export async function getPublicListResources(params?: RequestParams) {
-  return hsService.api.publicListResources(params);
+export async function getPublicListResources(query: PublicListResourcesParams, params?: RequestParams) {
+  return hsService.api.publicListResources(query, params);
+}
+
+export async function getPublicListResourceTypes(params?: RequestParams) {
+  return hsService.api.publicListResourceTypes(params);
 }
 
 export async function publicCreateBookingRequest(data: CreateBookingRequestDto, params?: RequestParams) {
@@ -408,6 +451,10 @@ export async function publicCreateBookingRequest(data: CreateBookingRequestDto, 
 
 export async function publicCreatePlanRequest(data: CreatePlanRequestDto, params?: RequestParams) {
   return hsService.api.publicCreatePlanRequest(data, params);
+}
+
+export async function publicCreateContactRequest(data: CreateContactRequestDto, params?: RequestParams) {
+  return hsService.api.publicCreateContactRequest(data, params);
 }
 
 export async function getHealthCheckerControllerCheckDatabase(params?: RequestParams) {
