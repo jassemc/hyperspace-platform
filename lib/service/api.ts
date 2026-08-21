@@ -1,7 +1,5 @@
 import "server-only";
-import { HttpClient } from "../shared/HttpClient";
 import { HsService } from "./HsService";
-
-const httpClient = new HttpClient();
+import { httpClient } from "./http-client";
 
 export const hsService = new HsService(httpClient);

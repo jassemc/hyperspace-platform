@@ -1,6 +1,6 @@
+import type { HttpClient, RequestParams } from "@hscowork/service-generator/runtime";
+import { ContentType } from "@hscowork/service-generator/runtime";
 import "server-only";
-import type { HttpClient } from "../shared/HttpClient";
-import { ContentType, RequestParams } from "../shared/types";
 
 export interface ResponseErrorDto {
   /**
@@ -6313,7 +6313,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<LocationDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/locations`,
         method: "GET",
@@ -6340,7 +6340,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `LocationDto`
      */
     createLocation: (data: CreateLocationDto, params: RequestParams = {}) =>
-      this.http.request<LocationDto, ResponseErrorDto | ResponseErrorDto | LocationDto>({
+      this.http.request<LocationDto, ResponseErrorDto | LocationDto>({
         path: `/api/v1/locations`,
         method: "POST",
         body: data,
@@ -6368,7 +6368,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `LocationDto`
      */
     getLocation: (id: string, params: RequestParams = {}) =>
-      this.http.request<LocationDto, ResponseErrorDto | ResponseErrorDto | LocationDto>({
+      this.http.request<LocationDto, ResponseErrorDto | LocationDto>({
         path: `/api/v1/locations/${id}`,
         method: "GET",
         secure: true,
@@ -6394,7 +6394,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `LocationDto`
      */
     updateLocation: (id: string, data: UpdateLocationDto, params: RequestParams = {}) =>
-      this.http.request<LocationDto, ResponseErrorDto | ResponseErrorDto | LocationDto>({
+      this.http.request<LocationDto, ResponseErrorDto | LocationDto>({
         path: `/api/v1/locations/${id}`,
         method: "PATCH",
         body: data,
@@ -6428,7 +6428,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<CompanyDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/companies`,
         method: "GET",
@@ -6455,7 +6455,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `CompanyDto`
      */
     createCompany: (data: CreateCompanyDto, params: RequestParams = {}) =>
-      this.http.request<CompanyDto, ResponseErrorDto | ResponseErrorDto | CompanyDto>({
+      this.http.request<CompanyDto, ResponseErrorDto | CompanyDto>({
         path: `/api/v1/companies`,
         method: "POST",
         body: data,
@@ -6483,7 +6483,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `CompanyDto`
      */
     getCompany: (id: string, params: RequestParams = {}) =>
-      this.http.request<CompanyDto, ResponseErrorDto | ResponseErrorDto | CompanyDto>({
+      this.http.request<CompanyDto, ResponseErrorDto | CompanyDto>({
         path: `/api/v1/companies/${id}`,
         method: "GET",
         secure: true,
@@ -6509,7 +6509,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `CompanyDto`
      */
     updateCompany: (id: string, data: UpdateCompanyDto, params: RequestParams = {}) =>
-      this.http.request<CompanyDto, ResponseErrorDto | ResponseErrorDto | CompanyDto>({
+      this.http.request<CompanyDto, ResponseErrorDto | CompanyDto>({
         path: `/api/v1/companies/${id}`,
         method: "PATCH",
         body: data,
@@ -6543,7 +6543,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<MemberDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/members`,
         method: "GET",
@@ -6571,7 +6571,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `MemberDto`
      */
     createMember: (data: CreateMemberDto, params: RequestParams = {}) =>
-      this.http.request<MemberDto, ResponseErrorDto | ResponseErrorDto | MemberDto>({
+      this.http.request<MemberDto, ResponseErrorDto | MemberDto>({
         path: `/api/v1/members`,
         method: "POST",
         body: data,
@@ -6653,7 +6653,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `MemberDto`
      */
     updateMemberStatus: (id: string, data: UpdateMemberStatusDto, params: RequestParams = {}) =>
-      this.http.request<MemberDto, ResponseErrorDto | ResponseErrorDto | MemberDto>({
+      this.http.request<MemberDto, ResponseErrorDto | MemberDto>({
         path: `/api/v1/members/${id}/status`,
         method: "PUT",
         body: data,
@@ -6681,7 +6681,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `MemberDto`
      */
     updateMemberCompany: (id: string, data: UpdateMemberCompanyDto, params: RequestParams = {}) =>
-      this.http.request<MemberDto, ResponseErrorDto | ResponseErrorDto | MemberDto>({
+      this.http.request<MemberDto, ResponseErrorDto | MemberDto>({
         path: `/api/v1/members/${id}/company`,
         method: "PUT",
         body: data,
@@ -6715,7 +6715,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<ResourceTypeDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/resource-types`,
         method: "GET",
@@ -6743,7 +6743,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ResourceTypeDto`
      */
     createResourceType: (data: CreateResourceTypeDto, params: RequestParams = {}) =>
-      this.http.request<ResourceTypeDto, ResponseErrorDto | ResponseErrorDto | ResourceTypeDto>({
+      this.http.request<ResourceTypeDto, ResponseErrorDto | ResourceTypeDto>({
         path: `/api/v1/resource-types`,
         method: "POST",
         body: data,
@@ -6771,7 +6771,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ResourceTypeDto`
      */
     getResourceType: (id: string, params: RequestParams = {}) =>
-      this.http.request<ResourceTypeDto, ResponseErrorDto | ResponseErrorDto | ResourceTypeDto>({
+      this.http.request<ResourceTypeDto, ResponseErrorDto | ResourceTypeDto>({
         path: `/api/v1/resource-types/${id}`,
         method: "GET",
         secure: true,
@@ -6797,7 +6797,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ResourceTypeDto`
      */
     updateResourceType: (id: string, data: UpdateResourceTypeDto, params: RequestParams = {}) =>
-      this.http.request<ResourceTypeDto, ResponseErrorDto | ResponseErrorDto | ResourceTypeDto>({
+      this.http.request<ResourceTypeDto, ResponseErrorDto | ResourceTypeDto>({
         path: `/api/v1/resource-types/${id}`,
         method: "PATCH",
         body: data,
@@ -6831,7 +6831,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<ResourceDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/resources`,
         method: "GET",
@@ -6859,7 +6859,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ResourceDto`
      */
     createResource: (data: CreateResourceDto, params: RequestParams = {}) =>
-      this.http.request<ResourceDto, ResponseErrorDto | ResponseErrorDto | ResourceDto>({
+      this.http.request<ResourceDto, ResponseErrorDto | ResourceDto>({
         path: `/api/v1/resources`,
         method: "POST",
         body: data,
@@ -6887,7 +6887,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ResourceDto`
      */
     getResource: (id: string, params: RequestParams = {}) =>
-      this.http.request<ResourceDto, ResponseErrorDto | ResponseErrorDto | ResourceDto>({
+      this.http.request<ResourceDto, ResponseErrorDto | ResourceDto>({
         path: `/api/v1/resources/${id}`,
         method: "GET",
         secure: true,
@@ -6913,7 +6913,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ResourceDto`
      */
     updateResource: (id: string, data: UpdateResourceDto, params: RequestParams = {}) =>
-      this.http.request<ResourceDto, ResponseErrorDto | ResponseErrorDto | ResourceDto>({
+      this.http.request<ResourceDto, ResponseErrorDto | ResourceDto>({
         path: `/api/v1/resources/${id}`,
         method: "PATCH",
         body: data,
@@ -6941,7 +6941,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ResourceStatusDto`
      */
     getResourceStatus: (id: string, params: RequestParams = {}) =>
-      this.http.request<ResourceStatusDto, ResponseErrorDto | ResponseErrorDto | ResourceStatusDto>({
+      this.http.request<ResourceStatusDto, ResponseErrorDto | ResourceStatusDto>({
         path: `/api/v1/resources/${id}/status`,
         method: "GET",
         secure: true,
@@ -6969,7 +6969,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ResourceDto`
      */
     uploadResourceImage: (id: string, data: FileDto, params: RequestParams = {}) =>
-      this.http.request<ResourceDto, ResponseErrorDto | ResponseErrorDto | ResourceDto>({
+      this.http.request<ResourceDto, ResponseErrorDto | ResourceDto>({
         path: `/api/v1/resources/${id}/image`,
         method: "PUT",
         body: data,
@@ -6997,7 +6997,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ResourceDto`
      */
     deleteResourceImage: (id: string, params: RequestParams = {}) =>
-      this.http.request<ResourceDto, ResponseErrorDto | ResponseErrorDto | ResourceDto>({
+      this.http.request<ResourceDto, ResponseErrorDto | ResourceDto>({
         path: `/api/v1/resources/${id}/image`,
         method: "DELETE",
         secure: true,
@@ -7029,7 +7029,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<ResourceRateDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/resource-rates`,
         method: "GET",
@@ -7058,7 +7058,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ResourceRateDto`
      */
     createResourceRate: (data: CreateResourceRateDto, params: RequestParams = {}) =>
-      this.http.request<ResourceRateDto, ResponseErrorDto | ResponseErrorDto | ResourceRateDto>({
+      this.http.request<ResourceRateDto, ResponseErrorDto | ResourceRateDto>({
         path: `/api/v1/resource-rates`,
         method: "POST",
         body: data,
@@ -7086,7 +7086,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ResourceRateDto`
      */
     getResourceRate: (id: string, params: RequestParams = {}) =>
-      this.http.request<ResourceRateDto, ResponseErrorDto | ResponseErrorDto | ResourceRateDto>({
+      this.http.request<ResourceRateDto, ResponseErrorDto | ResourceRateDto>({
         path: `/api/v1/resource-rates/${id}`,
         method: "GET",
         secure: true,
@@ -7113,7 +7113,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ResourceRateDto`
      */
     updateResourceRate: (id: string, data: UpdateResourceRateDto, params: RequestParams = {}) =>
-      this.http.request<ResourceRateDto, ResponseErrorDto | ResponseErrorDto | ResourceRateDto>({
+      this.http.request<ResourceRateDto, ResponseErrorDto | ResourceRateDto>({
         path: `/api/v1/resource-rates/${id}`,
         method: "PATCH",
         body: data,
@@ -7147,7 +7147,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<PlanDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/plans`,
         method: "GET",
@@ -7174,7 +7174,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `PlanDto`
      */
     createPlan: (data: CreatePlanDto, params: RequestParams = {}) =>
-      this.http.request<PlanDto, ResponseErrorDto | ResponseErrorDto | PlanDto>({
+      this.http.request<PlanDto, ResponseErrorDto | PlanDto>({
         path: `/api/v1/plans`,
         method: "POST",
         body: data,
@@ -7202,7 +7202,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `PlanDto`
      */
     getPlan: (id: string, params: RequestParams = {}) =>
-      this.http.request<PlanDto, ResponseErrorDto | ResponseErrorDto | PlanDto>({
+      this.http.request<PlanDto, ResponseErrorDto | PlanDto>({
         path: `/api/v1/plans/${id}`,
         method: "GET",
         secure: true,
@@ -7229,7 +7229,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `PlanDto`
      */
     updatePlan: (id: string, data: UpdatePlanDto, params: RequestParams = {}) =>
-      this.http.request<PlanDto, ResponseErrorDto | ResponseErrorDto | PlanDto>({
+      this.http.request<PlanDto, ResponseErrorDto | PlanDto>({
         path: `/api/v1/plans/${id}`,
         method: "PATCH",
         body: data,
@@ -7263,7 +7263,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<PlanCategoryDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/plan-categories`,
         method: "GET",
@@ -7291,7 +7291,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `PlanCategoryDto`
      */
     createPlanCategory: (data: CreatePlanCategoryDto, params: RequestParams = {}) =>
-      this.http.request<PlanCategoryDto, ResponseErrorDto | ResponseErrorDto | PlanCategoryDto>({
+      this.http.request<PlanCategoryDto, ResponseErrorDto | PlanCategoryDto>({
         path: `/api/v1/plan-categories`,
         method: "POST",
         body: data,
@@ -7319,7 +7319,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `PlanCategoryDto`
      */
     getPlanCategory: (id: string, params: RequestParams = {}) =>
-      this.http.request<PlanCategoryDto, ResponseErrorDto | ResponseErrorDto | PlanCategoryDto>({
+      this.http.request<PlanCategoryDto, ResponseErrorDto | PlanCategoryDto>({
         path: `/api/v1/plan-categories/${id}`,
         method: "GET",
         secure: true,
@@ -7346,7 +7346,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `PlanCategoryDto`
      */
     updatePlanCategory: (id: string, data: UpdatePlanCategoryDto, params: RequestParams = {}) =>
-      this.http.request<PlanCategoryDto, ResponseErrorDto | ResponseErrorDto | PlanCategoryDto>({
+      this.http.request<PlanCategoryDto, ResponseErrorDto | PlanCategoryDto>({
         path: `/api/v1/plan-categories/${id}`,
         method: "PATCH",
         body: data,
@@ -7380,7 +7380,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<AmenityDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/amenities`,
         method: "GET",
@@ -7408,7 +7408,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `AmenityDto`
      */
     createAmenity: (data: CreateAmenityDto, params: RequestParams = {}) =>
-      this.http.request<AmenityDto, ResponseErrorDto | ResponseErrorDto | AmenityDto>({
+      this.http.request<AmenityDto, ResponseErrorDto | AmenityDto>({
         path: `/api/v1/amenities`,
         method: "POST",
         body: data,
@@ -7436,7 +7436,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `AmenityDto`
      */
     getAmenity: (id: string, params: RequestParams = {}) =>
-      this.http.request<AmenityDto, ResponseErrorDto | ResponseErrorDto | AmenityDto>({
+      this.http.request<AmenityDto, ResponseErrorDto | AmenityDto>({
         path: `/api/v1/amenities/${id}`,
         method: "GET",
         secure: true,
@@ -7462,7 +7462,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `AmenityDto`
      */
     updateAmenity: (id: string, data: UpdateAmenityDto, params: RequestParams = {}) =>
-      this.http.request<AmenityDto, ResponseErrorDto | ResponseErrorDto | AmenityDto>({
+      this.http.request<AmenityDto, ResponseErrorDto | AmenityDto>({
         path: `/api/v1/amenities/${id}`,
         method: "PATCH",
         body: data,
@@ -7496,7 +7496,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<ExtraDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/extras`,
         method: "GET",
@@ -7523,7 +7523,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ExtraDto`
      */
     createExtra: (data: CreateExtraDto, params: RequestParams = {}) =>
-      this.http.request<ExtraDto, ResponseErrorDto | ResponseErrorDto | ExtraDto>({
+      this.http.request<ExtraDto, ResponseErrorDto | ExtraDto>({
         path: `/api/v1/extras`,
         method: "POST",
         body: data,
@@ -7551,7 +7551,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ExtraDto`
      */
     getExtra: (id: string, params: RequestParams = {}) =>
-      this.http.request<ExtraDto, ResponseErrorDto | ResponseErrorDto | ExtraDto>({
+      this.http.request<ExtraDto, ResponseErrorDto | ExtraDto>({
         path: `/api/v1/extras/${id}`,
         method: "GET",
         secure: true,
@@ -7577,7 +7577,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ExtraDto`
      */
     updateExtra: (id: string, data: UpdateExtraDto, params: RequestParams = {}) =>
-      this.http.request<ExtraDto, ResponseErrorDto | ResponseErrorDto | ExtraDto>({
+      this.http.request<ExtraDto, ResponseErrorDto | ExtraDto>({
         path: `/api/v1/extras/${id}`,
         method: "PATCH",
         body: data,
@@ -7611,7 +7611,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<ChargeDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/charges`,
         method: "GET",
@@ -7638,7 +7638,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ChargeDto`
      */
     createCharge: (data: CreateChargeDto, params: RequestParams = {}) =>
-      this.http.request<ChargeDto, ResponseErrorDto | ResponseErrorDto | ChargeDto>({
+      this.http.request<ChargeDto, ResponseErrorDto | ChargeDto>({
         path: `/api/v1/charges`,
         method: "POST",
         body: data,
@@ -7672,7 +7672,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<InvoiceDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/invoices`,
         method: "GET",
@@ -7700,7 +7700,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `InvoiceDto`
      */
     createInvoice: (data: CreateInvoiceDto, params: RequestParams = {}) =>
-      this.http.request<InvoiceDto, ResponseErrorDto | ResponseErrorDto | InvoiceDto>({
+      this.http.request<InvoiceDto, ResponseErrorDto | InvoiceDto>({
         path: `/api/v1/invoices`,
         method: "POST",
         body: data,
@@ -7728,7 +7728,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `void`
      */
     downloadInvoicePdf: (id: string, params: RequestParams = {}) =>
-      this.http.request<File, ResponseErrorDto | ResponseErrorDto | void>({
+      this.http.request<File, ResponseErrorDto | void>({
         path: `/api/v1/invoices/${id}/download`,
         method: "GET",
         secure: true,
@@ -7753,7 +7753,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `InvoiceDto`
      */
     getInvoice: (id: string, params: RequestParams = {}) =>
-      this.http.request<InvoiceDto, ResponseErrorDto | ResponseErrorDto | InvoiceDto>({
+      this.http.request<InvoiceDto, ResponseErrorDto | InvoiceDto>({
         path: `/api/v1/invoices/${id}`,
         method: "GET",
         secure: true,
@@ -7780,7 +7780,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `InvoiceDto`
      */
     voidInvoice: (id: string, params: RequestParams = {}) =>
-      this.http.request<InvoiceDto, ResponseErrorDto | ResponseErrorDto | InvoiceDto>({
+      this.http.request<InvoiceDto, ResponseErrorDto | InvoiceDto>({
         path: `/api/v1/invoices/${id}/void`,
         method: "POST",
         secure: true,
@@ -7807,7 +7807,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `RecordPaymentResultDto`
      */
     recordPayment: (id: string, data: CreatePaymentDto, params: RequestParams = {}) =>
-      this.http.request<RecordPaymentResultDto, ResponseErrorDto | ResponseErrorDto | RecordPaymentResultDto>({
+      this.http.request<RecordPaymentResultDto, ResponseErrorDto | RecordPaymentResultDto>({
         path: `/api/v1/invoices/${id}/payments`,
         method: "POST",
         body: data,
@@ -7841,7 +7841,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<CreditTransactionDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/credits`,
         method: "GET",
@@ -7869,7 +7869,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `CreditTransactionDto`
      */
     grantCredit: (data: GrantCreditDto, params: RequestParams = {}) =>
-      this.http.request<CreditTransactionDto, ResponseErrorDto | ResponseErrorDto | CreditTransactionDto>({
+      this.http.request<CreditTransactionDto, ResponseErrorDto | CreditTransactionDto>({
         path: `/api/v1/credits`,
         method: "POST",
         body: data,
@@ -7897,7 +7897,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `CreditBalancesDto`
      */
     getCreditBalances: (query: GetCreditBalancesParams, params: RequestParams = {}) =>
-      this.http.request<CreditBalancesDto, ResponseErrorDto | ResponseErrorDto | CreditBalancesDto>({
+      this.http.request<CreditBalancesDto, ResponseErrorDto | CreditBalancesDto>({
         path: `/api/v1/credits/balances`,
         method: "GET",
         query: query,
@@ -7924,7 +7924,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `CreditTransactionDto`
      */
     getCredit: (id: string, params: RequestParams = {}) =>
-      this.http.request<CreditTransactionDto, ResponseErrorDto | ResponseErrorDto | CreditTransactionDto>({
+      this.http.request<CreditTransactionDto, ResponseErrorDto | CreditTransactionDto>({
         path: `/api/v1/credits/${id}`,
         method: "GET",
         secure: true,
@@ -7951,7 +7951,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `CreditTransactionDto`
      */
     updateCredit: (id: string, data: UpdateCreditDto, params: RequestParams = {}) =>
-      this.http.request<CreditTransactionDto, ResponseErrorDto | ResponseErrorDto | CreditTransactionDto>({
+      this.http.request<CreditTransactionDto, ResponseErrorDto | CreditTransactionDto>({
         path: `/api/v1/credits/${id}`,
         method: "PATCH",
         body: data,
@@ -7980,7 +7980,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `void`
      */
     deleteCredit: (id: string, params: RequestParams = {}) =>
-      this.http.request<void, ResponseErrorDto | ResponseErrorDto | void>({
+      this.http.request<void, ResponseErrorDto | void>({
         path: `/api/v1/credits/${id}`,
         method: "DELETE",
         secure: true,
@@ -8011,7 +8011,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<MembershipDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/memberships`,
         method: "GET",
@@ -8038,7 +8038,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `MembershipDto`
      */
     createMembership: (data: CreateMembershipDto, params: RequestParams = {}) =>
-      this.http.request<MembershipDto, ResponseErrorDto | ResponseErrorDto | MembershipDto>({
+      this.http.request<MembershipDto, ResponseErrorDto | MembershipDto>({
         path: `/api/v1/memberships`,
         method: "POST",
         body: data,
@@ -8092,7 +8092,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `MembershipDto`
      */
     updateMembership: (id: string, data: UpdateMembershipDto, params: RequestParams = {}) =>
-      this.http.request<MembershipDto, ResponseErrorDto | ResponseErrorDto | MembershipDto>({
+      this.http.request<MembershipDto, ResponseErrorDto | MembershipDto>({
         path: `/api/v1/memberships/${id}`,
         method: "PATCH",
         body: data,
@@ -8121,7 +8121,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `MembershipDto`
      */
     cancelMembership: (id: string, params: RequestParams = {}) =>
-      this.http.request<MembershipDto, ResponseErrorDto | ResponseErrorDto | MembershipDto>({
+      this.http.request<MembershipDto, ResponseErrorDto | MembershipDto>({
         path: `/api/v1/memberships/${id}/cancel`,
         method: "POST",
         secure: true,
@@ -8148,7 +8148,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `MembershipDto`
      */
     renewMembership: (id: string, params: RequestParams = {}) =>
-      this.http.request<MembershipDto, ResponseErrorDto | ResponseErrorDto | MembershipDto>({
+      this.http.request<MembershipDto, ResponseErrorDto | MembershipDto>({
         path: `/api/v1/memberships/${id}/renew`,
         method: "POST",
         secure: true,
@@ -8180,7 +8180,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<AssignmentDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/assignments`,
         method: "GET",
@@ -8208,7 +8208,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `AssignmentDto`
      */
     createAssignment: (data: CreateAssignmentDto, params: RequestParams = {}) =>
-      this.http.request<AssignmentDto, ResponseErrorDto | ResponseErrorDto | AssignmentDto>({
+      this.http.request<AssignmentDto, ResponseErrorDto | AssignmentDto>({
         path: `/api/v1/assignments`,
         method: "POST",
         body: data,
@@ -8236,7 +8236,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `AssignmentDto`
      */
     endAssignment: (id: string, data: EndAssignmentDto, params: RequestParams = {}) =>
-      this.http.request<AssignmentDto, ResponseErrorDto | ResponseErrorDto | AssignmentDto>({
+      this.http.request<AssignmentDto, ResponseErrorDto | AssignmentDto>({
         path: `/api/v1/assignments/${id}/end`,
         method: "POST",
         body: data,
@@ -8264,7 +8264,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `AssignmentDto`
      */
     relocateAssignment: (id: string, data: RelocateAssignmentDto, params: RequestParams = {}) =>
-      this.http.request<AssignmentDto, ResponseErrorDto | ResponseErrorDto | AssignmentDto>({
+      this.http.request<AssignmentDto, ResponseErrorDto | AssignmentDto>({
         path: `/api/v1/assignments/${id}/relocate`,
         method: "POST",
         body: data,
@@ -8292,7 +8292,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `CheckinDto`
      */
     checkIn: (data: CreateCheckinDto, params: RequestParams = {}) =>
-      this.http.request<CheckinDto, ResponseErrorDto | ResponseErrorDto | CheckinDto>({
+      this.http.request<CheckinDto, ResponseErrorDto | CheckinDto>({
         path: `/api/v1/checkins`,
         method: "POST",
         body: data,
@@ -8326,7 +8326,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<CheckinDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/checkins`,
         method: "GET",
@@ -8355,7 +8355,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `CheckinDto`
      */
     checkOut: (id: string, params: RequestParams = {}) =>
-      this.http.request<CheckinDto, ResponseErrorDto | ResponseErrorDto | CheckinDto>({
+      this.http.request<CheckinDto, ResponseErrorDto | CheckinDto>({
         path: `/api/v1/checkins/${id}/checkout`,
         method: "POST",
         secure: true,
@@ -8380,7 +8380,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `Array<OccupancyBucketDto>`
      */
     getOccupancy: (query: GetOccupancyParams, params: RequestParams = {}) =>
-      this.http.request<OccupancyBucketDto, ResponseErrorDto | ResponseErrorDto | Array<OccupancyBucketDto>>({
+      this.http.request<OccupancyBucketDto, ResponseErrorDto | Array<OccupancyBucketDto>>({
         path: `/api/v1/attendance/occupancy`,
         method: "GET",
         query: query,
@@ -8413,7 +8413,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<BookingDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/bookings`,
         method: "GET",
@@ -8441,7 +8441,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `BookingDto`
      */
     createBooking: (data: CreateBookingDto, params: RequestParams = {}) =>
-      this.http.request<BookingDto, ResponseErrorDto | ResponseErrorDto | BookingDto>({
+      this.http.request<BookingDto, ResponseErrorDto | BookingDto>({
         path: `/api/v1/bookings`,
         method: "POST",
         body: data,
@@ -8469,7 +8469,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `BookingDto`
      */
     getBooking: (id: string, params: RequestParams = {}) =>
-      this.http.request<BookingDto, ResponseErrorDto | ResponseErrorDto | BookingDto>({
+      this.http.request<BookingDto, ResponseErrorDto | BookingDto>({
         path: `/api/v1/bookings/${id}`,
         method: "GET",
         secure: true,
@@ -8495,7 +8495,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `BookingDto`
      */
     updateBooking: (id: string, data: UpdateBookingDto, params: RequestParams = {}) =>
-      this.http.request<BookingDto, ResponseErrorDto | ResponseErrorDto | BookingDto>({
+      this.http.request<BookingDto, ResponseErrorDto | BookingDto>({
         path: `/api/v1/bookings/${id}`,
         method: "PATCH",
         body: data,
@@ -8522,7 +8522,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `BookingQuoteDto`
      */
     validateBooking: (data: CreateBookingDto, params: RequestParams = {}) =>
-      this.http.request<BookingQuoteDto, ResponseErrorDto | ResponseErrorDto | BookingQuoteDto>({
+      this.http.request<BookingQuoteDto, ResponseErrorDto | BookingQuoteDto>({
         path: `/api/v1/bookings/validate`,
         method: "POST",
         body: data,
@@ -8577,7 +8577,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `BookingDto`
      */
     confirmBooking: (id: string, params: RequestParams = {}) =>
-      this.http.request<BookingDto, ResponseErrorDto | ResponseErrorDto | BookingDto>({
+      this.http.request<BookingDto, ResponseErrorDto | BookingDto>({
         path: `/api/v1/bookings/${id}/confirm`,
         method: "POST",
         secure: true,
@@ -8634,7 +8634,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<OpportunityDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/opportunities`,
         method: "GET",
@@ -8661,7 +8661,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `OpportunityDto`
      */
     createOpportunity: (data: CreateOpportunityDto, params: RequestParams = {}) =>
-      this.http.request<OpportunityDto, ResponseErrorDto | ResponseErrorDto | OpportunityDto>({
+      this.http.request<OpportunityDto, ResponseErrorDto | OpportunityDto>({
         path: `/api/v1/opportunities`,
         method: "POST",
         body: data,
@@ -8689,7 +8689,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `OpportunityDto`
      */
     updateOpportunity: (id: string, data: UpdateOpportunityDto, params: RequestParams = {}) =>
-      this.http.request<OpportunityDto, ResponseErrorDto | ResponseErrorDto | OpportunityDto>({
+      this.http.request<OpportunityDto, ResponseErrorDto | OpportunityDto>({
         path: `/api/v1/opportunities/${id}`,
         method: "PATCH",
         body: data,
@@ -8716,7 +8716,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `Array<OccupancyBucketDto>`
      */
     analyticsOccupancy: (query: AnalyticsOccupancyParams, params: RequestParams = {}) =>
-      this.http.request<OccupancyBucketDto, ResponseErrorDto | ResponseErrorDto | Array<OccupancyBucketDto>>({
+      this.http.request<OccupancyBucketDto, ResponseErrorDto | Array<OccupancyBucketDto>>({
         path: `/api/v1/analytics/occupancy`,
         method: "GET",
         query: query,
@@ -8742,7 +8742,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `Array<RevenueBucketDto>`
      */
     analyticsRevenue: (query: AnalyticsRevenueParams, params: RequestParams = {}) =>
-      this.http.request<RevenueBucketDto, ResponseErrorDto | ResponseErrorDto | Array<RevenueBucketDto>>({
+      this.http.request<RevenueBucketDto, ResponseErrorDto | Array<RevenueBucketDto>>({
         path: `/api/v1/analytics/revenue`,
         method: "GET",
         query: query,
@@ -8768,7 +8768,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `MembershipAnalyticsDto`
      */
     analyticsMemberships: (query: AnalyticsMembershipsParams, params: RequestParams = {}) =>
-      this.http.request<MembershipAnalyticsDto, ResponseErrorDto | ResponseErrorDto | MembershipAnalyticsDto>({
+      this.http.request<MembershipAnalyticsDto, ResponseErrorDto | MembershipAnalyticsDto>({
         path: `/api/v1/analytics/memberships`,
         method: "GET",
         query: query,

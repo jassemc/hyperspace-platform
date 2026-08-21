@@ -1,4 +1,5 @@
 "use server";
+import type { RequestParams } from "@hscowork/service-generator/runtime";
 import "server-only";
 import { hsService } from "./api";
 import type {
@@ -71,8 +72,6 @@ import type {
   UpdateResourceRateDto,
   UpdateResourceTypeDto,
 } from "./HsService";
-
-import type { RequestParams } from "../shared/types";
 
 export async function getListLocations(query: ListLocationsParams, params?: RequestParams) {
   return hsService.api.listLocations(query, params);
@@ -475,4 +474,8 @@ export async function getHealthCheckerControllerCheckInstance(params?: RequestPa
 
 export async function getHealthCheckerControllerCheck(params?: RequestParams) {
   return hsService.health.healthCheckerControllerCheck(params);
+}
+
+export async function getAppControllerAppInfo(params?: RequestParams) {
+  return hsService.appControllerAppInfo(params);
 }

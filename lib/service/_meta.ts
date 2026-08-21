@@ -1310,6 +1310,19 @@ const meta = {
       responseType:
         '{  /** @example "ok" */    status?: string,  /** @example {"database":{"status":"up"}} */    info?: Record<string,{    status: string,    [key: string]: any,}>,  /** @example {} */    error?: Record<string,{    status: string,    [key: string]: any,}>,  /** @example {"database":{"status":"up"}} */    details?: Record<string,{    status: string,    [key: string]: any,}>,}',
     },
+
+    {
+      namespace: null,
+      method: "GET",
+      usage: "appControllerAppInfo",
+      path: "/",
+      functionName: "getAppControllerAppInfo",
+      pathParams: [],
+      requestParams: [],
+      combinedPathAndRequestParams: [],
+      payload: null,
+      responseType: "any",
+    },
   ],
 };
 
