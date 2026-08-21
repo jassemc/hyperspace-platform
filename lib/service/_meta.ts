@@ -303,6 +303,32 @@ const meta = {
 
     {
       namespace: "api",
+      method: "PUT",
+      usage: "uploadResourceImage",
+      path: "/api/v1/resources/${id}/image",
+      functionName: "uploadResourceImage",
+      pathParams: [{ name: "id", type: "string", optional: false }],
+      requestParams: [],
+      combinedPathAndRequestParams: [],
+      payload: { name: "data", optional: false, type: "FileDto" },
+      responseType: "(ResourceDto)",
+    },
+
+    {
+      namespace: "api",
+      method: "DELETE",
+      usage: "deleteResourceImage",
+      path: "/api/v1/resources/${id}/image",
+      functionName: "deleteResourceImage",
+      pathParams: [{ name: "id", type: "string", optional: false }],
+      requestParams: [],
+      combinedPathAndRequestParams: [],
+      payload: null,
+      responseType: "(ResourceDto)",
+    },
+
+    {
+      namespace: "api",
       method: "GET",
       usage: "listResourceRates",
       path: "/api/v1/resource-rates",
@@ -403,6 +429,58 @@ const meta = {
       combinedPathAndRequestParams: [],
       payload: { name: "data", optional: false, type: "UpdatePlanDto" },
       responseType: "(PlanDto)",
+    },
+
+    {
+      namespace: "api",
+      method: "GET",
+      usage: "listPlanCategories",
+      path: "/api/v1/plan-categories",
+      functionName: "getListPlanCategories",
+      pathParams: [],
+      requestParams: [{ name: "query", type: "ListPlanCategoriesParams" }],
+      combinedPathAndRequestParams: [],
+      payload: null,
+      responseType: "(PageDto & {    results?: Array<PlanCategoryDto>,})",
+    },
+
+    {
+      namespace: "api",
+      method: "POST",
+      usage: "createPlanCategory",
+      path: "/api/v1/plan-categories",
+      functionName: "createPlanCategory",
+      pathParams: [],
+      requestParams: [],
+      combinedPathAndRequestParams: [],
+      payload: { name: "data", optional: false, type: "CreatePlanCategoryDto" },
+      responseType: "(PlanCategoryDto)",
+    },
+
+    {
+      namespace: "api",
+      method: "GET",
+      usage: "getPlanCategory",
+      path: "/api/v1/plan-categories/${id}",
+      functionName: "getPlanCategory",
+      pathParams: [{ name: "id", type: "string", optional: false }],
+      requestParams: [],
+      combinedPathAndRequestParams: [],
+      payload: null,
+      responseType: "(PlanCategoryDto)",
+    },
+
+    {
+      namespace: "api",
+      method: "PATCH",
+      usage: "updatePlanCategory",
+      path: "/api/v1/plan-categories/${id}",
+      functionName: "updatePlanCategory",
+      pathParams: [{ name: "id", type: "string", optional: false }],
+      requestParams: [],
+      combinedPathAndRequestParams: [],
+      payload: { name: "data", optional: false, type: "UpdatePlanCategoryDto" },
+      responseType: "(PlanCategoryDto)",
     },
 
     {
@@ -559,6 +637,19 @@ const meta = {
       combinedPathAndRequestParams: [],
       payload: { name: "data", optional: false, type: "CreateInvoiceDto" },
       responseType: "(InvoiceDto)",
+    },
+
+    {
+      namespace: "api",
+      method: "GET",
+      usage: "downloadInvoicePdf",
+      path: "/api/v1/invoices/${id}/download",
+      functionName: "getDownloadInvoicePdf",
+      pathParams: [{ name: "id", type: "string", optional: false }],
+      requestParams: [],
+      combinedPathAndRequestParams: [],
+      payload: null,
+      responseType: "File",
     },
 
     {
@@ -1051,10 +1142,23 @@ const meta = {
       path: "/api/v1/public/plans",
       functionName: "getPublicListPlans",
       pathParams: [],
-      requestParams: [],
+      requestParams: [{ name: "query", type: "PublicListPlansParams" }],
       combinedPathAndRequestParams: [],
       payload: null,
       responseType: "(PublicPlanDto)",
+    },
+
+    {
+      namespace: "api",
+      method: "GET",
+      usage: "publicListPlanCategories",
+      path: "/api/v1/public/plan-categories",
+      functionName: "getPublicListPlanCategories",
+      pathParams: [],
+      requestParams: [],
+      combinedPathAndRequestParams: [],
+      payload: null,
+      responseType: "(PublicPlanCategoryDto)",
     },
 
     {
@@ -1079,10 +1183,23 @@ const meta = {
       path: "/api/v1/public/resources",
       functionName: "getPublicListResources",
       pathParams: [],
-      requestParams: [],
+      requestParams: [{ name: "query", type: "PublicListResourcesParams" }],
       combinedPathAndRequestParams: [],
       payload: null,
       responseType: "(PublicResourceDto)",
+    },
+
+    {
+      namespace: "api",
+      method: "GET",
+      usage: "publicListResourceTypes",
+      path: "/api/v1/public/resource-types",
+      functionName: "getPublicListResourceTypes",
+      pathParams: [],
+      requestParams: [],
+      combinedPathAndRequestParams: [],
+      payload: null,
+      responseType: "(PublicResourceTypeDto)",
     },
 
     {
@@ -1109,6 +1226,19 @@ const meta = {
       combinedPathAndRequestParams: [],
       payload: { name: "data", optional: false, type: "CreatePlanRequestDto" },
       responseType: "(PlanRequestResultDto)",
+    },
+
+    {
+      namespace: "api",
+      method: "POST",
+      usage: "publicCreateContactRequest",
+      path: "/api/v1/public/contact-requests",
+      functionName: "publicCreateContactRequest",
+      pathParams: [],
+      requestParams: [],
+      combinedPathAndRequestParams: [],
+      payload: { name: "data", optional: false, type: "CreateContactRequestDto" },
+      responseType: "(ContactRequestResultDto)",
     },
 
     {
