@@ -1,8 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { checkIn } from "@/lib/service"
-import { checkOut } from "@/lib/service-supplement"
+import { checkIn, checkOut } from "@/lib/service"
 import type { CreateCheckinDto } from "@/lib/service/HsService"
 
 type ForceKind = NonNullable<CreateCheckinDto["force"]>

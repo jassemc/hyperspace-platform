@@ -1,6 +1,6 @@
+import type { HttpClient, RequestParams } from "@hscowork/service-generator/runtime";
+import { ContentType } from "@hscowork/service-generator/runtime";
 import "server-only";
-import type { HttpClient } from "../shared/HttpClient";
-import { ContentType, RequestParams } from "../shared/types";
 
 export interface ResponseErrorDto {
   /**
@@ -702,9 +702,20 @@ export interface ResourceDto {
   resourceTypeId: string;
   /** @format uuid */
   parentId?: string | null;
+  /**
+   * Plans this resource is sold under (dedicated desks, private
+   * offices, hot-desk pools); empty for bookable/structural resources.
+   */
+  targetPlanIds: Array<string>;
   /** @example "Meeting Room" */
   name: string;
   description?: string | null;
+  /**
+   * Card photo for the public website catalog. Server-managed via
+   * PUT /resources/:id/image — never accepted as a plain string.
+   * @example "https://cdn.hscowork.tn/spaces/office-1.jpg"
+   */
+  imageUrl?: string | null;
   /** @example 8 */
   capacity: number;
   bookingTimes?: WeeklyOpeningHoursDto | null;
@@ -762,6 +773,14 @@ export interface CreateResourceDto {
    */
   parentId?: string;
   /**
+   * Plans this resource is sold under — ACTIVE (non-archived) plans of
+   * any kind; the same desk can back a dedicated-desk plan and hot-desk
+   * plans. Link only — nothing is auto-assigned; the public catalog and
+   * per-plan availability counts derive from it. Full-replace semantics
+   * on update, like amenityIds.
+   */
+  targetPlanIds?: Array<string>;
+  /**
    * Rates to attach (shareable price options of this resource's exact
    * type, at most one per (interval, weekend) slot). Full-replace
    * semantics on update, like amenityIds.
@@ -808,6 +827,14 @@ export interface UpdateResourceDto {
    */
   parentId?: string;
   /**
+   * Plans this resource is sold under — ACTIVE (non-archived) plans of
+   * any kind; the same desk can back a dedicated-desk plan and hot-desk
+   * plans. Link only — nothing is auto-assigned; the public catalog and
+   * per-plan availability counts derive from it. Full-replace semantics
+   * on update, like amenityIds.
+   */
+  targetPlanIds?: Array<string>;
+  /**
    * Rates to attach (shareable price options of this resource's exact
    * type, at most one per (interval, weekend) slot). Full-replace
    * semantics on update, like amenityIds.
@@ -841,6 +868,14 @@ export interface UpdateResourceDto {
   active?: boolean;
   /** Amenity ids to attach; full-replace semantics on update. */
   amenityIds?: Array<string>;
+}
+
+export interface FileDto {
+  /**
+   * The file to upload
+   * @format binary
+   */
+  file: File;
 }
 
 export interface CreateResourceRateDto {
@@ -910,6 +945,40 @@ export interface UpdateResourceRateDto {
 
 export type PlanKind = "recurring" | "one_off";
 
+export interface PlanCategoryDto {
+  /**
+   * Unique identifier
+   * @format uuid
+   * @example "9df3cd63-ad9a-48fb-8d48-2744da103c39"
+   */
+  id: string;
+  /** @example "domiciliation" */
+  slug: string;
+  /** @example "Domiciliation" */
+  name: string;
+  /** @example "Registered business address services." */
+  description?: string | null;
+  /** @example 3 */
+  sortOrder: number;
+  /**
+   * True only for the migration-shipped defaults; never API-writable.
+   * @example true
+   */
+  isDefault: boolean;
+  /**
+   * The date of creation of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  createdAt: string;
+  /**
+   * The date of the last update of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  updatedAt: string;
+}
+
 export type PlanStatus = "active" | "archived";
 
 export type BenefitKind = "credit" | "entitlement" | "amenity";
@@ -969,6 +1038,12 @@ export interface PlanDto {
   /** @example "FT_PLUS" */
   code?: string | null;
   kind: PlanKind;
+  /**
+   * Sales grouping (website sections); null = uncategorized.
+   * @format uuid
+   */
+  categoryId?: string | null;
+  category?: PlanCategoryDto | null;
   /** @example 1 */
   cycleMonths?: number | null;
   /** @example 240 */
@@ -1047,6 +1122,12 @@ export interface CreatePlanDto {
   code?: string;
   kind: PlanKind;
   /**
+   * Sales grouping (website sections). Cosmetic — changing it never
+   * triggers archive+clone. Send null on PATCH to clear.
+   * @format uuid
+   */
+  categoryId?: string | null;
+  /**
    * Required for recurring plans, forbidden for one-off plans.
    * @example 1
    */
@@ -1084,6 +1165,12 @@ export interface UpdatePlanDto {
   code?: string;
   kind?: PlanKind;
   /**
+   * Sales grouping (website sections). Cosmetic — changing it never
+   * triggers archive+clone. Send null on PATCH to clear.
+   * @format uuid
+   */
+  categoryId?: string | null;
+  /**
    * Required for recurring plans, forbidden for one-off plans.
    * @example 1
    */
@@ -1112,6 +1199,40 @@ export interface UpdatePlanDto {
    * update, like benefits.
    */
   extraIds?: Array<string>;
+}
+
+export interface CreatePlanCategoryDto {
+  /**
+   * Stable machine identifier (snake_case).
+   * @example "domiciliation"
+   */
+  slug: string;
+  /** @example "Domiciliation" */
+  name: string;
+  /** @example "Registered business address services." */
+  description?: string;
+  /**
+   * Ascending display order for the website sections.
+   * @default 0
+   */
+  sortOrder?: number;
+}
+
+export interface UpdatePlanCategoryDto {
+  /**
+   * Stable machine identifier (snake_case).
+   * @example "domiciliation"
+   */
+  slug?: string;
+  /** @example "Domiciliation" */
+  name?: string;
+  /** @example "Registered business address services." */
+  description?: string;
+  /**
+   * Ascending display order for the website sections.
+   * @default 0
+   */
+  sortOrder?: number;
 }
 
 export interface CreateAmenityDto {
@@ -2008,6 +2129,15 @@ export interface MembershipAnalyticsDto {
   churnByCohort: Array<ChurnCohortDto>;
 }
 
+export interface PublicPlanCategoryDto {
+  /** @example "domiciliation" */
+  slug: string;
+  /** @example "Domiciliation" */
+  name: string;
+  /** @example "Registered business address services." */
+  description?: object;
+}
+
 export interface PublicPlanBenefitDto {
   /** @example "credit" */
   kind: string;
@@ -2058,6 +2188,9 @@ export interface PublicPlanDto {
   /** @example 142.8 */
   priceTtc: number;
   description?: object;
+  category?: PublicPlanCategoryDto;
+  /** @example 3 */
+  availableResourcesCount: object | null;
   benefits: Array<PublicPlanBenefitDto>;
   extras: Array<PublicPlanExtraDto>;
   /**
@@ -2112,6 +2245,23 @@ export interface PublicResourceRateDto {
   extras: Array<PublicRateExtraDto>;
 }
 
+export interface PublicTargetPlanDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Full time +" */
+  name: string;
+  /** @example "recurring" */
+  kind: "recurring" | "one_off";
+  /** @example 1 */
+  cycleMonths?: object;
+  /** @example 240 */
+  priceHt: number;
+  /** @example 19 */
+  vatRate: number;
+  /** @example 285.6 */
+  priceTtc: number;
+}
+
 export interface PublicResourceDto {
   /**
    * Unique identifier
@@ -2122,14 +2272,21 @@ export interface PublicResourceDto {
   /** @example "Meeting Room" */
   name: string;
   description?: object;
+  /** @example "https://cdn.hscowork.tn/spaces/office-1.jpg" */
+  imageUrl?: object;
   /** @example "meeting_room" */
   resourceTypeSlug: string;
   /** @example "Meeting Room" */
   resourceTypeName: string;
   /** @example "hourly" */
   bookingMode: string;
+  status: ResourceStatus;
   /** @example 8 */
   capacity: number;
+  /** @example 5 */
+  availableUnitsCount?: object | null;
+  /** @example 8 */
+  totalUnitsCount?: object | null;
   /** @example 60 */
   minDurationMin?: object;
   /** @example 480 */
@@ -2138,6 +2295,7 @@ export interface PublicResourceDto {
   cancellationHours: number;
   amenities: Array<PublicAmenityDto>;
   rates: Array<PublicResourceRateDto>;
+  targetPlans: Array<PublicTargetPlanDto>;
   /**
    * The date of creation of the resource
    * @format date-time
@@ -2150,6 +2308,17 @@ export interface PublicResourceDto {
    * @example "2025-05-25T10:03:33.169Z"
    */
   updatedAt: string;
+}
+
+export interface PublicResourceTypeDto {
+  /** @example "meeting_room" */
+  slug: string;
+  /** @example "Meeting Room" */
+  name: string;
+  /** @example "hourly" */
+  bookingMode: string;
+  /** @example true */
+  canBook: boolean;
 }
 
 export interface BookingRequestResultDto {
@@ -2208,12 +2377,41 @@ export interface CreatePlanRequestDto {
   /** @example "Acme SARL" */
   companyName?: string;
   /** @format uuid */
-  planId: string;
+  planId?: string;
+  /** @format uuid */
+  resourceId?: string;
   extraIds?: Array<string>;
   /** @example "Interested in starting next month" */
   notes?: string;
   /** @default "coworking" */
   interest?: OpportunityInterest;
+}
+
+export interface ContactRequestResultDto {
+  /** @format uuid */
+  opportunityId: string;
+}
+
+export interface CreateContactRequestDto {
+  /** @example "Sami Ben Salah" */
+  fullName: string;
+  /** @example "sami@company.tn" */
+  email: string;
+  /** @example "+21622123456" */
+  phone?: string;
+  /** @example "Acme SARL" */
+  companyName?: string;
+  /** @example "coworking" */
+  categorySlug?: string;
+  /** @example true */
+  freeDay?: boolean;
+  /**
+   * @format date
+   * @example "2026-09-01"
+   */
+  preferredDate?: string;
+  /** @example "We are a team of 4" */
+  notes?: string;
 }
 
 export interface ListLocationsParams {
@@ -2363,6 +2561,25 @@ export interface ListPlansParams {
   /** Admin-only filter; ignored for other roles. */
   status?: PlanStatus;
   kind?: PlanKind;
+  /** The search term to filter results. */
+  q?: string;
+}
+
+export interface ListPlanCategoriesParams {
+  /**
+   * The number of items to skip before starting to collect the result set, starting from 0.
+   * @default 0
+   * @example 0
+   */
+  offset: number;
+  /**
+   * The number of items to retrieve per page.
+   * @default 10
+   * @example 10
+   */
+  limit: number;
+  /** The direction to sort the results, either 'ASC' or 'DESC'. */
+  sort: Sort;
   /** The search term to filter results. */
   q?: string;
 }
@@ -2687,12 +2904,24 @@ export interface AnalyticsMembershipsParams {
   expiringWithinDays?: number;
 }
 
+export interface PublicListPlansParams {
+  /** @example "domiciliation" */
+  category?: string;
+}
+
 export interface PublicResourceAvailabilityParams {
   /** @example "2026-07-13T00:00:00Z" */
   from: string;
   /** @example "2026-07-19T23:59:59Z" */
   to: string;
   id: string;
+}
+
+export interface PublicListResourcesParams {
+  /** @example "meeting_room" */
+  resourceType?: string;
+  /** @example "DAY_PASS" */
+  planCode?: string;
 }
 
 export namespace Api {
@@ -3391,6 +3620,60 @@ export namespace Api {
   }
 
   /**
+   * @description Stores the image in the public resource-images bucket and sets imageUrl; a previous image is replaced. jpg/jpeg/png only. @FileUpload documents the 413/415 responses.
+   * @tags Catalog — Resources
+   * @name UploadResourceImage
+   * @summary Upload a resource's catalog photo
+   * @request PUT:/api/v1/resources/{id}/image
+   * @secure
+   * @response `200` `(ResourceDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `413` `(ResponseErrorDto)` Payload Too Large
+   * @response `415` `(ResponseErrorDto)` Unsupported Media Type
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `ResourceDto`
+   */
+  export namespace UploadResourceImage {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = FileDto;
+    export type RequestHeaders = {};
+    export type ResponseBody = ResourceDto;
+  }
+
+  /**
+   * No description
+   * @tags Catalog — Resources
+   * @name DeleteResourceImage
+   * @summary Remove a resource's catalog photo
+   * @request DELETE:/api/v1/resources/{id}/image
+   * @secure
+   * @response `200` `(ResourceDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `ResourceDto`
+   */
+  export namespace DeleteResourceImage {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = ResourceDto;
+  }
+
+  /**
  * @description Rates are standalone, shareable, single-price objects typed by resource type; resources attach a set of them via `rateIds` (one per interval/weekend slot). Prices are dinars (TND) HT; VAT as a percentage rate. Filter by resourceTypeId; `q` matches the name.
  * @tags Catalog — Resource Rates
  * @name ListResourceRates
@@ -3637,6 +3920,128 @@ export namespace Api {
     export type RequestBody = UpdatePlanDto;
     export type RequestHeaders = {};
     export type ResponseBody = PlanDto;
+  }
+
+  /**
+ * @description Sales groupings behind the website service sections (coworking, private offices, domiciliation, …), in display order. Defaults are shipped by migrations (isDefault); staff-created categories extend the vocabulary without code changes.
+ * @tags Catalog — Plan Categories
+ * @name ListPlanCategories
+ * @summary List plan categories
+ * @request GET:/api/v1/plan-categories
+ * @secure
+ * @response `200` `(PageDto & {
+    results?: Array<PlanCategoryDto>,
+
+})` 200
+ * @response `401` `(ResponseErrorDto)` Unauthorized
+ * @response `403` `((ResponseErrorDto))` 403
+ * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+ * @response `429` `(ResponseErrorDto)` Too Many Requests
+ * @response `500` `(ResponseErrorDto)` Internal Server Error
+ * @response `default` `void`
+*/
+  export namespace ListPlanCategories {
+    export type RequestParams = {};
+    export type RequestQuery = {
+      /**
+       * The number of items to skip before starting to collect the result set, starting from 0.
+       * @default 0
+       * @example 0
+       */
+      offset: number;
+      /**
+       * The number of items to retrieve per page.
+       * @default 10
+       * @example 10
+       */
+      limit: number;
+      /** The direction to sort the results, either 'ASC' or 'DESC'. */
+      sort: Sort;
+      /** The search term to filter results. */
+      q?: string;
+    };
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = PageDto & {
+      results?: Array<PlanCategoryDto>;
+    };
+  }
+
+  /**
+   * No description
+   * @tags Catalog — Plan Categories
+   * @name CreatePlanCategory
+   * @summary Create a plan category
+   * @request POST:/api/v1/plan-categories
+   * @secure
+   * @response `201` `(PlanCategoryDto)` 201
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `409` `(ResponseErrorDto)` Conflict
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `PlanCategoryDto`
+   */
+  export namespace CreatePlanCategory {
+    export type RequestParams = {};
+    export type RequestQuery = {};
+    export type RequestBody = CreatePlanCategoryDto;
+    export type RequestHeaders = {};
+    export type ResponseBody = PlanCategoryDto;
+  }
+
+  /**
+   * No description
+   * @tags Catalog — Plan Categories
+   * @name GetPlanCategory
+   * @summary Get a plan category
+   * @request GET:/api/v1/plan-categories/{id}
+   * @secure
+   * @response `200` `(PlanCategoryDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `PlanCategoryDto`
+   */
+  export namespace GetPlanCategory {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = PlanCategoryDto;
+  }
+
+  /**
+   * No description
+   * @tags Catalog — Plan Categories
+   * @name UpdatePlanCategory
+   * @summary Update a plan category
+   * @request PATCH:/api/v1/plan-categories/{id}
+   * @secure
+   * @response `200` `(PlanCategoryDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `409` `(ResponseErrorDto)` Conflict
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `PlanCategoryDto`
+   */
+  export namespace UpdatePlanCategory {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = UpdatePlanCategoryDto;
+    export type RequestHeaders = {};
+    export type ResponseBody = PlanCategoryDto;
   }
 
   /**
@@ -4026,6 +4431,32 @@ export namespace Api {
     export type RequestBody = CreateInvoiceDto;
     export type RequestHeaders = {};
     export type ResponseBody = InvoiceDto;
+  }
+
+  /**
+   * @description Streams the invoice as a French VAT facture PDF (attachment named after the invoice number, e.g. HS-2026-0042.pdf). Totals are printed from the frozen invoice columns; void invoices are marked ANNULÉE and negative totals render as a facture d’avoir. Member-role callers may only download their own invoices.
+   * @tags Billing
+   * @name DownloadInvoicePdf
+   * @summary Download an invoice as a PDF
+   * @request GET:/api/v1/invoices/{id}/download
+   * @secure
+   * @response `200` `File` The invoice PDF
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `void`
+   */
+  export namespace DownloadInvoicePdf {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = File;
   }
 
   /**
@@ -5186,7 +5617,7 @@ export namespace Api {
   }
 
   /**
-   * @description Active, non-hidden plans. Server-to-server only.
+   * @description Active, non-hidden plans, cheapest first. Filter by ?category=<slug> for one service section (see GET /public/plan-categories). Server-to-server only.
    * @tags Public (website)
    * @name PublicListPlans
    * @summary Plans for the website pricing page
@@ -5199,13 +5630,39 @@ export namespace Api {
    */
   export namespace PublicListPlans {
     export type RequestParams = {};
-    export type RequestQuery = {};
+    export type RequestQuery = {
+      /** @example "domiciliation" */
+      category?: string;
+    };
     export type RequestBody = never;
     export type RequestHeaders = {
       /** Pre-provisioned service key (see SERVICE_API_KEYS). No user identity is attached to this group. */
       "X-Api-Key": string;
     };
     export type ResponseBody = PublicPlanDto;
+  }
+
+  /**
+   * @description Plan categories with at least one visible plan (coworking, private offices, domiciliation, …), in display order — the website landing/pricing sections. Server-to-server only.
+   * @tags Public (website)
+   * @name PublicListPlanCategories
+   * @summary Service sections for the website
+   * @request GET:/api/v1/public/plan-categories
+   * @response `200` `(PublicPlanCategoryDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   */
+  export namespace PublicListPlanCategories {
+    export type RequestParams = {};
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {
+      /** Pre-provisioned service key (see SERVICE_API_KEYS). No user identity is attached to this group. */
+      "X-Api-Key": string;
+    };
+    export type ResponseBody = PublicPlanCategoryDto;
   }
 
   /**
@@ -5239,10 +5696,10 @@ export namespace Api {
   }
 
   /**
-   * @description Active, non-hidden, bookable resources with amenities and rates. Server-to-server only.
+   * @description Active, visible, sellable spaces: bookable ones carry rates, plan-sold ones carry their target plans (cheapest first), pool parents carry live seat counts; every card has a derived status badge. Filter by ?resourceType=<slug> for one catalog tab, and/or ?planCode=<code> for the spaces sold under one plan. Server-to-server only.
    * @tags Public (website)
    * @name PublicListResources
-   * @summary Bookable resources for the website
+   * @summary Space catalog for the website
    * @request GET:/api/v1/public/resources
    * @response `200` `(PublicResourceDto)` 200
    * @response `401` `(ResponseErrorDto)` Unauthorized
@@ -5252,13 +5709,41 @@ export namespace Api {
    */
   export namespace PublicListResources {
     export type RequestParams = {};
-    export type RequestQuery = {};
+    export type RequestQuery = {
+      /** @example "meeting_room" */
+      resourceType?: string;
+      /** @example "DAY_PASS" */
+      planCode?: string;
+    };
     export type RequestBody = never;
     export type RequestHeaders = {
       /** Pre-provisioned service key (see SERVICE_API_KEYS). No user identity is attached to this group. */
       "X-Api-Key": string;
     };
     export type ResponseBody = PublicResourceDto;
+  }
+
+  /**
+   * @description Resource types with at least one publicly visible space, for the catalog tab bar. Server-to-server only.
+   * @tags Public (website)
+   * @name PublicListResourceTypes
+   * @summary Catalog tabs for the website
+   * @request GET:/api/v1/public/resource-types
+   * @response `200` `(PublicResourceTypeDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   */
+  export namespace PublicListResourceTypes {
+    export type RequestParams = {};
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {
+      /** Pre-provisioned service key (see SERVICE_API_KEYS). No user identity is attached to this group. */
+      "X-Api-Key": string;
+    };
+    export type ResponseBody = PublicResourceTypeDto;
   }
 
   /**
@@ -5285,7 +5770,7 @@ export namespace Api {
   }
 
   /**
-   * @description Creates member (visitor) + opportunity carrying the requested plan, its selected extras and the quoted value in one transaction; staff convert it into a membership at the price the visitor saw. Identity comes only from the body — no user account involved.
+   * @description Creates member (visitor) + opportunity carrying the requested plan, its selected extras and the quoted value in one transaction; staff convert it into a membership at the price the visitor saw. Send planId (pricing page) or resourceId (a catalog space card — the plan resolves via its target plans, and planId picks one when the space is sold under several). Identity comes only from the body — no user account involved.
    * @tags Public (website)
    * @name PublicCreatePlanRequest
    * @summary Website plan request
@@ -5305,6 +5790,29 @@ export namespace Api {
       "X-Api-Key": string;
     };
     export type ResponseBody = PlanRequestResultDto;
+  }
+
+  /**
+   * @description Creates member (visitor) + opportunity for a lightweight lead: the visitor asks about a service category (categorySlug, see GET /public/plan-categories; bare interest slugs like meeting_room are accepted too) OR wants a free trial day (freeDay) — exactly one of the two. No plan and no quote; the priced funnels stay /plan-requests and /booking-requests. Identity comes only from the body — no user account involved.
+   * @tags Public (website)
+   * @name PublicCreateContactRequest
+   * @summary Landing-page contact request
+   * @request POST:/api/v1/public/contact-requests
+   * @response `201` `(ContactRequestResultDto)` 201
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   */
+  export namespace PublicCreateContactRequest {
+    export type RequestParams = {};
+    export type RequestQuery = {};
+    export type RequestBody = CreateContactRequestDto;
+    export type RequestHeaders = {
+      /** Pre-provisioned service key (see SERVICE_API_KEYS). No user identity is attached to this group. */
+      "X-Api-Key": string;
+    };
+    export type ResponseBody = ContactRequestResultDto;
   }
 
   /**
@@ -5751,12 +6259,12 @@ export namespace Health {
 }
 
 /**
- * @title Platform Api
+ * @title Hyperspace OS API
  * @version 0.0.1
  * @baseUrl /
  * @contact
  *
- * Service for managing hyperspace operations
+ * Hyperspace OS backend API
  */
 export class HsService<SecurityDataType extends unknown> {
   http: HttpClient<SecurityDataType>;
@@ -5805,7 +6313,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<LocationDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/locations`,
         method: "GET",
@@ -5832,7 +6340,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `LocationDto`
      */
     createLocation: (data: CreateLocationDto, params: RequestParams = {}) =>
-      this.http.request<LocationDto, ResponseErrorDto | ResponseErrorDto | LocationDto>({
+      this.http.request<LocationDto, ResponseErrorDto | LocationDto>({
         path: `/api/v1/locations`,
         method: "POST",
         body: data,
@@ -5860,7 +6368,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `LocationDto`
      */
     getLocation: (id: string, params: RequestParams = {}) =>
-      this.http.request<LocationDto, ResponseErrorDto | ResponseErrorDto | LocationDto>({
+      this.http.request<LocationDto, ResponseErrorDto | LocationDto>({
         path: `/api/v1/locations/${id}`,
         method: "GET",
         secure: true,
@@ -5886,7 +6394,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `LocationDto`
      */
     updateLocation: (id: string, data: UpdateLocationDto, params: RequestParams = {}) =>
-      this.http.request<LocationDto, ResponseErrorDto | ResponseErrorDto | LocationDto>({
+      this.http.request<LocationDto, ResponseErrorDto | LocationDto>({
         path: `/api/v1/locations/${id}`,
         method: "PATCH",
         body: data,
@@ -5920,7 +6428,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<CompanyDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/companies`,
         method: "GET",
@@ -5947,7 +6455,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `CompanyDto`
      */
     createCompany: (data: CreateCompanyDto, params: RequestParams = {}) =>
-      this.http.request<CompanyDto, ResponseErrorDto | ResponseErrorDto | CompanyDto>({
+      this.http.request<CompanyDto, ResponseErrorDto | CompanyDto>({
         path: `/api/v1/companies`,
         method: "POST",
         body: data,
@@ -5975,7 +6483,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `CompanyDto`
      */
     getCompany: (id: string, params: RequestParams = {}) =>
-      this.http.request<CompanyDto, ResponseErrorDto | ResponseErrorDto | CompanyDto>({
+      this.http.request<CompanyDto, ResponseErrorDto | CompanyDto>({
         path: `/api/v1/companies/${id}`,
         method: "GET",
         secure: true,
@@ -6001,7 +6509,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `CompanyDto`
      */
     updateCompany: (id: string, data: UpdateCompanyDto, params: RequestParams = {}) =>
-      this.http.request<CompanyDto, ResponseErrorDto | ResponseErrorDto | CompanyDto>({
+      this.http.request<CompanyDto, ResponseErrorDto | CompanyDto>({
         path: `/api/v1/companies/${id}`,
         method: "PATCH",
         body: data,
@@ -6035,7 +6543,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<MemberDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/members`,
         method: "GET",
@@ -6063,7 +6571,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `MemberDto`
      */
     createMember: (data: CreateMemberDto, params: RequestParams = {}) =>
-      this.http.request<MemberDto, ResponseErrorDto | ResponseErrorDto | MemberDto>({
+      this.http.request<MemberDto, ResponseErrorDto | MemberDto>({
         path: `/api/v1/members`,
         method: "POST",
         body: data,
@@ -6145,7 +6653,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `MemberDto`
      */
     updateMemberStatus: (id: string, data: UpdateMemberStatusDto, params: RequestParams = {}) =>
-      this.http.request<MemberDto, ResponseErrorDto | ResponseErrorDto | MemberDto>({
+      this.http.request<MemberDto, ResponseErrorDto | MemberDto>({
         path: `/api/v1/members/${id}/status`,
         method: "PUT",
         body: data,
@@ -6173,7 +6681,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `MemberDto`
      */
     updateMemberCompany: (id: string, data: UpdateMemberCompanyDto, params: RequestParams = {}) =>
-      this.http.request<MemberDto, ResponseErrorDto | ResponseErrorDto | MemberDto>({
+      this.http.request<MemberDto, ResponseErrorDto | MemberDto>({
         path: `/api/v1/members/${id}/company`,
         method: "PUT",
         body: data,
@@ -6207,7 +6715,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<ResourceTypeDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/resource-types`,
         method: "GET",
@@ -6235,7 +6743,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ResourceTypeDto`
      */
     createResourceType: (data: CreateResourceTypeDto, params: RequestParams = {}) =>
-      this.http.request<ResourceTypeDto, ResponseErrorDto | ResponseErrorDto | ResourceTypeDto>({
+      this.http.request<ResourceTypeDto, ResponseErrorDto | ResourceTypeDto>({
         path: `/api/v1/resource-types`,
         method: "POST",
         body: data,
@@ -6263,7 +6771,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ResourceTypeDto`
      */
     getResourceType: (id: string, params: RequestParams = {}) =>
-      this.http.request<ResourceTypeDto, ResponseErrorDto | ResponseErrorDto | ResourceTypeDto>({
+      this.http.request<ResourceTypeDto, ResponseErrorDto | ResourceTypeDto>({
         path: `/api/v1/resource-types/${id}`,
         method: "GET",
         secure: true,
@@ -6289,7 +6797,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ResourceTypeDto`
      */
     updateResourceType: (id: string, data: UpdateResourceTypeDto, params: RequestParams = {}) =>
-      this.http.request<ResourceTypeDto, ResponseErrorDto | ResponseErrorDto | ResourceTypeDto>({
+      this.http.request<ResourceTypeDto, ResponseErrorDto | ResourceTypeDto>({
         path: `/api/v1/resource-types/${id}`,
         method: "PATCH",
         body: data,
@@ -6323,7 +6831,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<ResourceDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/resources`,
         method: "GET",
@@ -6351,7 +6859,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ResourceDto`
      */
     createResource: (data: CreateResourceDto, params: RequestParams = {}) =>
-      this.http.request<ResourceDto, ResponseErrorDto | ResponseErrorDto | ResourceDto>({
+      this.http.request<ResourceDto, ResponseErrorDto | ResourceDto>({
         path: `/api/v1/resources`,
         method: "POST",
         body: data,
@@ -6379,7 +6887,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ResourceDto`
      */
     getResource: (id: string, params: RequestParams = {}) =>
-      this.http.request<ResourceDto, ResponseErrorDto | ResponseErrorDto | ResourceDto>({
+      this.http.request<ResourceDto, ResponseErrorDto | ResourceDto>({
         path: `/api/v1/resources/${id}`,
         method: "GET",
         secure: true,
@@ -6405,7 +6913,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ResourceDto`
      */
     updateResource: (id: string, data: UpdateResourceDto, params: RequestParams = {}) =>
-      this.http.request<ResourceDto, ResponseErrorDto | ResponseErrorDto | ResourceDto>({
+      this.http.request<ResourceDto, ResponseErrorDto | ResourceDto>({
         path: `/api/v1/resources/${id}`,
         method: "PATCH",
         body: data,
@@ -6433,9 +6941,65 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ResourceStatusDto`
      */
     getResourceStatus: (id: string, params: RequestParams = {}) =>
-      this.http.request<ResourceStatusDto, ResponseErrorDto | ResponseErrorDto | ResourceStatusDto>({
+      this.http.request<ResourceStatusDto, ResponseErrorDto | ResourceStatusDto>({
         path: `/api/v1/resources/${id}/status`,
         method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Stores the image in the public resource-images bucket and sets imageUrl; a previous image is replaced. jpg/jpeg/png only. @FileUpload documents the 413/415 responses.
+     *
+     * @tags Catalog — Resources
+     * @name UploadResourceImage
+     * @summary Upload a resource's catalog photo
+     * @request PUT:/api/v1/resources/{id}/image
+     * @secure
+     * @response `200` `(ResourceDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `413` `(ResponseErrorDto)` Payload Too Large
+     * @response `415` `(ResponseErrorDto)` Unsupported Media Type
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `ResourceDto`
+     */
+    uploadResourceImage: (id: string, data: FileDto, params: RequestParams = {}) =>
+      this.http.request<ResourceDto, ResponseErrorDto | ResourceDto>({
+        path: `/api/v1/resources/${id}/image`,
+        method: "PUT",
+        body: data,
+        secure: true,
+        type: ContentType.FormData,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Catalog — Resources
+     * @name DeleteResourceImage
+     * @summary Remove a resource's catalog photo
+     * @request DELETE:/api/v1/resources/{id}/image
+     * @secure
+     * @response `200` `(ResourceDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `ResourceDto`
+     */
+    deleteResourceImage: (id: string, params: RequestParams = {}) =>
+      this.http.request<ResourceDto, ResponseErrorDto | ResourceDto>({
+        path: `/api/v1/resources/${id}/image`,
+        method: "DELETE",
         secure: true,
         format: "json",
         ...params,
@@ -6465,7 +7029,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<ResourceRateDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/resource-rates`,
         method: "GET",
@@ -6494,7 +7058,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ResourceRateDto`
      */
     createResourceRate: (data: CreateResourceRateDto, params: RequestParams = {}) =>
-      this.http.request<ResourceRateDto, ResponseErrorDto | ResponseErrorDto | ResourceRateDto>({
+      this.http.request<ResourceRateDto, ResponseErrorDto | ResourceRateDto>({
         path: `/api/v1/resource-rates`,
         method: "POST",
         body: data,
@@ -6522,7 +7086,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ResourceRateDto`
      */
     getResourceRate: (id: string, params: RequestParams = {}) =>
-      this.http.request<ResourceRateDto, ResponseErrorDto | ResponseErrorDto | ResourceRateDto>({
+      this.http.request<ResourceRateDto, ResponseErrorDto | ResourceRateDto>({
         path: `/api/v1/resource-rates/${id}`,
         method: "GET",
         secure: true,
@@ -6549,7 +7113,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ResourceRateDto`
      */
     updateResourceRate: (id: string, data: UpdateResourceRateDto, params: RequestParams = {}) =>
-      this.http.request<ResourceRateDto, ResponseErrorDto | ResponseErrorDto | ResourceRateDto>({
+      this.http.request<ResourceRateDto, ResponseErrorDto | ResourceRateDto>({
         path: `/api/v1/resource-rates/${id}`,
         method: "PATCH",
         body: data,
@@ -6583,7 +7147,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<PlanDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/plans`,
         method: "GET",
@@ -6610,7 +7174,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `PlanDto`
      */
     createPlan: (data: CreatePlanDto, params: RequestParams = {}) =>
-      this.http.request<PlanDto, ResponseErrorDto | ResponseErrorDto | PlanDto>({
+      this.http.request<PlanDto, ResponseErrorDto | PlanDto>({
         path: `/api/v1/plans`,
         method: "POST",
         body: data,
@@ -6638,7 +7202,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `PlanDto`
      */
     getPlan: (id: string, params: RequestParams = {}) =>
-      this.http.request<PlanDto, ResponseErrorDto | ResponseErrorDto | PlanDto>({
+      this.http.request<PlanDto, ResponseErrorDto | PlanDto>({
         path: `/api/v1/plans/${id}`,
         method: "GET",
         secure: true,
@@ -6665,8 +7229,125 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `PlanDto`
      */
     updatePlan: (id: string, data: UpdatePlanDto, params: RequestParams = {}) =>
-      this.http.request<PlanDto, ResponseErrorDto | ResponseErrorDto | PlanDto>({
+      this.http.request<PlanDto, ResponseErrorDto | PlanDto>({
         path: `/api/v1/plans/${id}`,
+        method: "PATCH",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+ * @description Sales groupings behind the website service sections (coworking, private offices, domiciliation, …), in display order. Defaults are shipped by migrations (isDefault); staff-created categories extend the vocabulary without code changes.
+ *
+ * @tags Catalog — Plan Categories
+ * @name ListPlanCategories
+ * @summary List plan categories
+ * @request GET:/api/v1/plan-categories
+ * @secure
+ * @response `200` `(PageDto & {
+    results?: Array<PlanCategoryDto>,
+
+})` 200
+ * @response `401` `(ResponseErrorDto)` Unauthorized
+ * @response `403` `((ResponseErrorDto))` 403
+ * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+ * @response `429` `(ResponseErrorDto)` Too Many Requests
+ * @response `500` `(ResponseErrorDto)` Internal Server Error
+ * @response `default` `void`
+ */
+    listPlanCategories: (query: ListPlanCategoriesParams, params: RequestParams = {}) =>
+      this.http.request<
+        PageDto & {
+          results?: Array<PlanCategoryDto>;
+        },
+        ResponseErrorDto | void
+      >({
+        path: `/api/v1/plan-categories`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Catalog — Plan Categories
+     * @name CreatePlanCategory
+     * @summary Create a plan category
+     * @request POST:/api/v1/plan-categories
+     * @secure
+     * @response `201` `(PlanCategoryDto)` 201
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `409` `(ResponseErrorDto)` Conflict
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `PlanCategoryDto`
+     */
+    createPlanCategory: (data: CreatePlanCategoryDto, params: RequestParams = {}) =>
+      this.http.request<PlanCategoryDto, ResponseErrorDto | PlanCategoryDto>({
+        path: `/api/v1/plan-categories`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Catalog — Plan Categories
+     * @name GetPlanCategory
+     * @summary Get a plan category
+     * @request GET:/api/v1/plan-categories/{id}
+     * @secure
+     * @response `200` `(PlanCategoryDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `PlanCategoryDto`
+     */
+    getPlanCategory: (id: string, params: RequestParams = {}) =>
+      this.http.request<PlanCategoryDto, ResponseErrorDto | PlanCategoryDto>({
+        path: `/api/v1/plan-categories/${id}`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Catalog — Plan Categories
+     * @name UpdatePlanCategory
+     * @summary Update a plan category
+     * @request PATCH:/api/v1/plan-categories/{id}
+     * @secure
+     * @response `200` `(PlanCategoryDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `409` `(ResponseErrorDto)` Conflict
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `PlanCategoryDto`
+     */
+    updatePlanCategory: (id: string, data: UpdatePlanCategoryDto, params: RequestParams = {}) =>
+      this.http.request<PlanCategoryDto, ResponseErrorDto | PlanCategoryDto>({
+        path: `/api/v1/plan-categories/${id}`,
         method: "PATCH",
         body: data,
         secure: true,
@@ -6699,7 +7380,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<AmenityDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/amenities`,
         method: "GET",
@@ -6727,7 +7408,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `AmenityDto`
      */
     createAmenity: (data: CreateAmenityDto, params: RequestParams = {}) =>
-      this.http.request<AmenityDto, ResponseErrorDto | ResponseErrorDto | AmenityDto>({
+      this.http.request<AmenityDto, ResponseErrorDto | AmenityDto>({
         path: `/api/v1/amenities`,
         method: "POST",
         body: data,
@@ -6755,7 +7436,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `AmenityDto`
      */
     getAmenity: (id: string, params: RequestParams = {}) =>
-      this.http.request<AmenityDto, ResponseErrorDto | ResponseErrorDto | AmenityDto>({
+      this.http.request<AmenityDto, ResponseErrorDto | AmenityDto>({
         path: `/api/v1/amenities/${id}`,
         method: "GET",
         secure: true,
@@ -6781,7 +7462,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `AmenityDto`
      */
     updateAmenity: (id: string, data: UpdateAmenityDto, params: RequestParams = {}) =>
-      this.http.request<AmenityDto, ResponseErrorDto | ResponseErrorDto | AmenityDto>({
+      this.http.request<AmenityDto, ResponseErrorDto | AmenityDto>({
         path: `/api/v1/amenities/${id}`,
         method: "PATCH",
         body: data,
@@ -6815,7 +7496,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<ExtraDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/extras`,
         method: "GET",
@@ -6842,7 +7523,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ExtraDto`
      */
     createExtra: (data: CreateExtraDto, params: RequestParams = {}) =>
-      this.http.request<ExtraDto, ResponseErrorDto | ResponseErrorDto | ExtraDto>({
+      this.http.request<ExtraDto, ResponseErrorDto | ExtraDto>({
         path: `/api/v1/extras`,
         method: "POST",
         body: data,
@@ -6870,7 +7551,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ExtraDto`
      */
     getExtra: (id: string, params: RequestParams = {}) =>
-      this.http.request<ExtraDto, ResponseErrorDto | ResponseErrorDto | ExtraDto>({
+      this.http.request<ExtraDto, ResponseErrorDto | ExtraDto>({
         path: `/api/v1/extras/${id}`,
         method: "GET",
         secure: true,
@@ -6896,7 +7577,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ExtraDto`
      */
     updateExtra: (id: string, data: UpdateExtraDto, params: RequestParams = {}) =>
-      this.http.request<ExtraDto, ResponseErrorDto | ResponseErrorDto | ExtraDto>({
+      this.http.request<ExtraDto, ResponseErrorDto | ExtraDto>({
         path: `/api/v1/extras/${id}`,
         method: "PATCH",
         body: data,
@@ -6930,7 +7611,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<ChargeDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/charges`,
         method: "GET",
@@ -6957,7 +7638,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `ChargeDto`
      */
     createCharge: (data: CreateChargeDto, params: RequestParams = {}) =>
-      this.http.request<ChargeDto, ResponseErrorDto | ResponseErrorDto | ChargeDto>({
+      this.http.request<ChargeDto, ResponseErrorDto | ChargeDto>({
         path: `/api/v1/charges`,
         method: "POST",
         body: data,
@@ -6991,7 +7672,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<InvoiceDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/invoices`,
         method: "GET",
@@ -7019,13 +7700,38 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `InvoiceDto`
      */
     createInvoice: (data: CreateInvoiceDto, params: RequestParams = {}) =>
-      this.http.request<InvoiceDto, ResponseErrorDto | ResponseErrorDto | InvoiceDto>({
+      this.http.request<InvoiceDto, ResponseErrorDto | InvoiceDto>({
         path: `/api/v1/invoices`,
         method: "POST",
         body: data,
         secure: true,
         type: ContentType.Json,
         format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Streams the invoice as a French VAT facture PDF (attachment named after the invoice number, e.g. HS-2026-0042.pdf). Totals are printed from the frozen invoice columns; void invoices are marked ANNULÉE and negative totals render as a facture d’avoir. Member-role callers may only download their own invoices.
+     *
+     * @tags Billing
+     * @name DownloadInvoicePdf
+     * @summary Download an invoice as a PDF
+     * @request GET:/api/v1/invoices/{id}/download
+     * @secure
+     * @response `200` `File` The invoice PDF
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `void`
+     */
+    downloadInvoicePdf: (id: string, params: RequestParams = {}) =>
+      this.http.request<File, ResponseErrorDto | void>({
+        path: `/api/v1/invoices/${id}/download`,
+        method: "GET",
+        secure: true,
         ...params,
       }),
 
@@ -7047,7 +7753,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `InvoiceDto`
      */
     getInvoice: (id: string, params: RequestParams = {}) =>
-      this.http.request<InvoiceDto, ResponseErrorDto | ResponseErrorDto | InvoiceDto>({
+      this.http.request<InvoiceDto, ResponseErrorDto | InvoiceDto>({
         path: `/api/v1/invoices/${id}`,
         method: "GET",
         secure: true,
@@ -7074,7 +7780,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `InvoiceDto`
      */
     voidInvoice: (id: string, params: RequestParams = {}) =>
-      this.http.request<InvoiceDto, ResponseErrorDto | ResponseErrorDto | InvoiceDto>({
+      this.http.request<InvoiceDto, ResponseErrorDto | InvoiceDto>({
         path: `/api/v1/invoices/${id}/void`,
         method: "POST",
         secure: true,
@@ -7101,7 +7807,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `RecordPaymentResultDto`
      */
     recordPayment: (id: string, data: CreatePaymentDto, params: RequestParams = {}) =>
-      this.http.request<RecordPaymentResultDto, ResponseErrorDto | ResponseErrorDto | RecordPaymentResultDto>({
+      this.http.request<RecordPaymentResultDto, ResponseErrorDto | RecordPaymentResultDto>({
         path: `/api/v1/invoices/${id}/payments`,
         method: "POST",
         body: data,
@@ -7135,7 +7841,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<CreditTransactionDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/credits`,
         method: "GET",
@@ -7163,7 +7869,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `CreditTransactionDto`
      */
     grantCredit: (data: GrantCreditDto, params: RequestParams = {}) =>
-      this.http.request<CreditTransactionDto, ResponseErrorDto | ResponseErrorDto | CreditTransactionDto>({
+      this.http.request<CreditTransactionDto, ResponseErrorDto | CreditTransactionDto>({
         path: `/api/v1/credits`,
         method: "POST",
         body: data,
@@ -7191,7 +7897,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `CreditBalancesDto`
      */
     getCreditBalances: (query: GetCreditBalancesParams, params: RequestParams = {}) =>
-      this.http.request<CreditBalancesDto, ResponseErrorDto | ResponseErrorDto | CreditBalancesDto>({
+      this.http.request<CreditBalancesDto, ResponseErrorDto | CreditBalancesDto>({
         path: `/api/v1/credits/balances`,
         method: "GET",
         query: query,
@@ -7218,7 +7924,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `CreditTransactionDto`
      */
     getCredit: (id: string, params: RequestParams = {}) =>
-      this.http.request<CreditTransactionDto, ResponseErrorDto | ResponseErrorDto | CreditTransactionDto>({
+      this.http.request<CreditTransactionDto, ResponseErrorDto | CreditTransactionDto>({
         path: `/api/v1/credits/${id}`,
         method: "GET",
         secure: true,
@@ -7245,7 +7951,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `CreditTransactionDto`
      */
     updateCredit: (id: string, data: UpdateCreditDto, params: RequestParams = {}) =>
-      this.http.request<CreditTransactionDto, ResponseErrorDto | ResponseErrorDto | CreditTransactionDto>({
+      this.http.request<CreditTransactionDto, ResponseErrorDto | CreditTransactionDto>({
         path: `/api/v1/credits/${id}`,
         method: "PATCH",
         body: data,
@@ -7274,7 +7980,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `void`
      */
     deleteCredit: (id: string, params: RequestParams = {}) =>
-      this.http.request<void, ResponseErrorDto | ResponseErrorDto | void>({
+      this.http.request<void, ResponseErrorDto | void>({
         path: `/api/v1/credits/${id}`,
         method: "DELETE",
         secure: true,
@@ -7305,7 +8011,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<MembershipDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/memberships`,
         method: "GET",
@@ -7332,7 +8038,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `MembershipDto`
      */
     createMembership: (data: CreateMembershipDto, params: RequestParams = {}) =>
-      this.http.request<MembershipDto, ResponseErrorDto | ResponseErrorDto | MembershipDto>({
+      this.http.request<MembershipDto, ResponseErrorDto | MembershipDto>({
         path: `/api/v1/memberships`,
         method: "POST",
         body: data,
@@ -7386,7 +8092,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `MembershipDto`
      */
     updateMembership: (id: string, data: UpdateMembershipDto, params: RequestParams = {}) =>
-      this.http.request<MembershipDto, ResponseErrorDto | ResponseErrorDto | MembershipDto>({
+      this.http.request<MembershipDto, ResponseErrorDto | MembershipDto>({
         path: `/api/v1/memberships/${id}`,
         method: "PATCH",
         body: data,
@@ -7415,7 +8121,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `MembershipDto`
      */
     cancelMembership: (id: string, params: RequestParams = {}) =>
-      this.http.request<MembershipDto, ResponseErrorDto | ResponseErrorDto | MembershipDto>({
+      this.http.request<MembershipDto, ResponseErrorDto | MembershipDto>({
         path: `/api/v1/memberships/${id}/cancel`,
         method: "POST",
         secure: true,
@@ -7442,7 +8148,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `MembershipDto`
      */
     renewMembership: (id: string, params: RequestParams = {}) =>
-      this.http.request<MembershipDto, ResponseErrorDto | ResponseErrorDto | MembershipDto>({
+      this.http.request<MembershipDto, ResponseErrorDto | MembershipDto>({
         path: `/api/v1/memberships/${id}/renew`,
         method: "POST",
         secure: true,
@@ -7474,7 +8180,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<AssignmentDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/assignments`,
         method: "GET",
@@ -7502,7 +8208,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `AssignmentDto`
      */
     createAssignment: (data: CreateAssignmentDto, params: RequestParams = {}) =>
-      this.http.request<AssignmentDto, ResponseErrorDto | ResponseErrorDto | AssignmentDto>({
+      this.http.request<AssignmentDto, ResponseErrorDto | AssignmentDto>({
         path: `/api/v1/assignments`,
         method: "POST",
         body: data,
@@ -7530,7 +8236,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `AssignmentDto`
      */
     endAssignment: (id: string, data: EndAssignmentDto, params: RequestParams = {}) =>
-      this.http.request<AssignmentDto, ResponseErrorDto | ResponseErrorDto | AssignmentDto>({
+      this.http.request<AssignmentDto, ResponseErrorDto | AssignmentDto>({
         path: `/api/v1/assignments/${id}/end`,
         method: "POST",
         body: data,
@@ -7558,7 +8264,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `AssignmentDto`
      */
     relocateAssignment: (id: string, data: RelocateAssignmentDto, params: RequestParams = {}) =>
-      this.http.request<AssignmentDto, ResponseErrorDto | ResponseErrorDto | AssignmentDto>({
+      this.http.request<AssignmentDto, ResponseErrorDto | AssignmentDto>({
         path: `/api/v1/assignments/${id}/relocate`,
         method: "POST",
         body: data,
@@ -7586,7 +8292,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `CheckinDto`
      */
     checkIn: (data: CreateCheckinDto, params: RequestParams = {}) =>
-      this.http.request<CheckinDto, ResponseErrorDto | ResponseErrorDto | CheckinDto>({
+      this.http.request<CheckinDto, ResponseErrorDto | CheckinDto>({
         path: `/api/v1/checkins`,
         method: "POST",
         body: data,
@@ -7620,7 +8326,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<CheckinDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/checkins`,
         method: "GET",
@@ -7649,7 +8355,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `CheckinDto`
      */
     checkOut: (id: string, params: RequestParams = {}) =>
-      this.http.request<CheckinDto, ResponseErrorDto | ResponseErrorDto | CheckinDto>({
+      this.http.request<CheckinDto, ResponseErrorDto | CheckinDto>({
         path: `/api/v1/checkins/${id}/checkout`,
         method: "POST",
         secure: true,
@@ -7674,7 +8380,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `Array<OccupancyBucketDto>`
      */
     getOccupancy: (query: GetOccupancyParams, params: RequestParams = {}) =>
-      this.http.request<OccupancyBucketDto, ResponseErrorDto | ResponseErrorDto | Array<OccupancyBucketDto>>({
+      this.http.request<OccupancyBucketDto, ResponseErrorDto | Array<OccupancyBucketDto>>({
         path: `/api/v1/attendance/occupancy`,
         method: "GET",
         query: query,
@@ -7707,7 +8413,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<BookingDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/bookings`,
         method: "GET",
@@ -7735,7 +8441,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `BookingDto`
      */
     createBooking: (data: CreateBookingDto, params: RequestParams = {}) =>
-      this.http.request<BookingDto, ResponseErrorDto | ResponseErrorDto | BookingDto>({
+      this.http.request<BookingDto, ResponseErrorDto | BookingDto>({
         path: `/api/v1/bookings`,
         method: "POST",
         body: data,
@@ -7763,7 +8469,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `BookingDto`
      */
     getBooking: (id: string, params: RequestParams = {}) =>
-      this.http.request<BookingDto, ResponseErrorDto | ResponseErrorDto | BookingDto>({
+      this.http.request<BookingDto, ResponseErrorDto | BookingDto>({
         path: `/api/v1/bookings/${id}`,
         method: "GET",
         secure: true,
@@ -7789,7 +8495,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `BookingDto`
      */
     updateBooking: (id: string, data: UpdateBookingDto, params: RequestParams = {}) =>
-      this.http.request<BookingDto, ResponseErrorDto | ResponseErrorDto | BookingDto>({
+      this.http.request<BookingDto, ResponseErrorDto | BookingDto>({
         path: `/api/v1/bookings/${id}`,
         method: "PATCH",
         body: data,
@@ -7816,7 +8522,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `BookingQuoteDto`
      */
     validateBooking: (data: CreateBookingDto, params: RequestParams = {}) =>
-      this.http.request<BookingQuoteDto, ResponseErrorDto | ResponseErrorDto | BookingQuoteDto>({
+      this.http.request<BookingQuoteDto, ResponseErrorDto | BookingQuoteDto>({
         path: `/api/v1/bookings/validate`,
         method: "POST",
         body: data,
@@ -7871,7 +8577,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `BookingDto`
      */
     confirmBooking: (id: string, params: RequestParams = {}) =>
-      this.http.request<BookingDto, ResponseErrorDto | ResponseErrorDto | BookingDto>({
+      this.http.request<BookingDto, ResponseErrorDto | BookingDto>({
         path: `/api/v1/bookings/${id}/confirm`,
         method: "POST",
         secure: true,
@@ -7928,7 +8634,7 @@ export class HsService<SecurityDataType extends unknown> {
         PageDto & {
           results?: Array<OpportunityDto>;
         },
-        ResponseErrorDto | ResponseErrorDto | void
+        ResponseErrorDto | void
       >({
         path: `/api/v1/opportunities`,
         method: "GET",
@@ -7955,7 +8661,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `OpportunityDto`
      */
     createOpportunity: (data: CreateOpportunityDto, params: RequestParams = {}) =>
-      this.http.request<OpportunityDto, ResponseErrorDto | ResponseErrorDto | OpportunityDto>({
+      this.http.request<OpportunityDto, ResponseErrorDto | OpportunityDto>({
         path: `/api/v1/opportunities`,
         method: "POST",
         body: data,
@@ -7983,7 +8689,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `OpportunityDto`
      */
     updateOpportunity: (id: string, data: UpdateOpportunityDto, params: RequestParams = {}) =>
-      this.http.request<OpportunityDto, ResponseErrorDto | ResponseErrorDto | OpportunityDto>({
+      this.http.request<OpportunityDto, ResponseErrorDto | OpportunityDto>({
         path: `/api/v1/opportunities/${id}`,
         method: "PATCH",
         body: data,
@@ -8010,7 +8716,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `Array<OccupancyBucketDto>`
      */
     analyticsOccupancy: (query: AnalyticsOccupancyParams, params: RequestParams = {}) =>
-      this.http.request<OccupancyBucketDto, ResponseErrorDto | ResponseErrorDto | Array<OccupancyBucketDto>>({
+      this.http.request<OccupancyBucketDto, ResponseErrorDto | Array<OccupancyBucketDto>>({
         path: `/api/v1/analytics/occupancy`,
         method: "GET",
         query: query,
@@ -8036,7 +8742,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `Array<RevenueBucketDto>`
      */
     analyticsRevenue: (query: AnalyticsRevenueParams, params: RequestParams = {}) =>
-      this.http.request<RevenueBucketDto, ResponseErrorDto | ResponseErrorDto | Array<RevenueBucketDto>>({
+      this.http.request<RevenueBucketDto, ResponseErrorDto | Array<RevenueBucketDto>>({
         path: `/api/v1/analytics/revenue`,
         method: "GET",
         query: query,
@@ -8062,7 +8768,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `default` `MembershipAnalyticsDto`
      */
     analyticsMemberships: (query: AnalyticsMembershipsParams, params: RequestParams = {}) =>
-      this.http.request<MembershipAnalyticsDto, ResponseErrorDto | ResponseErrorDto | MembershipAnalyticsDto>({
+      this.http.request<MembershipAnalyticsDto, ResponseErrorDto | MembershipAnalyticsDto>({
         path: `/api/v1/analytics/memberships`,
         method: "GET",
         query: query,
@@ -8072,7 +8778,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Active, non-hidden plans. Server-to-server only.
+     * @description Active, non-hidden plans, cheapest first. Filter by ?category=<slug> for one service section (see GET /public/plan-categories). Server-to-server only.
      *
      * @tags Public (website)
      * @name PublicListPlans
@@ -8084,9 +8790,31 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
      */
-    publicListPlans: (params: RequestParams = {}) =>
+    publicListPlans: (query: PublicListPlansParams, params: RequestParams = {}) =>
       this.http.request<PublicPlanDto, ResponseErrorDto>({
         path: `/api/v1/public/plans`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Plan categories with at least one visible plan (coworking, private offices, domiciliation, …), in display order — the website landing/pricing sections. Server-to-server only.
+     *
+     * @tags Public (website)
+     * @name PublicListPlanCategories
+     * @summary Service sections for the website
+     * @request GET:/api/v1/public/plan-categories
+     * @response `200` `(PublicPlanCategoryDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     */
+    publicListPlanCategories: (params: RequestParams = {}) =>
+      this.http.request<PublicPlanCategoryDto, ResponseErrorDto>({
+        path: `/api/v1/public/plan-categories`,
         method: "GET",
         format: "json",
         ...params,
@@ -8115,11 +8843,11 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Active, non-hidden, bookable resources with amenities and rates. Server-to-server only.
+     * @description Active, visible, sellable spaces: bookable ones carry rates, plan-sold ones carry their target plans (cheapest first), pool parents carry live seat counts; every card has a derived status badge. Filter by ?resourceType=<slug> for one catalog tab, and/or ?planCode=<code> for the spaces sold under one plan. Server-to-server only.
      *
      * @tags Public (website)
      * @name PublicListResources
-     * @summary Bookable resources for the website
+     * @summary Space catalog for the website
      * @request GET:/api/v1/public/resources
      * @response `200` `(PublicResourceDto)` 200
      * @response `401` `(ResponseErrorDto)` Unauthorized
@@ -8127,9 +8855,31 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
      */
-    publicListResources: (params: RequestParams = {}) =>
+    publicListResources: (query: PublicListResourcesParams, params: RequestParams = {}) =>
       this.http.request<PublicResourceDto, ResponseErrorDto>({
         path: `/api/v1/public/resources`,
+        method: "GET",
+        query: query,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Resource types with at least one publicly visible space, for the catalog tab bar. Server-to-server only.
+     *
+     * @tags Public (website)
+     * @name PublicListResourceTypes
+     * @summary Catalog tabs for the website
+     * @request GET:/api/v1/public/resource-types
+     * @response `200` `(PublicResourceTypeDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     */
+    publicListResourceTypes: (params: RequestParams = {}) =>
+      this.http.request<PublicResourceTypeDto, ResponseErrorDto>({
+        path: `/api/v1/public/resource-types`,
         method: "GET",
         format: "json",
         ...params,
@@ -8159,7 +8909,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Creates member (visitor) + opportunity carrying the requested plan, its selected extras and the quoted value in one transaction; staff convert it into a membership at the price the visitor saw. Identity comes only from the body — no user account involved.
+     * @description Creates member (visitor) + opportunity carrying the requested plan, its selected extras and the quoted value in one transaction; staff convert it into a membership at the price the visitor saw. Send planId (pricing page) or resourceId (a catalog space card — the plan resolves via its target plans, and planId picks one when the space is sold under several). Identity comes only from the body — no user account involved.
      *
      * @tags Public (website)
      * @name PublicCreatePlanRequest
@@ -8174,6 +8924,29 @@ export class HsService<SecurityDataType extends unknown> {
     publicCreatePlanRequest: (data: CreatePlanRequestDto, params: RequestParams = {}) =>
       this.http.request<PlanRequestResultDto, ResponseErrorDto>({
         path: `/api/v1/public/plan-requests`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Creates member (visitor) + opportunity for a lightweight lead: the visitor asks about a service category (categorySlug, see GET /public/plan-categories; bare interest slugs like meeting_room are accepted too) OR wants a free trial day (freeDay) — exactly one of the two. No plan and no quote; the priced funnels stay /plan-requests and /booking-requests. Identity comes only from the body — no user account involved.
+     *
+     * @tags Public (website)
+     * @name PublicCreateContactRequest
+     * @summary Landing-page contact request
+     * @request POST:/api/v1/public/contact-requests
+     * @response `201` `(ContactRequestResultDto)` 201
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     */
+    publicCreateContactRequest: (data: CreateContactRequestDto, params: RequestParams = {}) =>
+      this.http.request<ContactRequestResultDto, ResponseErrorDto>({
+        path: `/api/v1/public/contact-requests`,
         method: "POST",
         body: data,
         type: ContentType.Json,

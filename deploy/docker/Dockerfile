@@ -14,7 +14,10 @@ WORKDIR /usr/src/app
 COPY package*.json ./
 
 # Install dependencies (including dev dependencies for build)
-RUN npm ci
+# The .npmrc committed to the repo references ${NPM_GITHUB_TOKEN} but that
+# variable isn't set here; the actual token is supplied out-of-band via a
+# BuildKit secret mount so it never lands in an image layer or build arg.
+RUN --mount=type=secret,id=npmrc,target=/usr/src/app/.npmrc npm ci
 
 # Copy the rest of the application code
 COPY . .

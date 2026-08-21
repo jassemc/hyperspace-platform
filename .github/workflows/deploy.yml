@@ -45,6 +45,9 @@ jobs:
             type=sha,enable,prefix=,suffix=,format=short
             type=raw,value=latest
 
+      - name: 🔐 Prepare npmrc for GitHub Packages
+        run: printf '@hscowork:registry=https://npm.pkg.github.com\n//npm.pkg.github.com/:_authToken=%s\n' "${{ secrets.GITHUB_TOKEN }}" > /tmp/npmrc
+
       - name: 📦🏷️ Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -57,6 +60,8 @@ jobs:
             SUPABASE_URL=${{ secrets.SUPABASE_URL }}
             SUPABASE_PUBLISHABLE_OR_ANON_KEY=${{ secrets.SUPABASE_PUBLISHABLE_OR_ANON_KEY }}
             HS_PLATFORM_API_URL=${{ secrets.HS_PLATFORM_API_URL }}
+          secret-files: |
+            npmrc=/tmp/npmrc
 
       - name: 🚀 Deploy to Render
         uses: johnbeynon/render-deploy-action@v0.0.8
