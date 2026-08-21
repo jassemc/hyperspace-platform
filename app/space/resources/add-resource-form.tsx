@@ -15,8 +15,9 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer"
 import { X } from "lucide-react"
-import { getListResourceTypes, getListLocations, getListAmenities, getListResourceRates } from "@/lib/service"
-import type { ResourceTypeDto, ResourceDto, ListResourceTypesParams, LocationDto, AmenityDto, ResourceRateDto } from "@/lib/service/HsService"
+import { getListResourceTypes, getListLocations, getListAmenities, getListResourceRates, getListPlans } from "@/lib/service"
+import type { ResourceTypeDto, ResourceDto, ListResourceTypesParams, LocationDto, AmenityDto, ResourceRateDto, PlanDto } from "@/lib/service/HsService"
+import { ResourceImage } from "./resource-image"
 import { createResourceAction, updateResourceAction } from "./actions"
 import { toast } from "sonner"
 
@@ -75,6 +76,9 @@ export function AddResourceForm({ isOpen, onClose, editingResource }: Readonly<A
   const [isLoadingRates, setIsLoadingRates] = useState(false)
   const [selectedRateIds, setSelectedRateIds] = useState<string[]>([])
   const [availability, setAvailability] = useState<AvailabilityRow[]>([])
+  const [plans, setPlans] = useState<PlanDto[]>([])
+  const [isLoadingPlans, setIsLoadingPlans] = useState(false)
+  const [selectedPlanIds, setSelectedPlanIds] = useState<string[]>([])
 
   const [createState, createFormAction] = useActionState(createResourceAction, {})
   const [updateState, updateFormAction] = useActionState(updateResourceAction, {})
@@ -123,6 +127,7 @@ export function AddResourceForm({ isOpen, onClose, editingResource }: Readonly<A
       setSelectedLocation(editingResource?.locationId || "")
       setSelectedAmenityIds((editingResource?.amenities ?? []).map((amenity) => amenity.id))
       setSelectedRateIds((editingResource?.rates ?? []).map((rate) => rate.id))
+      setSelectedPlanIds(editingResource?.targetPlanIds ?? [])
       setAvailability(
         (editingResource?.availability ?? []).map((period) => ({
           startDate: toInputValue(period.startDate),
@@ -139,6 +144,8 @@ export function AddResourceForm({ isOpen, onClose, editingResource }: Readonly<A
       setSelectedAmenityIds([])
       setRates([])
       setSelectedRateIds([])
+      setPlans([])
+      setSelectedPlanIds([])
       setAvailability([])
     }
   }, [isOpen, editingResource])
@@ -149,6 +156,7 @@ export function AddResourceForm({ isOpen, onClose, editingResource }: Readonly<A
       fetchLocations()
       fetchResourceTypes()
       fetchAmenities()
+      fetchPlans()
     }
   }, [isOpen])
 
@@ -210,6 +218,18 @@ export function AddResourceForm({ isOpen, onClose, editingResource }: Readonly<A
       console.error("Failed to fetch amenities:", err)
     } finally {
       setIsLoadingAmenities(false)
+    }
+  }
+
+  const fetchPlans = async () => {
+    setIsLoadingPlans(true)
+    try {
+      const response = await getListPlans({ limit: 100, offset: 0, sort: "ASC" })
+      setPlans((response.results ?? []) as PlanDto[])
+    } catch (err) {
+      console.error("Failed to fetch plans:", err)
+    } finally {
+      setIsLoadingPlans(false)
     }
   }
 
@@ -419,6 +439,56 @@ export function AddResourceForm({ isOpen, onClose, editingResource }: Readonly<A
                     )
                   })()}
                 </div>
+
+                <div className="grid gap-2">
+                  <Label>Sold under</Label>
+                  {(() => {
+                    if (isLoadingPlans) {
+                      return <p className="text-sm text-muted-foreground">Loading plans...</p>
+                    }
+                    if (plans.length === 0) {
+                      return <p className="text-sm text-muted-foreground">No plans defined yet.</p>
+                    }
+                    return (
+                      <div className="grid gap-2 rounded-md border border-input p-3">
+                        {plans.map((plan) => (
+                          <label key={plan.id} className="flex items-start gap-2 text-sm">
+                            <input
+                              type="checkbox"
+                              name="targetPlanIds"
+                              value={plan.id}
+                              checked={selectedPlanIds.includes(plan.id)}
+                              onChange={() =>
+                                setSelectedPlanIds((previous) => toggleId(previous, plan.id))
+                              }
+                              className="mt-0.5 h-4 w-4 rounded border-input"
+                            />
+                            <span>
+                              {plan.name}
+                              {plan.category?.name && (
+                                <span className="block text-xs text-muted-foreground">
+                                  {plan.category.name}
+                                </span>
+                              )}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )
+                  })()}
+                  <p className="text-xs text-muted-foreground">
+                    Drives the public catalog and per-plan availability counts. A link only —
+                    nothing is assigned automatically.
+                  </p>
+                </div>
+
+                {/* The photo has its own endpoint and needs an existing resource. */}
+                {editingResource && (
+                  <ResourceImage
+                    resourceId={editingResource.id}
+                    imageUrl={editingResource.imageUrl}
+                  />
+                )}
 
                 <div className="grid gap-2">
                   <Label>Availability</Label>
