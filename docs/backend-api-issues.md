@@ -3,7 +3,7 @@
 Findings from auditing `swagger.json` and the generated client in `lib/service/`
 against what the frontend actually needs.
 
-Audited: 2026-08-18, after the `rateIds`/`amenityIds` regeneration.
+Audited: 2026-08-21, after the plan-categories / invoice-PDF regeneration.
 
 **Already fixed — no action needed.** The previous round reported that every
 `*Ids` property was declared as an array *of arrays* of uuid, and that
@@ -11,6 +11,12 @@ property-level metadata (`description`, `required: false`) was leaking into the
 `items` schema. Both are gone: all 13 id-list properties are now flat
 `array<string>`, and there are zero boolean `required` keys left inside schema
 objects. Verified across the whole spec.
+
+**Fixed this round.** `GET /invoices/{id}/download` now streams a French VAT
+facture, so the frontend no longer builds an invoice document of its own —
+issue 10 is closed, and with it the reasons behind 8 and 9 for invoicing (the
+API renders the document, so it supplies its own issuer identity and whatever
+customer detail it needs). `lib/invoice-identity.ts` has been deleted.
 
 What follows is what is still open.
 
@@ -106,9 +112,10 @@ type is `results?: Array<ResourceDto>` and every consumer writes
 
 ---
 
-## 2. 38 nullable fields are typed as a bare `object` — HIGH
+## 2. 44 nullable fields are typed as a bare `object` — HIGH
 
-**Where:** across the spec. Full list reproducible with a scan for properties
+**Where:** across the spec — 38 at the last audit, 44 now; the new plan-category
+and public-catalog DTOs added more. Full list reproducible with a scan for properties
 whose schema is `{"type": "object"}` with no `properties`, `additionalProperties`
 or `$ref`.
 
@@ -180,22 +187,18 @@ Only one delete exists in the entire API:
 | Path | Methods |
 |---|---|
 | `/api/v1/credits/{id}` | `DELETE` |
+| `/api/v1/resources/{id}/image` | `DELETE` (the photo, not the resource) |
 | `/api/v1/resources`, `/api/v1/resources/{id}` | `GET`, `POST`, `PATCH` |
 | `/api/v1/resource-types`, `/api/v1/resource-types/{id}` | `GET`, `POST`, `PATCH` |
 | `/api/v1/resource-rates`, `/api/v1/resource-rates/{id}` | `GET`, `POST`, `PATCH` |
 | `/api/v1/amenities`, `/api/v1/amenities/{id}` | `GET`, `POST`, `PATCH` |
 
-The resources table ships a delete button whose action is a stub
-(`app/space/resources/actions.ts` — `deleteResourceAction`, marked
-`TODO: Implement deleteResource when API endpoint is available`). It currently
-returns `"Delete not yet implemented"`.
+The frontend assumes soft delete: the resources table has an Archive/Restore
+control writing `active: false` / `true`, which is reversible and works today.
 
-This may well be deliberate — soft-delete via `active: false` is a legitimate
-design. If so, say it explicitly and we will replace the delete button with an
-archive/deactivate control. If not, `DELETE /api/v1/resources/{id}` is the
-missing piece.
-
-**Decision needed:** hard delete, or `active: false` as the supported path?
+**Still a decision:** is that the intended path, or is a hard
+`DELETE /api/v1/resources/{id}` coming? If soft delete is the design, this issue
+can be closed and the wording in the UI is already correct.
 
 ---
 
@@ -253,10 +256,10 @@ exists and is fully specified — it is simply never returned by any operation.
 
 `MemberDto` has `fullName`, `email`, `phone` — and nothing else.
 
-**Impact:** an invoice billed to an individual prints a name and an email where
-the customer's address belongs. Whether that is acceptable depends on Tunisian
-invoicing rules; if a postal address is required on a compliant invoice, invoices
-to individuals cannot currently be issued correctly.
+**Impact:** narrower than before. The API now renders the facture itself, so
+whatever it prints is its own concern. What remains is that the app cannot show
+or capture an individual's address at all — for a member who asks to correct
+their billing details, there is no field to correct.
 
 **Fix:** add `billingAddress` (and probably `taxId`) to `MemberDto`, mirroring
 `CompanyDto`.
@@ -272,9 +275,10 @@ frontend can stop rendering the individual case.
 There is nowhere to read *our own* legal identity from: name, address, tax ID,
 registration number, payment terms, bank details.
 
-Every one of those has to appear on a compliant invoice, so the frontend
-hardcodes them in `lib/invoice-identity.ts`. Changing the company address is
-currently a code change and a deploy.
+This no longer blocks invoicing — the API renders the facture with its own
+identity, and `lib/invoice-identity.ts` has been deleted. What remains is that
+the app still hardcodes the space's name and branding in
+`lib/navigation-config.ts` for want of anywhere to read them from.
 
 **Fix:** a `GET /organisation` (or settings) endpoint returning the issuer
 identity. It would also give the app a real place to read the space's name and
@@ -282,21 +286,18 @@ branding, which are hardcoded in `lib/navigation-config.ts` for the same reason.
 
 ---
 
-## 10. No document generation — MEDIUM
+## 10. No document generation — FIXED
 
-No endpoint in the spec produces a PDF or any rendered document. Verified by
-scanning all 61 paths for `pdf`, `export`, `print` and `download`: none.
+`GET /invoices/{id}/download` streams the invoice as a French VAT facture,
+named after the invoice number, with void invoices marked ANNULÉE and totals
+printed from the frozen columns.
 
-The frontend prints from the browser, and "Save as PDF" in the print dialog is
-how a file is produced. That works, but it means:
+The frontend proxies it through `app/api/invoices/[id]/download/route.ts` —
+needed because the generated client is server-only, and because the
+`lib/service` wrapper is marked `"use server"`, which cannot return a stream.
 
-- The PDF's appearance depends on the operator's browser and print settings
-- Nothing can be emailed or archived automatically
-- There is no immutable rendered copy of what the customer was sent
-
-**Fix:** `GET /invoices/{id}/pdf`. Worth deciding early, because server-rendered
-invoices are usually an accounting requirement rather than a nicety — the
-document sent to a customer should not be re-rendered differently later.
+The hand-built document, its print stylesheet and `lib/invoice-identity.ts`
+are gone. Nothing about the invoice is rendered in the frontend any more.
 
 ---
 
@@ -328,15 +329,14 @@ Checks that came back clean, recorded so they need not be redone:
 | 5 | No `DELETE` for resources | Medium | Add the endpoint, or confirm `active: false` is the intended path |
 | 6 | `ResponseErrorDto \| ResponseErrorDto` in signatures | Low | Optional — generator-side dedup |
 | 7 | Payments are write-only | Medium | Add `GET /invoices/{id}/payments` — `PaymentDto` already exists |
-| 8 | `MemberDto` has no postal address | Medium | Add `billingAddress`/`taxId`, or confirm individuals are never invoiced |
-| 9 | No organisation / tenant endpoint | Medium | Add one; issuer identity is hardcoded in `lib/invoice-identity.ts` |
-| 10 | No PDF generation | Medium | Add `GET /invoices/{id}/pdf` if a stable archived document is required |
+| 8 | `MemberDto` has no postal address | Low | Narrowed: the API renders the facture. Only affects showing/editing a member's billing details |
+| 9 | No organisation / tenant endpoint | Low | Narrowed: only site name and branding remain hardcoded |
+| 10 | No PDF generation | **Fixed** | `GET /invoices/{id}/download` ships a French VAT facture |
 
 **Types.** Issues 1 and 2 are the ones blocking clean frontend types. Between
 them they account for every cast in `lib/api-value.ts` and every paginated call
 site in the app; fixing both lets that module be deleted.
 
-**Billing.** Issues 7–10 all bite the same workflow — issuing a compliant
-invoice. 7 and 8 affect what the document can legally say; 9 and 10 affect
-whether the document is reproducible. Worth triaging together with whoever owns
-the accounting requirements.
+**Billing.** Issue 10 is fixed, which narrows 8 and 9 to cosmetic concerns.
+Issue 7 is the one that still bites: payments can be recorded and never read
+back, so nothing in the app can answer "what did they pay, when, and how".
