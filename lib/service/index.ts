@@ -1,7 +1,7 @@
 "use server";
 import type { RequestParams } from "@hscowork/service-generator/runtime";
 import "server-only";
-import { hsService } from "./api.js";
+import { hsService } from "./api";
 import type {
   AnalyticsMembershipsParams,
   AnalyticsOccupancyParams,
@@ -71,7 +71,7 @@ import type {
   UpdateResourceDto,
   UpdateResourceRateDto,
   UpdateResourceTypeDto,
-} from "./HsService.js";
+} from "./HsService";
 
 export async function getListLocations(query: ListLocationsParams, params?: RequestParams) {
   return hsService.api.listLocations(query, params);
