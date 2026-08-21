@@ -50,6 +50,22 @@ export const createColumns = ({ onEdit }: ColumnsProps): ColumnDef<PlanDto>[] =>
     cell: ({ row }) => <span>{row.getValue<string | null>("code") || "-"}</span>,
   },
   {
+    id: "category",
+    // The API embeds the category, so no separate lookup is needed.
+    accessorFn: (plan) => plan.category?.name ?? "",
+    header: "Category",
+    cell: ({ row }) => {
+      const value = row.getValue<string>("category")
+      return value ? (
+        <Badge variant="outline" className="font-normal">
+          {value}
+        </Badge>
+      ) : (
+        <span className="text-muted-foreground">Uncategorized</span>
+      )
+    },
+  },
+  {
     accessorKey: "kind",
     header: "Kind",
     cell: ({ row }) => {

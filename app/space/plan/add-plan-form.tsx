@@ -15,8 +15,8 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer"
 import { X } from "lucide-react"
-import { getListExtras } from "@/lib/service"
-import type { ExtraDto, PlanDto, PlanKind } from "@/lib/service/HsService"
+import { getListExtras, getListPlanCategories } from "@/lib/service"
+import type { ExtraDto, PlanCategoryDto, PlanDto, PlanKind } from "@/lib/service/HsService"
 import { formatPriceHt } from "@/lib/format"
 import { createPlanAction, updatePlanAction } from "./actions"
 import { toast } from "sonner"
@@ -47,6 +47,7 @@ export function AddPlanForm({ isOpen, onClose, editingPlan }: Readonly<AddPlanFo
   const [updateState, updateFormAction] = useActionState(updatePlanAction, {})
   const [kind, setKind] = useState<PlanKind>("recurring")
   const [extras, setExtras] = useState<ExtraDto[]>([])
+  const [categories, setCategories] = useState<PlanCategoryDto[]>([])
   const [isLoadingExtras, setIsLoadingExtras] = useState(false)
   const [selectedExtraIds, setSelectedExtraIds] = useState<string[]>([])
 
@@ -60,8 +61,10 @@ export function AddPlanForm({ isOpen, onClose, editingPlan }: Readonly<AddPlanFo
       setKind(editingPlan?.kind ?? "recurring")
       setSelectedExtraIds((editingPlan?.extras ?? []).map((extra) => extra.id))
       fetchExtras()
+      fetchCategories()
     } else {
       setExtras([])
+      setCategories([])
       setSelectedExtraIds([])
     }
   }, [isOpen, editingPlan])
@@ -97,6 +100,15 @@ export function AddPlanForm({ isOpen, onClose, editingPlan }: Readonly<AddPlanFo
       console.error("Failed to fetch extras", error)
     } finally {
       setIsLoadingExtras(false)
+    }
+  }
+
+  const fetchCategories = async () => {
+    try {
+      const response = await getListPlanCategories({ limit: 100, offset: 0, sort: "ASC" })
+      setCategories((response.results ?? []) as PlanCategoryDto[])
+    } catch (error) {
+      console.error("Failed to fetch plan categories", error)
     }
   }
 
@@ -140,6 +152,25 @@ export function AddPlanForm({ isOpen, onClose, editingPlan }: Readonly<AddPlanFo
                 <div className="grid gap-2">
                   <Label htmlFor="code">Code</Label>
                   <Input id="code" name="code" placeholder="FT_PLUS" defaultValue={editingPlan?.code || ""} />
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="categoryId">Category</Label>
+                  <select
+                    id="categoryId"
+                    name="categoryId"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    defaultValue={editingPlan?.categoryId ?? ""}
+                  >
+                    <option value="">Uncategorized</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    The website service section this plan is sold under.
+                  </p>
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="kind">Kind</Label>
