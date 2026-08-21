@@ -120,36 +120,3 @@
     @apply bg-background text-foreground;
   }
 }
-/*
- * Printing. The API has no PDF endpoint, so an invoice is printed from the
- * browser (and "Save as PDF" produces the file). These rules strip the app
- * chrome so only the document on the page reaches the paper.
- */
-@media print {
-  /* Sidebar and the sticky page header are navigation, not content. */
-  nav[aria-label="Main navigation"],
-  header {
-    display: none !important;
-  }
-
-  /* The sidebar offsets the content area; on paper there is nothing to offset. */
-  [data-slot="sidebar-inset"] {
-    margin: 0 !important;
-    padding: 0 !important;
-    box-shadow: none !important;
-  }
-
-  body {
-    background: #fff !important;
-  }
-
-  /* Keep a table row intact rather than splitting it across two pages. */
-  tr,
-  article {
-    break-inside: avoid;
-  }
-
-  @page {
-    margin: 16mm;
-  }
-}
