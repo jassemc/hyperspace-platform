@@ -3,7 +3,6 @@ import {
   getListBookings,
   getListCharges,
   getListCheckins,
-  getListLocations,
   getListMembers,
   getListResources,
 } from "@/lib/service"
@@ -11,7 +10,6 @@ import type {
   BookingDto,
   ChargeDto,
   CheckinDto,
-  LocationDto,
   MemberDto,
   MembershipAnalyticsDto,
   ResourceDto,
@@ -20,24 +18,20 @@ import { pageResult } from "@/lib/search-params"
 import { apiName, apiString } from "@/lib/api-value"
 import { formatDate, formatDateTime, formatPriceHt, formatTimeOfDay } from "@/lib/format"
 import { SummaryTable } from "@/components/summary-table"
+import { primaryTimeZone } from "@/lib/locations"
 
 /** The things a staff member would act on first thing in the morning. */
 export async function AttentionLists() {
-  const [checkinPage, bookingPage, chargePage, memberPage, resourcePage, locationPage, analytics] =
+  const [checkinPage, bookingPage, chargePage, memberPage, resourcePage, timeZone, analytics] =
     await Promise.all([
       getListCheckins({ limit: 100, offset: 0, sort: "DESC" }).catch(() => null),
       getListBookings({ limit: 100, offset: 0, sort: "ASC" }).catch(() => null),
       getListCharges({ limit: 100, offset: 0, sort: "DESC", uninvoiced: true }).catch(() => null),
       getListMembers({ limit: 100, offset: 0, sort: "ASC" }).catch(() => null),
       getListResources({ limit: 100, offset: 0, sort: "ASC" }).catch(() => null),
-      getListLocations({ limit: 100, offset: 0, sort: "ASC" }).catch(() => null),
+      primaryTimeZone(),
       getAnalyticsMemberships({ expiringWithinDays: 30 }).catch(() => null),
     ])
-
-  // Multiple locations can be in play; the dashboard has no single
-  // location in scope, so the first one wins for this summary view.
-  const locations = (locationPage?.results ?? []) as LocationDto[]
-  const timeZone = locations[0]?.timezone ?? "UTC"
 
   const memberNames: Record<string, string> = {}
   for (const member of memberPage ? pageResult<MemberDto>(memberPage).results : []) {

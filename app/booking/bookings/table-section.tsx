@@ -3,14 +3,12 @@ import {
   getListResources,
   getListMembers,
   getListCompanies,
-  getListLocations,
 } from "@/lib/service"
 import type {
   BookingDto,
   BookingSource,
   BookingStatus,
   CompanyDto,
-  LocationDto,
   MemberDto,
   ResourceDto,
 } from "@/lib/service/HsService"
@@ -22,6 +20,7 @@ import {
   resolveSearchParams,
   type SearchParamsInput,
 } from "@/lib/search-params"
+import { primaryTimeZone } from "@/lib/locations"
 import { BookingTable } from "./booking-table"
 import { BOOKING_SOURCE_VALUES, BOOKING_STATUS_VALUES } from "./booking-status"
 import { bookingStats } from "./stats"
@@ -72,14 +71,17 @@ export async function BookingTableSection({
   const resourceNames: Record<string, string> = {}
   const memberNames: Record<string, string> = {}
   const companyNames: Record<string, string> = {}
+  // Table rows may span locations; the column formatter needs one zone, so
+  // the first location wins — the single rule, and the single request, that
+  // primaryTimeZone() holds for the whole page.
   let timeZone = "UTC"
 
   try {
-    const [resourcePage, members, companies, locationPage] = await Promise.all([
+    const [resourcePage, members, companies, zone] = await Promise.all([
       getListResources({ limit: 100, offset: 0, sort: "ASC" }),
       getListMembers({ limit: 100, offset: 0, sort: "ASC" }),
       getListCompanies({ limit: 100, offset: 0, sort: "ASC" }),
-      getListLocations({ limit: 100, offset: 0, sort: "ASC" }),
+      primaryTimeZone(),
     ])
     resources = (resourcePage?.results ?? []) as ResourceDto[]
     for (const resource of resources) {
@@ -91,11 +93,9 @@ export async function BookingTableSection({
     for (const company of (companies?.results ?? []) as CompanyDto[]) {
       companyNames[company.id] = company.name
     }
-    // Table rows may span locations; the column formatter needs one zone, so
-    // the first location wins. The calendar, which is per-location, uses the
-    // zone the API puts on its envelope instead.
-    const locations = (locationPage?.results ?? []) as LocationDto[]
-    timeZone = locations[0]?.timezone ?? "UTC"
+    // The calendar, which is per-location, uses the zone the API puts on
+    // its envelope instead.
+    timeZone = zone
   } catch (error) {
     console.warn("Failed to load booking lookups", error)
   }
