@@ -12,10 +12,18 @@ export async function BookingCalendarSection({
 
   const view = (firstParam(params.calendarView) ?? "day") as CalendarView
   const date = firstParam(params.date) ?? todayIn(timeZone)
+  // `resourceId` is the table's room filter, and the toggle's promise is
+  // that filters survive the switch. The week view already narrows to one
+  // room on it, so leaving it unread dropped the filter silently on the way
+  // over — and only reading it here would honour it in the week view alone.
+  // It is also sent to the request (as `resourceIds`, which the endpoint
+  // takes), so the day columns and the month's counts describe the same
+  // room the table was filtered to.
   const state = {
     view,
     date,
     resourceTypeId: firstParam(params.resourceTypeId),
+    resourceId: firstParam(params.resourceId),
     locationId: firstParam(params.locationId),
   }
 
@@ -42,6 +50,7 @@ export async function BookingCalendarSection({
       from,
       to,
       resourceTypeId: state.resourceTypeId,
+      resourceIds: state.resourceId,
       locationId: state.locationId,
     })) as BookingCalendarDto
   } catch (cause) {
