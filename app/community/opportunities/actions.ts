@@ -1,17 +1,21 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { createOpportunity, updateOpportunity } from "@/lib/service"
+import { createOpportunity, onboardLead, updateOpportunity } from "@/lib/service"
 import type {
   CreateOpportunityDto,
+  OnboardingResultDto,
   OpportunityInterest,
   OpportunityStage,
+  RequestedExtraDto,
   UpdateOpportunityDto,
 } from "@/lib/service/HsService"
 
 export type ActionState = {
   success?: boolean
   error?: string
+  /** Success detail worth showing, when "done" alone is too thin. */
+  message?: string
 }
 
 function text(formData: FormData, field: string): string | undefined {
@@ -26,16 +30,56 @@ function num(formData: FormData, field: string): number | undefined {
   return Number.isFinite(value) ? value : undefined
 }
 
+/**
+ * An update distinguishes "leave it" from "empty it": a field the form never
+ * carried is undefined and stays untouched, while one the user cleared is null
+ * and is wiped. Without this an emptied box silently kept its old value.
+ */
+function clearable<T>(formData: FormData, field: string, value: T | undefined) {
+  if (value !== undefined) return value
+  return formData.has(field) ? null : undefined
+}
+
+/**
+ * The drawer posts the chosen add-ons as a JSON snapshot (id, name, price,
+ * VAT) because the opportunity stores them by value, the way a website plan
+ * request does. Absent = leave whatever the opportunity already carries.
+ */
+function requestedExtras(formData: FormData): RequestedExtraDto[] | undefined {
+  const raw = text(formData, "requestedExtras")
+  if (raw === undefined) return undefined
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    return Array.isArray(parsed) ? (parsed as RequestedExtraDto[]) : undefined
+  } catch {
+    return undefined
+  }
+}
+
 function opportunityFields(formData: FormData) {
   return {
     memberId: text(formData, "memberId"),
     interest: text(formData, "interest") as OpportunityInterest | undefined,
     stage: text(formData, "stage") as OpportunityStage | undefined,
-    expectedValue: num(formData, "expectedValue"),
-    source: text(formData, "source"),
-    notes: text(formData, "notes"),
-    requestedPlanId: text(formData, "requestedPlanId"),
-    requestedPlanPriceHt: num(formData, "requestedPlanPriceHt"),
+    expectedValue: clearable(formData, "expectedValue", num(formData, "expectedValue")),
+    source: clearable(formData, "source", text(formData, "source")),
+    notes: clearable(formData, "notes", text(formData, "notes")),
+    requestedPlanId: clearable(
+      formData,
+      "requestedPlanId",
+      text(formData, "requestedPlanId")
+    ),
+    requestedResourceId: clearable(
+      formData,
+      "requestedResourceId",
+      text(formData, "requestedResourceId")
+    ),
+    requestedPlanPriceHt: clearable(
+      formData,
+      "requestedPlanPriceHt",
+      num(formData, "requestedPlanPriceHt")
+    ),
+    requestedExtras: requestedExtras(formData),
   }
 }
 
@@ -51,10 +95,17 @@ export async function createOpportunityAction(
 
     const data: CreateOpportunityDto = {
       ...fields,
+      // Nothing to clear on a lead that does not exist yet.
+      expectedValue: fields.expectedValue ?? undefined,
+      source: fields.source ?? undefined,
+      notes: fields.notes ?? undefined,
+      requestedPlanId: fields.requestedPlanId ?? undefined,
+      requestedResourceId: fields.requestedResourceId ?? undefined,
+      requestedPlanPriceHt: fields.requestedPlanPriceHt ?? undefined,
       memberId: fields.memberId,
       interest: fields.interest,
       // Required by the schema; an opportunity always carries a list.
-      requestedExtras: [],
+      requestedExtras: fields.requestedExtras ?? [],
     }
 
     await createOpportunity(data)
@@ -85,6 +136,46 @@ export async function updateOpportunityAction(
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to update opportunity",
+    }
+  }
+}
+
+/**
+ * Converts the lead: the opportunity says what was sold, this says when it
+ * starts. Anything else about the deal is changed by updating the opportunity
+ * first — the endpoint refuses fields that would contradict it.
+ */
+export async function onboardLeadAction(
+  prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  try {
+    const opportunityId = text(formData, "opportunityId")
+    const startsAt = text(formData, "startsAt")
+
+    if (!opportunityId) return { success: false, error: "Opportunity is required" }
+    if (!startsAt) return { success: false, error: "Start date is required" }
+
+    const result = (await onboardLead({
+      opportunityId,
+      startsAt,
+      endsAt: text(formData, "endsAt"),
+    })) as OnboardingResultDto
+
+    revalidatePath("/community/opportunities")
+    revalidatePath("/community/memberships")
+    revalidatePath("/booking/assignments")
+
+    return {
+      success: true,
+      message: result?.assignment
+        ? "Membership created and the space assigned"
+        : "Membership created — assign a space when one is chosen",
+    }
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Failed to convert this lead",
     }
   }
 }

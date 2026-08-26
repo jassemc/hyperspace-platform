@@ -1,5 +1,9 @@
-import { getListOpportunities, getListMembers } from "@/lib/service"
-import type { MemberDto, OpportunityDto, OpportunityStage } from "@/lib/service/HsService"
+import { getListOpportunities } from "@/lib/service"
+import type {
+  OpportunityDto,
+  OpportunityInterest,
+  OpportunityStage,
+} from "@/lib/service/HsService"
 import {
   asEnum,
   firstParam,
@@ -9,7 +13,11 @@ import {
   type SearchParamsInput,
 } from "@/lib/search-params"
 import { OpportunityTable } from "./opportunity-table"
-import { OPPORTUNITY_STAGE_VALUES } from "./opportunity-meta"
+import {
+  OPPORTUNITY_INTEREST_VALUES,
+  OPPORTUNITY_STAGE_VALUES,
+} from "./opportunity-meta"
+import { opportunityStats } from "./stats"
 
 export async function OpportunityTableSection({
   searchParams,
@@ -17,34 +25,42 @@ export async function OpportunityTableSection({
   const params = await resolveSearchParams(searchParams)
   const { limit, offset, q } = pageQuery(params)
   const stage = asEnum<OpportunityStage>(firstParam(params.status), OPPORTUNITY_STAGE_VALUES)
+  const interest = asEnum<OpportunityInterest>(
+    firstParam(params.interest),
+    OPPORTUNITY_INTEREST_VALUES
+  )
+  const source = firstParam(params.source) || undefined
 
   let results: OpportunityDto[] = []
   let total = 0
 
   try {
-    const response = await getListOpportunities({ limit, offset, sort: "DESC", q, stage })
+    const response = await getListOpportunities({
+      limit,
+      offset,
+      sort: "DESC",
+      q,
+      stage,
+      interest,
+      source,
+    })
     ;({ results, total } = pageResult<OpportunityDto>(response))
   } catch (error) {
     console.warn("Failed to load opportunities", error)
   }
 
-  // Opportunities reference their member by id only.
-  const memberNames: Record<string, string> = {}
-  try {
-    const members = await getListMembers({ limit: 100, offset: 0, sort: "ASC" })
-    for (const member of (members?.results ?? []) as MemberDto[]) {
-      memberNames[member.id] = member.fullName
-    }
-  } catch (error) {
-    console.warn("Failed to load members for opportunities", error)
-  }
+  // One grouped read behind the tab counts and the source options, narrowed
+  // by the same search and interest as the rows.
+  const stats = await opportunityStats(q, interest)
 
   return (
     <OpportunityTable
       data={results}
       totalCount={total}
-      memberNames={memberNames}
       activeStage={stage}
+      activeInterest={interest}
+      activeSource={source}
+      stats={stats}
     />
   )
 }
