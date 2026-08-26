@@ -8,8 +8,11 @@ import { OPPORTUNITY_STAGE_LABELS } from "./opportunity-meta"
 export async function SectionCards() {
   // Counted by the database, and shared with the tab strip when neither is
   // filtered — counting a page of rows here understated every figure past the
-  // hundredth lead.
-  const stats = await opportunityStats(undefined, undefined)
+  // hundredth lead. This card has no search params to read, so it always
+  // asks for the unfiltered pipeline; the four positional undefineds must
+  // still line up with table-section.tsx's call for the two to share a
+  // cache entry when the table itself is unfiltered.
+  const stats = await opportunityStats(undefined, undefined, undefined, undefined)
 
   const totals = opportunityTotals(stats)
 

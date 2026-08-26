@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { DataTable } from "@/components/data-table"
+import { DataTable, type TableFilter } from "@/components/data-table"
 import type {
   OpportunityDto,
   OpportunityInterest,
@@ -25,6 +25,8 @@ interface OpportunityTableProps {
   activeStage?: OpportunityStage
   activeInterest?: OpportunityInterest
   activeSource?: string
+  activeCreatedFrom?: string
+  activeCreatedTo?: string
   stats?: OpportunityStatsDto | null
 }
 
@@ -34,13 +36,15 @@ export function OpportunityTable({
   activeStage,
   activeInterest,
   activeSource,
+  activeCreatedFrom,
+  activeCreatedTo,
   stats,
 }: Readonly<OpportunityTableProps>) {
   const totals = opportunityTotals(stats)
 
   // Interest is a fixed vocabulary; source is whatever staff have typed, so
   // its options come from the data with their counts.
-  const filters = [
+  const filters: TableFilter[] = [
     {
       key: "interest",
       label: "Interest",
@@ -59,6 +63,19 @@ export function OpportunityTable({
         label: entry.source,
         count: entry.count,
       })),
+    },
+    {
+      kind: "dateRange",
+      label: "Created",
+      fromKey: "createdFrom",
+      toKey: "createdTo",
+      fromValue: activeCreatedFrom,
+      toValue: activeCreatedTo,
+      presets: [
+        { label: "Today", days: 0 },
+        { label: "Last 7 days", days: 7 },
+        { label: "Last 30 days", days: 30 },
+      ],
     },
   ]
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
@@ -96,11 +113,15 @@ export function OpportunityTable({
     <>
       {/* Remount on filter change so pagination is re-read from the URL. */}
       <DataTable
-        key={`${activeStage ?? "all"}-${activeInterest ?? "any"}-${activeSource ?? "any"}`}
+        key={`${activeStage ?? "all"}-${activeInterest ?? "any"}-${activeSource ?? "any"}-${activeCreatedFrom ?? ""}-${activeCreatedTo ?? ""}`}
         columns={columns}
         data={data}
         totalCount={typeof totalCount === "number" ? totalCount : undefined}
         filters={filters}
+        // No timeZone prop: an opportunity has no location, so there is no
+        // zone to hand DataTable other than the reader's own — its default.
+        // Do not "fix" this by threading a location in; this call site has
+        // none to give, on purpose.
         showStatusTabs={true}
         statusTabOptions={OPPORTUNITY_STAGE_TABS.map((tab) => ({
           ...tab,

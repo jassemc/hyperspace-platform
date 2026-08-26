@@ -30,6 +30,12 @@ export async function OpportunityTableSection({
     OPPORTUNITY_INTEREST_VALUES
   )
   const source = firstParam(params.source) || undefined
+  // ISO instants, not day strings: an opportunity has no location, so the
+  // server has no timezone in which to decide what "a day" means. The
+  // client converts the picked day into this pair of instants, in the
+  // reader's own zone.
+  const createdFrom = firstParam(params.createdFrom)
+  const createdTo = firstParam(params.createdTo)
 
   let results: OpportunityDto[] = []
   let total = 0
@@ -43,6 +49,8 @@ export async function OpportunityTableSection({
       stage,
       interest,
       source,
+      createdFrom,
+      createdTo,
     })
     ;({ results, total } = pageResult<OpportunityDto>(response))
   } catch (error) {
@@ -50,8 +58,9 @@ export async function OpportunityTableSection({
   }
 
   // One grouped read behind the tab counts and the source options, narrowed
-  // by the same search and interest as the rows.
-  const stats = await opportunityStats(q, interest)
+  // by the same search, interest and created-date bounds as the rows — so
+  // the stage tab counts always label the set of rows on screen.
+  const stats = await opportunityStats(q, interest, createdFrom, createdTo)
 
   return (
     <OpportunityTable
@@ -60,6 +69,8 @@ export async function OpportunityTableSection({
       activeStage={stage}
       activeInterest={interest}
       activeSource={source}
+      activeCreatedFrom={createdFrom}
+      activeCreatedTo={createdTo}
       stats={stats}
     />
   )
