@@ -5,7 +5,8 @@ import { useTransition } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DateField } from "@/components/ui/date-field"
-import { todayIn, type CalendarView } from "./types"
+import { cn } from "@/lib/utils"
+import { addDays, todayIn, type CalendarView } from "./types"
 
 export function CalendarToolbar({
   date,
@@ -17,7 +18,7 @@ export function CalendarToolbar({
   onVacantOnlyChange,
 }: Readonly<{
   date: string
-  /** Drives the step size of the arrows; Task 7 adds the view switch. */
+  /** Drives both the step size of the arrows and the view switch below. */
   view: CalendarView
   /** The grid's zone — "Today" must land on the grid's date, not the reader's. */
   timeZone: string
@@ -36,10 +37,17 @@ export function CalendarToolbar({
     startTransition(() => router.replace(`?${params.toString()}`))
   }
 
-  const shift = (days: number) => {
-    const d = new Date(`${date}T00:00:00Z`)
-    d.setUTCDate(d.getUTCDate() + days)
-    goTo(d.toISOString().slice(0, 10))
+  // Steps by the view's own span: a day, a week, or a calendar month —
+  // not always one day, or `›` on Month would take twelve clicks to
+  // reach next month.
+  const shift = (direction: 1 | -1) => {
+    if (view === "month") {
+      const d = new Date(`${date}T00:00:00Z`)
+      d.setUTCMonth(d.getUTCMonth() + direction)
+      goTo(d.toISOString().slice(0, 10))
+      return
+    }
+    goTo(addDays(date, direction * (view === "week" ? 7 : 1)))
   }
 
   return (
@@ -50,16 +58,40 @@ export function CalendarToolbar({
       </Button>
       <div className="flex items-center gap-1">
         <Button variant="outline" size="icon" className="h-8 w-8"
-          disabled={isPending} onClick={() => shift(-1)} aria-label="Previous day">
+          disabled={isPending} onClick={() => shift(-1)} aria-label={`Previous ${view}`}>
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <Button variant="outline" size="icon" className="h-8 w-8"
-          disabled={isPending} onClick={() => shift(1)} aria-label="Next day">
+          disabled={isPending} onClick={() => shift(1)} aria-label={`Next ${view}`}>
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
       <div className="w-48">
         <DateField name="date" value={date} onChange={goTo} />
+      </div>
+
+      <div className="inline-flex items-center rounded-md border p-0.5">
+        {(["day", "week", "month"] as const).map((value) => (
+          <Button
+            key={value}
+            type="button"
+            size="sm"
+            variant="ghost"
+            aria-pressed={view === value}
+            className={cn("h-8 px-3 capitalize", view === value && "bg-accent")}
+            onClick={() => {
+              const params = new URLSearchParams(searchParams.toString())
+              if (value === "day") {
+                params.delete("calendarView")
+              } else {
+                params.set("calendarView", value)
+              }
+              startTransition(() => router.replace(`?${params.toString()}`))
+            }}
+          >
+            {value}
+          </Button>
+        ))}
       </div>
 
       {/* Client-side: the payload already holds the whole day. */}

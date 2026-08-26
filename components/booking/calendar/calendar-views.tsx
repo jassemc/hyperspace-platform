@@ -7,7 +7,8 @@ import { AddBookingForm } from "@/app/booking/bookings/add-booking-form"
 import { CalendarToolbar } from "./calendar-toolbar"
 import { ResourceTypeTabs } from "./resource-type-tabs"
 import { ResourceDayGrid } from "./resource-day-grid"
-import type { CalendarViewState } from "./types"
+import { WeekGrid } from "./week-grid"
+import { weekStartOf, type CalendarViewState } from "./types"
 
 interface Prefill {
   resourceId: string
@@ -62,7 +63,15 @@ export function CalendarViews({
           onPickSlot={pick}
         />
       )}
-      {/* Tasks 7 and 8 add the week and month branches here. */}
+      {state.view === "week" && (
+        <WeekGrid
+          calendar={calendar}
+          weekStartDate={weekStartOf(state.date)}
+          resourceId={state.resourceId}
+          onPickSlot={pick}
+        />
+      )}
+      {/* Task 8 adds the month branch here. */}
       {prefill && (
         <AddBookingForm
           key={`${prefill.resourceId}-${prefill.startsAt}`}
