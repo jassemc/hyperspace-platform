@@ -13,6 +13,7 @@ interface BookingTableProps {
   resourceNames?: Record<string, string>
   memberNames?: Record<string, string>
   companyNames?: Record<string, string>
+  timeZone: string
 }
 
 export function BookingTable({
@@ -22,6 +23,7 @@ export function BookingTable({
   resourceNames = {},
   memberNames = {},
   companyNames = {},
+  timeZone,
 }: Readonly<BookingTableProps>) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [editingBooking, setEditingBooking] = useState<BookingDto | null>(null)
@@ -38,6 +40,7 @@ export function BookingTable({
 
   const columns = createColumns({
     onEdit: handleEdit,
+    timeZone,
     resourceNames,
     memberNames,
     companyNames,

@@ -5,24 +5,21 @@ import { Button } from "@/components/ui/button"
 import type { ColumnDef } from "@tanstack/react-table"
 import type { BookingDto, BookingStatus } from "@/lib/service/HsService"
 import { ArrowUpDown, Edit } from "lucide-react"
-import { formatEnumLabel, formatPriceHt } from "@/lib/format"
+import { formatDateTime, formatEnumLabel, formatPriceHt } from "@/lib/format"
 import { BOOKING_STATUS_CLASSES, BOOKING_STATUS_LABELS } from "./booking-status"
 import { BookingActionButtons } from "./booking-actions-buttons"
 
 interface ColumnsProps {
   onEdit: (booking: BookingDto) => void
+  timeZone: string
   resourceNames?: Record<string, string>
   memberNames?: Record<string, string>
   companyNames?: Record<string, string>
 }
 
-function formatDateTime(value: string): string {
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? "-" : date.toLocaleString()
-}
-
 export const createColumns = ({
   onEdit,
+  timeZone,
   resourceNames = {},
   memberNames = {},
   companyNames = {},
@@ -69,8 +66,8 @@ export const createColumns = ({
       const booking = row.original
       return (
         <div className="flex flex-col">
-          <span>{formatDateTime(booking.startsAt)}</span>
-          <span className="text-xs text-muted-foreground">to {formatDateTime(booking.endsAt)}</span>
+          <span>{formatDateTime(booking.startsAt, timeZone)}</span>
+          <span className="text-xs text-muted-foreground">to {formatDateTime(booking.endsAt, timeZone)}</span>
         </div>
       )
     },

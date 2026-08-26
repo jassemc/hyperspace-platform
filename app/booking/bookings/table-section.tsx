@@ -1,7 +1,14 @@
-import { getListBookings, getListResources, getListMembers, getListCompanies } from "@/lib/service"
+import {
+  getListBookings,
+  getListResources,
+  getListMembers,
+  getListCompanies,
+  getListLocations,
+} from "@/lib/service"
 import type {
   BookingDto,
   CompanyDto,
+  LocationDto,
   MemberDto,
   ResourceDto,
 } from "@/lib/service/HsService"
@@ -43,12 +50,14 @@ export async function BookingTableSection({
   const resourceNames: Record<string, string> = {}
   const memberNames: Record<string, string> = {}
   const companyNames: Record<string, string> = {}
+  let timeZone = "UTC"
 
   try {
-    const [resourcePage, members, companies] = await Promise.all([
+    const [resourcePage, members, companies, locationPage] = await Promise.all([
       getListResources({ limit: 100, offset: 0, sort: "ASC" }),
       getListMembers({ limit: 100, offset: 0, sort: "ASC" }),
       getListCompanies({ limit: 100, offset: 0, sort: "ASC" }),
+      getListLocations({ limit: 100, offset: 0, sort: "ASC" }),
     ])
     resources = (resourcePage?.results ?? []) as ResourceDto[]
     for (const resource of resources) {
@@ -60,6 +69,11 @@ export async function BookingTableSection({
     for (const company of (companies?.results ?? []) as CompanyDto[]) {
       companyNames[company.id] = company.name
     }
+    // Table rows may span locations; the column formatter needs one zone, so
+    // the first location wins. The calendar, which is per-location, uses the
+    // zone the API puts on its envelope instead.
+    const locations = (locationPage?.results ?? []) as LocationDto[]
+    timeZone = locations[0]?.timezone ?? "UTC"
   } catch (error) {
     console.warn("Failed to load booking lookups", error)
   }
@@ -72,6 +86,7 @@ export async function BookingTableSection({
       resourceNames={resourceNames}
       memberNames={memberNames}
       companyNames={companyNames}
+      timeZone={timeZone}
     />
   )
 }

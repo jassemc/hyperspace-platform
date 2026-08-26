@@ -13,8 +13,27 @@ import type { CreateBookingDto, UpdateBookingDto } from "@/lib/service/HsService
 export type ActionState = {
   success?: boolean
   error?: string
+  /** RFC 9457 `type`, e.g. "booking_conflict" — so the UI can react, not just report. */
+  problemType?: string
+  status?: number
   /** Set by the dry-run check so the form can show the quote before committing. */
   quote?: unknown
+}
+
+/**
+ * The generated client throws HttpError, which puts the problem's
+ * `detail` on `.message` and keeps the whole payload on `.error`. Only
+ * the message was being read, so a conflict was indistinguishable from a
+ * validation failure and nothing could respond to it.
+ */
+function problem(error: unknown, fallback: string): ActionState {
+  const http = error as { message?: string; status?: number; error?: { type?: string } }
+  return {
+    success: false,
+    error: http?.message || fallback,
+    problemType: http?.error?.type,
+    status: http?.status,
+  }
 }
 
 function text(formData: FormData, field: string): string | undefined {
@@ -68,10 +87,7 @@ export async function validateBookingAction(
     const quote = await validateBooking(payload)
     return { success: true, quote }
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "The booking is not valid",
-    }
+    return problem(error, "The booking is not valid")
   }
 }
 
@@ -87,10 +103,7 @@ export async function createBookingAction(
     revalidate()
     return { success: true }
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to create booking",
-    }
+    return problem(error, "Failed to create booking")
   }
 }
 
@@ -116,10 +129,7 @@ export async function updateBookingAction(
     revalidate()
     return { success: true }
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to update booking",
-    }
+    return problem(error, "Failed to update booking")
   }
 }
 
@@ -135,10 +145,7 @@ export async function confirmBookingAction(
     revalidate()
     return { success: true }
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to confirm booking",
-    }
+    return problem(error, "Failed to confirm booking")
   }
 }
 
@@ -154,9 +161,6 @@ export async function cancelBookingAction(
     revalidate()
     return { success: true }
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to cancel booking",
-    }
+    return problem(error, "Failed to cancel booking")
   }
 }

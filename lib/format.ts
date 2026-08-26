@@ -40,3 +40,41 @@ export function formatDate(value: string | null | undefined): string {
     const date = new Date(value)
     return Number.isNaN(date.getTime()) ? "-" : date.toLocaleDateString()
 }
+
+/**
+ * Date and time in a given zone. `timeZone` is required, not defaulted:
+ * a default is how a single region creeps back into a multi-region
+ * product. Callers take it from the location the value belongs to.
+ */
+export function formatDateTime(
+    value: string | null | undefined,
+    timeZone: string
+): string {
+    if (!value) return "-"
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return "-"
+    return new Intl.DateTimeFormat("en-GB", {
+        timeZone,
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    }).format(date)
+}
+
+/** Just the clock time, for calendar axes and block labels. */
+export function formatTimeOfDay(
+    value: string | null | undefined,
+    timeZone: string
+): string {
+    if (!value) return "-"
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return "-"
+    return new Intl.DateTimeFormat("en-GB", {
+        timeZone,
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+    }).format(date)
+}

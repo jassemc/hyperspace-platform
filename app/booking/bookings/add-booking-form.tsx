@@ -231,12 +231,13 @@ export function AddBookingForm({
                       {/* The patch endpoint accepts only `no_show`; confirming
                           and cancelling have their own endpoints, driven by the
                           buttons in the table row. */}
-                      {editingBooking.status !== "no_show" && (
-                        <label className="flex items-center gap-2 text-sm">
-                          <input type="checkbox" name="markNoShow" className="h-4 w-4 rounded border-input" />
-                          Mark as a no-show
-                        </label>
-                      )}
+                      {editingBooking.status !== "no_show" &&
+                        new Date(editingBooking.startsAt) <= new Date() && (
+                          <label className="flex items-center gap-2 text-sm">
+                            <input type="checkbox" name="markNoShow" className="h-4 w-4 rounded border-input" />
+                            Mark as a no-show
+                          </label>
+                        )}
                       <p className="text-xs text-muted-foreground">
                         Use the confirm and cancel actions in the table to change status otherwise.
                       </p>
