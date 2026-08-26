@@ -18,7 +18,7 @@ import type {
 } from "@/lib/service/HsService"
 import { pageResult } from "@/lib/search-params"
 import { apiName, apiString } from "@/lib/api-value"
-import { formatDate, formatPriceHt, formatTimeOfDay } from "@/lib/format"
+import { formatDate, formatDateTime, formatPriceHt, formatTimeOfDay } from "@/lib/format"
 import { SummaryTable } from "@/components/summary-table"
 
 /** The things a staff member would act on first thing in the morning. */
@@ -89,7 +89,7 @@ export async function AttentionLists() {
           .map((booking) => [
             booking.title || "Untitled booking",
             resourceNames[booking.resourceId] ?? "Unknown resource",
-            new Date(booking.startsAt).toLocaleString(),
+            formatDateTime(booking.startsAt, timeZone),
           ])}
       />
 

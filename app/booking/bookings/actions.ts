@@ -21,10 +21,11 @@ export type ActionState = {
 }
 
 /**
- * The generated client throws HttpError, which puts the problem's
- * `detail` on `.message` and keeps the whole payload on `.error`. Only
- * the message was being read, so a conflict was indistinguishable from a
- * validation failure and nothing could respond to it.
+ * The generated client throws HttpError, whose `.message` is
+ * `Status Code ${status}: ${detail}` — prefixed, not the bare detail —
+ * and whose `.error` keeps the full RFC 9457 payload. Only `.message`
+ * was being read, so a conflict was indistinguishable from a validation
+ * failure and nothing could respond to it.
  */
 function problem(error: unknown, fallback: string): ActionState {
   const http = error as { message?: string; status?: number; error?: { type?: string } }
