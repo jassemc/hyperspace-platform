@@ -263,11 +263,34 @@ API correct whether the operator is in Tunis, Lisbon or Dubai.
 
 ### 4.5 Business time is per-location, never a constant
 
-The platform is multi-region and the codebase already reflects that:
-`LocationEntity.timezone:22` is documented as "IANA timezone driving all
-business-hour logic for this location", and there is **no `Africa/Tunis`
-anywhere in backend `src/`** — it survives only as a default value in
-`create-location.dto.ts` and in doc examples.
+The platform must be multi-region, and the booking path is already built
+that way: `LocationEntity.timezone:22` is documented as "IANA timezone
+driving all business-hour logic for this location", and `AvailabilityService`
+resolves every window through it.
+
+**Correction (2026-08-26):** an earlier draft of this section claimed there
+was "no `Africa/Tunis` anywhere in backend `src/`". That was wrong — it came
+from a grep whose `--include` flag the shell failed to expand, so an error
+was read as an empty result. Five modules hardcode the zone in executable
+code:
+
+| File | What |
+|---|---|
+| `crm/services/opportunity.service.ts:39` | `const BUSINESS_TZ = 'Africa/Tunis'` |
+| `membership/utils/business-dates.util.ts:12` | the whole business-date utility, no location parameter |
+| `member/services/member-status.resolver.ts:76,95` | raw SQL `AT TIME ZONE` and `Intl` |
+| `company/services/company-status.resolver.ts:115` | `Intl` |
+| `analytics/services/revenue-analytics.service.ts:38,50` | raw SQL `AT TIME ZONE` in revenue aggregation |
+
+None are touched by this work, and none block it — the booking and calendar
+paths resolve per location throughout. But the platform is **not** yet
+region-general, and each of these carries a real design question rather than
+a mechanical substitution: what timezone does a *company's* status resolve in
+when its people sit in several locations? What does a revenue "month" mean
+across them? That is its own piece of work, listed in §9.
+
+The legitimate mentions — the `locations.timezone` column default, DTO
+`@example` strings, and test fixtures — stay. A default is not a hardcoding.
 
 The helper this work needs also already exists:
 
@@ -551,8 +574,15 @@ plan does not add one (§2). Verification targets the cases that fail
 
 ## 9. Follow-ups (out of scope)
 
-**Region-generality, beyond this spec.** Timezone is now handled
-per-location, but two region assumptions remain and neither is fixed here:
+**Region-generality, beyond this spec.** The booking path resolves timezone
+per location, but the platform as a whole is not yet region-general. Three
+things remain, none fixed here:
+
+- **Five modules hardcode `Africa/Tunis` in executable code** — see the
+  correction table in §4.5. Each needs a decision, not a substitution: a
+  company's status, a member's charge date, and a revenue month all have to
+  resolve in *some* zone, and when the entity spans locations there is no
+  obvious one. Probably the largest of the three.
 
 - **Currency is hardcoded TND.** `lib/format.ts:18` appends the literal
   `" TND"`, and `money-column.transformer.ts` is `numeric(12,3)` because
