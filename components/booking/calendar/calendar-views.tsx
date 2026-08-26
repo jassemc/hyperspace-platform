@@ -8,6 +8,7 @@ import { CalendarToolbar } from "./calendar-toolbar"
 import { ResourceTypeTabs } from "./resource-type-tabs"
 import { ResourceDayGrid } from "./resource-day-grid"
 import { WeekGrid } from "./week-grid"
+import { MonthOverview } from "./month-overview"
 import { weekStartOf, type CalendarViewState } from "./types"
 
 interface Prefill {
@@ -71,7 +72,18 @@ export function CalendarViews({
           onPickSlot={pick}
         />
       )}
-      {/* Task 8 adds the month branch here. */}
+      {state.view === "month" && (
+        <MonthOverview
+          calendar={calendar}
+          month={state.date.slice(0, 7)}
+          onPickDay={(date) => {
+            const params = new URLSearchParams(searchParams.toString())
+            params.set("date", date)
+            params.delete("calendarView")   // day is the default, so absent
+            router.replace(`?${params.toString()}`)
+          }}
+        />
+      )}
       {prefill && (
         <AddBookingForm
           key={`${prefill.resourceId}-${prefill.startsAt}`}
