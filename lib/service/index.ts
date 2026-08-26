@@ -30,6 +30,8 @@ import type {
   CreateResourceTypeDto,
   EndAssignmentDto,
   FileDto,
+  GetBookingCalendarParams,
+  GetBookingStatsParams,
   GetCreditBalancesParams,
   GetOccupancyParams,
   GetResourceAvailabilityParams,
@@ -395,6 +397,14 @@ export async function getListBookings(query: ListBookingsParams, params?: Reques
 
 export async function createBooking(data: CreateBookingDto, params?: RequestParams) {
   return hsService.api.createBooking(data, params);
+}
+
+export async function getBookingStats(query: GetBookingStatsParams, params?: RequestParams) {
+  return hsService.api.getBookingStats(query, params);
+}
+
+export async function getBookingCalendar(query: GetBookingCalendarParams, params?: RequestParams) {
+  return hsService.api.getBookingCalendar(query, params);
 }
 
 export async function getBooking(id: string, params?: RequestParams) {

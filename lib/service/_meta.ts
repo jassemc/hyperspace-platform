@@ -12,7 +12,7 @@ const meta = {
       requestParams: [{ name: "query", type: "ListLocationsParams" }],
       combinedPathAndRequestParams: [],
       payload: null,
-      responseType: "(PageDto & {    results?: Array<LocationDto>,})",
+      responseType: "{    results: Array<LocationDto>,    meta: PageMetaDto,}",
     },
 
     {
@@ -64,7 +64,7 @@ const meta = {
       requestParams: [{ name: "query", type: "ListCompaniesParams" }],
       combinedPathAndRequestParams: [],
       payload: null,
-      responseType: "(PageDto & {    results?: Array<CompanyDto>,})",
+      responseType: "{    results: Array<CompanyDto>,    meta: PageMetaDto,}",
     },
 
     {
@@ -116,7 +116,7 @@ const meta = {
       requestParams: [{ name: "query", type: "ListMembersParams" }],
       combinedPathAndRequestParams: [],
       payload: null,
-      responseType: "(PageDto & {    results?: Array<MemberDto>,})",
+      responseType: "{    results: Array<MemberDto>,    meta: PageMetaDto,}",
     },
 
     {
@@ -194,7 +194,7 @@ const meta = {
       requestParams: [{ name: "query", type: "ListResourceTypesParams" }],
       combinedPathAndRequestParams: [],
       payload: null,
-      responseType: "(PageDto & {    results?: Array<ResourceTypeDto>,})",
+      responseType: "{    results: Array<ResourceTypeDto>,    meta: PageMetaDto,}",
     },
 
     {
@@ -246,7 +246,7 @@ const meta = {
       requestParams: [{ name: "query", type: "ListResourcesParams" }],
       combinedPathAndRequestParams: [],
       payload: null,
-      responseType: "(PageDto & {    results?: Array<ResourceDto>,})",
+      responseType: "{    results: Array<ResourceDto>,    meta: PageMetaDto,}",
     },
 
     {
@@ -337,7 +337,7 @@ const meta = {
       requestParams: [{ name: "query", type: "ListResourceRatesParams" }],
       combinedPathAndRequestParams: [],
       payload: null,
-      responseType: "(PageDto & {    results?: Array<ResourceRateDto>,})",
+      responseType: "{    results: Array<ResourceRateDto>,    meta: PageMetaDto,}",
     },
 
     {
@@ -389,7 +389,7 @@ const meta = {
       requestParams: [{ name: "query", type: "ListPlansParams" }],
       combinedPathAndRequestParams: [],
       payload: null,
-      responseType: "(PageDto & {    results?: Array<PlanDto>,})",
+      responseType: "{    results: Array<PlanDto>,    meta: PageMetaDto,}",
     },
 
     {
@@ -441,7 +441,7 @@ const meta = {
       requestParams: [{ name: "query", type: "ListPlanCategoriesParams" }],
       combinedPathAndRequestParams: [],
       payload: null,
-      responseType: "(PageDto & {    results?: Array<PlanCategoryDto>,})",
+      responseType: "{    results: Array<PlanCategoryDto>,    meta: PageMetaDto,}",
     },
 
     {
@@ -493,7 +493,7 @@ const meta = {
       requestParams: [{ name: "query", type: "ListAmenitiesParams" }],
       combinedPathAndRequestParams: [],
       payload: null,
-      responseType: "(PageDto & {    results?: Array<AmenityDto>,})",
+      responseType: "{    results: Array<AmenityDto>,    meta: PageMetaDto,}",
     },
 
     {
@@ -545,7 +545,7 @@ const meta = {
       requestParams: [{ name: "query", type: "ListExtrasParams" }],
       combinedPathAndRequestParams: [],
       payload: null,
-      responseType: "(PageDto & {    results?: Array<ExtraDto>,})",
+      responseType: "{    results: Array<ExtraDto>,    meta: PageMetaDto,}",
     },
 
     {
@@ -597,7 +597,7 @@ const meta = {
       requestParams: [{ name: "query", type: "ListChargesParams" }],
       combinedPathAndRequestParams: [],
       payload: null,
-      responseType: "(PageDto & {    results?: Array<ChargeDto>,})",
+      responseType: "{    results: Array<ChargeDto>,    meta: PageMetaDto,}",
     },
 
     {
@@ -623,7 +623,7 @@ const meta = {
       requestParams: [{ name: "query", type: "ListInvoicesParams" }],
       combinedPathAndRequestParams: [],
       payload: null,
-      responseType: "(PageDto & {    results?: Array<InvoiceDto>,})",
+      responseType: "{    results: Array<InvoiceDto>,    meta: PageMetaDto,}",
     },
 
     {
@@ -727,7 +727,7 @@ const meta = {
       requestParams: [{ name: "query", type: "ListCreditsParams" }],
       combinedPathAndRequestParams: [],
       payload: null,
-      responseType: "(PageDto & {    results?: Array<CreditTransactionDto>,})",
+      responseType: "{    results: Array<CreditTransactionDto>,    meta: PageMetaDto,}",
     },
 
     {
@@ -805,7 +805,7 @@ const meta = {
       requestParams: [{ name: "query", type: "ListMembershipsParams" }],
       combinedPathAndRequestParams: [],
       payload: null,
-      responseType: "(PageDto & {    results?: Array<MembershipDto>,})",
+      responseType: "{    results: Array<MembershipDto>,    meta: PageMetaDto,}",
     },
 
     {
@@ -922,7 +922,7 @@ const meta = {
       requestParams: [{ name: "query", type: "ListAssignmentsParams" }],
       combinedPathAndRequestParams: [],
       payload: null,
-      responseType: "(PageDto & {    results?: Array<AssignmentDto>,})",
+      responseType: "{    results: Array<AssignmentDto>,    meta: PageMetaDto,}",
     },
 
     {
@@ -987,7 +987,7 @@ const meta = {
       requestParams: [{ name: "query", type: "ListCheckinsParams" }],
       combinedPathAndRequestParams: [],
       payload: null,
-      responseType: "(PageDto & {    results?: Array<CheckinDto>,})",
+      responseType: "{    results: Array<CheckinDto>,    meta: PageMetaDto,}",
     },
 
     {
@@ -1026,7 +1026,7 @@ const meta = {
       requestParams: [{ name: "query", type: "ListBookingsParams" }],
       combinedPathAndRequestParams: [],
       payload: null,
-      responseType: "(PageDto & {    results?: Array<BookingDto>,})",
+      responseType: "{    results: Array<BookingDto>,    meta: PageMetaDto,}",
     },
 
     {
@@ -1040,6 +1040,32 @@ const meta = {
       combinedPathAndRequestParams: [],
       payload: { name: "data", optional: false, type: "CreateBookingDto" },
       responseType: "(BookingDto)",
+    },
+
+    {
+      namespace: "api",
+      method: "GET",
+      usage: "getBookingStats",
+      path: "/api/v1/bookings/stats",
+      functionName: "getBookingStats",
+      pathParams: [],
+      requestParams: [{ name: "query", type: "GetBookingStatsParams" }],
+      combinedPathAndRequestParams: [],
+      payload: null,
+      responseType: "(BookingStatsDto)",
+    },
+
+    {
+      namespace: "api",
+      method: "GET",
+      usage: "getBookingCalendar",
+      path: "/api/v1/bookings/calendar",
+      functionName: "getBookingCalendar",
+      pathParams: [],
+      requestParams: [{ name: "query", type: "GetBookingCalendarParams" }],
+      combinedPathAndRequestParams: [],
+      payload: null,
+      responseType: "(BookingCalendarDto)",
     },
 
     {
@@ -1132,7 +1158,7 @@ const meta = {
       requestParams: [{ name: "query", type: "ListOpportunitiesParams" }],
       combinedPathAndRequestParams: [],
       payload: null,
-      responseType: "(PageDto & {    results?: Array<OpportunityDto>,})",
+      responseType: "{    results: Array<OpportunityDto>,    meta: PageMetaDto,}",
     },
 
     {

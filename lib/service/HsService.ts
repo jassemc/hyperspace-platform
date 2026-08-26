@@ -69,13 +69,6 @@ export interface PageMetaDto {
   hasNextPage: boolean;
 }
 
-export interface PageDto {
-  /** An array of results for the current page. */
-  results: Array<string>;
-  /** Metadata for the paginated response, including pagination details. */
-  meta: PageMetaDto;
-}
-
 export interface AddressDto {
   /** @example "Tunisia" */
   country?: string;
@@ -2064,6 +2057,104 @@ export interface BookingDto {
   updatedAt: string;
 }
 
+export interface BookingStatusCountDto {
+  status: BookingStatus;
+  /** @example 12 */
+  count: number;
+}
+
+export interface BookingSourceCountDto {
+  source: BookingSource;
+  /** @example 4 */
+  count: number;
+}
+
+export interface BookingStatsDto {
+  /** Every status, always — a zero reads as empty, a gap reads as broken. */
+  byStatus: Array<BookingStatusCountDto>;
+  bySource: Array<BookingSourceCountDto>;
+  /** @example 42 */
+  total: number;
+  /**
+   * Sum of priceHt; credit-covered bookings (NULL price) contribute 0.
+   * @example 1240.5
+   */
+  bookedValueHt: number;
+}
+
+export interface AmenitySummaryDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Screen" */
+  name: string;
+  /** @example "tv" */
+  icon: string | null;
+}
+
+export interface CalendarResourceSummaryDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Alpha Room" */
+  name: string;
+  /** @example 8 */
+  capacity: number;
+  imageUrl: string | null;
+  /** @format uuid */
+  resourceTypeId: string;
+  bookingMode: BookingMode;
+  /** @example 60 */
+  minDurationMin: number | null;
+  /** @example 480 */
+  maxDurationMin: number | null;
+  /** @example 24 */
+  cancellationHours: number;
+  amenities: Array<AmenitySummaryDto>;
+}
+
+export interface AvailabilityDayDto {
+  /** @example "2026-07-13" */
+  date: string;
+  /** Bookable windows that day (booking_times ?? location hours). */
+  windows: Array<TimeWindowDto>;
+}
+
+export interface CalendarBlockDto {
+  /** @format uuid */
+  bookingId: string;
+  /** @format date-time */
+  startsAt: string;
+  /** @format date-time */
+  endsAt: string;
+  status: BookingStatus;
+  title: string | null;
+  /**
+   * Resolved server-side; the grid must not re-derive it from ids.
+   * @example "Amel Ben Ali"
+   */
+  customerName: string | null;
+  source: BookingSource;
+}
+
+export interface CalendarResourceDto {
+  resource: CalendarResourceSummaryDto;
+  days: Array<AvailabilityDayDto>;
+  blocks: Array<CalendarBlockDto>;
+}
+
+export interface BookingCalendarDto {
+  /** @format date-time */
+  from: string;
+  /** @format date-time */
+  to: string;
+  /**
+   * IANA zone of the location this grid belongs to. The time axis is
+   * drawn in it — clients must not fall back to the browser's zone.
+   * @example "Europe/Lisbon"
+   */
+  timezone: string;
+  resources: Array<CalendarResourceDto>;
+}
+
 export interface CreateBookingDto {
   /** @format uuid */
   resourceId: string;
@@ -2151,13 +2242,6 @@ export interface UpdateBookingDto {
   title?: string;
   notes?: string;
   status?: "no_show";
-}
-
-export interface AvailabilityDayDto {
-  /** @example "2026-07-13" */
-  date: string;
-  /** Bookable windows that day (booking_times ?? location hours). */
-  windows: Array<TimeWindowDto>;
 }
 
 export interface BusyIntervalDto {
@@ -3348,8 +3432,48 @@ export interface ListBookingsParams {
   from?: string;
   /** @example "2026-07-31T23:59:59Z" */
   to?: string;
+  status?: BookingStatus;
+  source?: BookingSource;
+  /**
+   * Customer filter; member XOR company, same as the booking itself.
+   * @format uuid
+   */
+  memberId?: string;
+  /** @format uuid */
+  companyId?: string;
   /** The search term to filter results. */
   q?: string;
+}
+
+export interface GetBookingStatsParams {
+  q?: string;
+  /** @format uuid */
+  resourceId?: string;
+  /** @example "2026-08-01T00:00:00Z" */
+  from?: string;
+  /** @example "2026-08-31T23:59:59Z" */
+  to?: string;
+  source?: BookingSource;
+  /** @format uuid */
+  memberId?: string;
+  /** @format uuid */
+  companyId?: string;
+}
+
+export interface GetBookingCalendarParams {
+  /** @example "2026-08-24T00:00:00Z" */
+  from: string;
+  /** @example "2026-08-25T00:00:00Z" */
+  to: string;
+  /**
+   * Comma-separated; omit for every bookable room in scope.
+   * @example "uuid,uuid"
+   */
+  resourceIds?: string;
+  /** @format uuid */
+  resourceTypeId?: string;
+  /** @format uuid */
+  locationId?: string;
 }
 
 export interface GetResourceAvailabilityParams {
@@ -3384,6 +3508,19 @@ export interface ListOpportunitiesParams {
   interest?: OpportunityInterest;
   /** @format uuid */
   memberId?: string;
+  /**
+   * Instants, not dates. An opportunity has no location, so the server
+   * has no timezone in which to decide what "a day" is — and picking one
+   * would bake a region into a region-neutral entity. The client turns
+   * the day it means into a pair of instants.
+   * @example "2026-08-01T00:00:00Z"
+   */
+  createdFrom?: string;
+  /**
+   * Exclusive upper bound.
+   * @example "2026-08-08T00:00:00Z"
+   */
+  createdTo?: string;
   /** The search term to filter results. */
   q?: string;
 }
@@ -3392,6 +3529,19 @@ export interface OpportunityStatsParams {
   /** Same search as the list: the member's name or the source. */
   q?: string;
   interest?: OpportunityInterest;
+  /**
+   * Instants, not dates. An opportunity has no location, so the server
+   * has no timezone in which to decide what "a day" is — and picking one
+   * would bake a region into a region-neutral entity. The client turns
+   * the day it means into a pair of instants.
+   * @example "2026-08-01T00:00:00Z"
+   */
+  createdFrom?: string;
+  /**
+   * Exclusive upper bound.
+   * @example "2026-08-08T00:00:00Z"
+   */
+  createdTo?: string;
 }
 
 export interface AnalyticsOccupancyParams {
@@ -3463,10 +3613,11 @@ export namespace Api {
  * @summary List locations
  * @request GET:/api/v1/locations
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<LocationDto>,
+ * @response `200` `{
+    results: Array<LocationDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -3496,8 +3647,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<LocationDto>;
+    export type ResponseBody = {
+      results: Array<LocationDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -3583,10 +3735,11 @@ export namespace Api {
  * @summary List companies
  * @request GET:/api/v1/companies
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<CompanyDto>,
+ * @response `200` `{
+    results: Array<CompanyDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -3618,8 +3771,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<CompanyDto>;
+    export type ResponseBody = {
+      results: Array<CompanyDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -3705,10 +3859,11 @@ export namespace Api {
  * @summary List members
  * @request GET:/api/v1/members
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<MemberDto>,
+ * @response `200` `{
+    results: Array<MemberDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -3743,8 +3898,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<MemberDto>;
+    export type ResponseBody = {
+      results: Array<MemberDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -3883,10 +4039,11 @@ export namespace Api {
  * @summary List resource types
  * @request GET:/api/v1/resource-types
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<ResourceTypeDto>,
+ * @response `200` `{
+    results: Array<ResourceTypeDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -3916,8 +4073,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<ResourceTypeDto>;
+    export type ResponseBody = {
+      results: Array<ResourceTypeDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -4004,10 +4162,11 @@ export namespace Api {
  * @summary List resources
  * @request GET:/api/v1/resources
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<ResourceDto>,
+ * @response `200` `{
+    results: Array<ResourceDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -4043,8 +4202,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<ResourceDto>;
+    export type ResponseBody = {
+      results: Array<ResourceDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -4211,10 +4371,11 @@ export namespace Api {
  * @summary List resource rates
  * @request GET:/api/v1/resource-rates
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<ResourceRateDto>,
+ * @response `200` `{
+    results: Array<ResourceRateDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -4246,8 +4407,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<ResourceRateDto>;
+    export type ResponseBody = {
+      results: Array<ResourceRateDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -4336,10 +4498,11 @@ export namespace Api {
  * @summary List plans
  * @request GET:/api/v1/plans
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<PlanDto>,
+ * @response `200` `{
+    results: Array<PlanDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -4372,8 +4535,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<PlanDto>;
+    export type ResponseBody = {
+      results: Array<PlanDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -4460,10 +4624,11 @@ export namespace Api {
  * @summary List plan categories
  * @request GET:/api/v1/plan-categories
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<PlanCategoryDto>,
+ * @response `200` `{
+    results: Array<PlanCategoryDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -4493,8 +4658,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<PlanCategoryDto>;
+    export type ResponseBody = {
+      results: Array<PlanCategoryDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -4582,10 +4748,11 @@ export namespace Api {
  * @summary List amenities
  * @request GET:/api/v1/amenities
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<AmenityDto>,
+ * @response `200` `{
+    results: Array<AmenityDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -4615,8 +4782,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<AmenityDto>;
+    export type ResponseBody = {
+      results: Array<AmenityDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -4703,10 +4871,11 @@ export namespace Api {
  * @summary List extras
  * @request GET:/api/v1/extras
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<ExtraDto>,
+ * @response `200` `{
+    results: Array<ExtraDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -4736,8 +4905,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<ExtraDto>;
+    export type ResponseBody = {
+      results: Array<ExtraDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -4823,10 +4993,11 @@ export namespace Api {
  * @summary List charges
  * @request GET:/api/v1/charges
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<ChargeDto>,
+ * @response `200` `{
+    results: Array<ChargeDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -4863,8 +5034,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<ChargeDto>;
+    export type ResponseBody = {
+      results: Array<ChargeDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -4898,10 +5070,11 @@ export namespace Api {
  * @summary List invoices
  * @request GET:/api/v1/invoices
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<InvoiceDto>,
+ * @response `200` `{
+    results: Array<InvoiceDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -4936,8 +5109,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<InvoiceDto>;
+    export type ResponseBody = {
+      results: Array<InvoiceDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -5132,10 +5306,11 @@ export namespace Api {
  * @summary List credit ledger rows
  * @request GET:/api/v1/credits
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<CreditTransactionDto>,
+ * @response `200` `{
+    results: Array<CreditTransactionDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -5192,8 +5367,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<CreditTransactionDto>;
+    export type ResponseBody = {
+      results: Array<CreditTransactionDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -5352,10 +5528,11 @@ export namespace Api {
  * @summary List memberships
  * @request GET:/api/v1/memberships
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<MembershipDto>,
+ * @response `200` `{
+    results: Array<MembershipDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -5401,8 +5578,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<MembershipDto>;
+    export type ResponseBody = {
+      results: Array<MembershipDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -5622,10 +5800,11 @@ export namespace Api {
  * @summary List resource assignments
  * @request GET:/api/v1/assignments
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<AssignmentDto>,
+ * @response `200` `{
+    results: Array<AssignmentDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -5664,8 +5843,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<AssignmentDto>;
+    export type ResponseBody = {
+      results: Array<AssignmentDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -5778,10 +5958,11 @@ export namespace Api {
  * @summary List check-ins
  * @request GET:/api/v1/checkins
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<CheckinDto>,
+ * @response `200` `{
+    results: Array<CheckinDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -5817,8 +5998,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<CheckinDto>;
+    export type ResponseBody = {
+      results: Array<CheckinDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -5882,16 +6064,17 @@ export namespace Api {
   }
 
   /**
- * @description Staff/admin see everything; member-role callers see their own and their employer company's bookings. Filters: resourceId, from, to (interval overlap).
+ * @description Staff/admin see everything; member-role callers see their own and their employer company's bookings. Filters: resourceId, status, source, memberId, companyId, and from/to (interval overlap — a booking matches when it touches the range). `q` searches title, notes and the customer name.
  * @tags Bookings
  * @name ListBookings
  * @summary List bookings
  * @request GET:/api/v1/bookings
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<BookingDto>,
+ * @response `200` `{
+    results: Array<BookingDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -5922,13 +6105,23 @@ export namespace Api {
       from?: string;
       /** @example "2026-07-31T23:59:59Z" */
       to?: string;
+      status?: BookingStatus;
+      source?: BookingSource;
+      /**
+       * Customer filter; member XOR company, same as the booking itself.
+       * @format uuid
+       */
+      memberId?: string;
+      /** @format uuid */
+      companyId?: string;
       /** The search term to filter results. */
       q?: string;
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<BookingDto>;
+    export type ResponseBody = {
+      results: Array<BookingDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -5954,6 +6147,79 @@ export namespace Api {
     export type RequestBody = CreateBookingDto;
     export type RequestHeaders = {};
     export type ResponseBody = BookingDto;
+  }
+
+  /**
+   * @description Staff/admin only — unlike the list, this is never scoped to a caller's own bookings, so it stays off the member role entirely. Counts for the list tabs and the summary cards, computed in the database. Takes the same filters as the list except `status` — the counts are the per-status breakdown, so filtering by it would collapse them. Every status is present, zero included.
+   * @tags Bookings
+   * @name GetBookingStats
+   * @summary Booking counts by status and source
+   * @request GET:/api/v1/bookings/stats
+   * @secure
+   * @response `200` `(BookingStatsDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `BookingStatsDto`
+   */
+  export namespace GetBookingStats {
+    export type RequestParams = {};
+    export type RequestQuery = {
+      q?: string;
+      /** @format uuid */
+      resourceId?: string;
+      /** @example "2026-08-01T00:00:00Z" */
+      from?: string;
+      /** @example "2026-08-31T23:59:59Z" */
+      to?: string;
+      source?: BookingSource;
+      /** @format uuid */
+      memberId?: string;
+      /** @format uuid */
+      companyId?: string;
+    };
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = BookingStatsDto;
+  }
+
+  /**
+   * @description Everything one grid needs in a single read: per bookable room, its header summary, its bookable windows per local day, and its pending and confirmed bookings as blocks. Range ≤ 31 days. The grid covers one location — its timezone is on the envelope.
+   * @tags Bookings
+   * @name GetBookingCalendar
+   * @summary Calendar grid: rooms, windows and blocks
+   * @request GET:/api/v1/bookings/calendar
+   * @secure
+   * @response `200` `(BookingCalendarDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `422` `((ResponseErrorDto))` 422
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `BookingCalendarDto`
+   */
+  export namespace GetBookingCalendar {
+    export type RequestParams = {};
+    export type RequestQuery = {
+      /** @example "2026-08-24T00:00:00Z" */
+      from: string;
+      /** @example "2026-08-25T00:00:00Z" */
+      to: string;
+      /**
+       * Comma-separated; omit for every bookable room in scope.
+       * @example "uuid,uuid"
+       */
+      resourceIds?: string;
+      /** @format uuid */
+      resourceTypeId?: string;
+      /** @format uuid */
+      locationId?: string;
+    };
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = BookingCalendarDto;
   }
 
   /**
@@ -6115,16 +6381,17 @@ export namespace Api {
   }
 
   /**
- * @description Pipeline view. Filter by stage, interest, source or memberId; `q` searches the member's name.
+ * @description Pipeline view. Filter by stage, interest, source or memberId; `q` searches the member's name. Filter by creation time with createdFrom/createdTo (ISO instants, upper bound exclusive). They are instants rather than dates because an opportunity has no location and therefore no timezone in which to define a day — the client decides what day it means.
  * @tags CRM
  * @name ListOpportunities
  * @summary List opportunities
  * @request GET:/api/v1/opportunities
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<OpportunityDto>,
+ * @response `200` `{
+    results: Array<OpportunityDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -6158,13 +6425,27 @@ export namespace Api {
       interest?: OpportunityInterest;
       /** @format uuid */
       memberId?: string;
+      /**
+       * Instants, not dates. An opportunity has no location, so the server
+       * has no timezone in which to decide what "a day" is — and picking one
+       * would bake a region into a region-neutral entity. The client turns
+       * the day it means into a pair of instants.
+       * @example "2026-08-01T00:00:00Z"
+       */
+      createdFrom?: string;
+      /**
+       * Exclusive upper bound.
+       * @example "2026-08-08T00:00:00Z"
+       */
+      createdTo?: string;
       /** The search term to filter results. */
       q?: string;
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<OpportunityDto>;
+    export type ResponseBody = {
+      results: Array<OpportunityDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -6192,7 +6473,7 @@ export namespace Api {
   }
 
   /**
-   * @description What the filters above the list need, in one request: per stage, how many leads and what they are worth, and every source present in the data with its count. Totals, the open/won/lost split and the pipeline all follow from the stage rows. Accepts the same q and interest filters as the list, so the numbers match the rows on screen. Every stage is present, zero included; sources are those that exist, busiest first; and byWeek carries the last eight weeks of leads opened, won and lost, always all eight so a quiet week reads as zero rather than going missing.
+   * @description What the filters above the list need, in one request: per stage, how many leads and what they are worth, and every source present in the data with its count. Totals, the open/won/lost split and the pipeline all follow from the stage rows. Accepts the same q and interest filters as the list, so the numbers match the rows on screen. Every stage is present, zero included; sources are those that exist, busiest first; and byWeek carries the last eight weeks of leads opened, won and lost, always all eight so a quiet week reads as zero rather than going missing. Filter by creation time with createdFrom/createdTo (ISO instants, upper bound exclusive). They are instants rather than dates because an opportunity has no location and therefore no timezone in which to define a day — the client decides what day it means.
    * @tags CRM
    * @name OpportunityStats
    * @summary Pipeline totals
@@ -6212,6 +6493,19 @@ export namespace Api {
       /** Same search as the list: the member's name or the source. */
       q?: string;
       interest?: OpportunityInterest;
+      /**
+       * Instants, not dates. An opportunity has no location, so the server
+       * has no timezone in which to decide what "a day" is — and picking one
+       * would bake a region into a region-neutral entity. The client turns
+       * the day it means into a pair of instants.
+       * @example "2026-08-01T00:00:00Z"
+       */
+      createdFrom?: string;
+      /**
+       * Exclusive upper bound.
+       * @example "2026-08-08T00:00:00Z"
+       */
+      createdTo?: string;
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
@@ -7016,12 +7310,12 @@ export namespace Health {
 }
 
 /**
- * @title Platform Api
+ * @title Hyperspace OS API
  * @version 0.0.1
  * @baseUrl /
  * @contact
  *
- * Service for managing hyperspace operations
+ * Hyperspace OS backend API
  */
 export class HsService<SecurityDataType extends unknown> {
   http: HttpClient<SecurityDataType>;
@@ -7054,10 +7348,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List locations
  * @request GET:/api/v1/locations
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<LocationDto>,
+ * @response `200` `{
+    results: Array<LocationDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -7067,8 +7362,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listLocations: (query: ListLocationsParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<LocationDto>;
+        {
+          results: Array<LocationDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -7169,10 +7465,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List companies
  * @request GET:/api/v1/companies
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<CompanyDto>,
+ * @response `200` `{
+    results: Array<CompanyDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -7182,8 +7479,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listCompanies: (query: ListCompaniesParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<CompanyDto>;
+        {
+          results: Array<CompanyDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -7284,10 +7582,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List members
  * @request GET:/api/v1/members
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<MemberDto>,
+ * @response `200` `{
+    results: Array<MemberDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -7297,8 +7596,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listMembers: (query: ListMembersParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<MemberDto>;
+        {
+          results: Array<MemberDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -7456,10 +7756,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List resource types
  * @request GET:/api/v1/resource-types
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<ResourceTypeDto>,
+ * @response `200` `{
+    results: Array<ResourceTypeDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -7469,8 +7770,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listResourceTypes: (query: ListResourceTypesParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<ResourceTypeDto>;
+        {
+          results: Array<ResourceTypeDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -7572,10 +7874,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List resources
  * @request GET:/api/v1/resources
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<ResourceDto>,
+ * @response `200` `{
+    results: Array<ResourceDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -7585,8 +7888,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listResources: (query: ListResourcesParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<ResourceDto>;
+        {
+          results: Array<ResourceDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -7770,10 +8074,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List resource rates
  * @request GET:/api/v1/resource-rates
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<ResourceRateDto>,
+ * @response `200` `{
+    results: Array<ResourceRateDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -7783,8 +8088,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listResourceRates: (query: ListResourceRatesParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<ResourceRateDto>;
+        {
+          results: Array<ResourceRateDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -7888,10 +8194,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List plans
  * @request GET:/api/v1/plans
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<PlanDto>,
+ * @response `200` `{
+    results: Array<PlanDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -7901,8 +8208,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listPlans: (query: ListPlansParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<PlanDto>;
+        {
+          results: Array<PlanDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -8004,10 +8312,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List plan categories
  * @request GET:/api/v1/plan-categories
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<PlanCategoryDto>,
+ * @response `200` `{
+    results: Array<PlanCategoryDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -8017,8 +8326,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listPlanCategories: (query: ListPlanCategoriesParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<PlanCategoryDto>;
+        {
+          results: Array<PlanCategoryDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -8121,10 +8431,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List amenities
  * @request GET:/api/v1/amenities
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<AmenityDto>,
+ * @response `200` `{
+    results: Array<AmenityDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -8134,8 +8445,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listAmenities: (query: ListAmenitiesParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<AmenityDto>;
+        {
+          results: Array<AmenityDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -8237,10 +8549,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List extras
  * @request GET:/api/v1/extras
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<ExtraDto>,
+ * @response `200` `{
+    results: Array<ExtraDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -8250,8 +8563,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listExtras: (query: ListExtrasParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<ExtraDto>;
+        {
+          results: Array<ExtraDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -8352,10 +8666,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List charges
  * @request GET:/api/v1/charges
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<ChargeDto>,
+ * @response `200` `{
+    results: Array<ChargeDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -8365,8 +8680,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listCharges: (query: ListChargesParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<ChargeDto>;
+        {
+          results: Array<ChargeDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -8413,10 +8729,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List invoices
  * @request GET:/api/v1/invoices
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<InvoiceDto>,
+ * @response `200` `{
+    results: Array<InvoiceDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -8426,8 +8743,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listInvoices: (query: ListInvoicesParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<InvoiceDto>;
+        {
+          results: Array<InvoiceDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -8635,10 +8953,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List credit ledger rows
  * @request GET:/api/v1/credits
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<CreditTransactionDto>,
+ * @response `200` `{
+    results: Array<CreditTransactionDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -8648,8 +8967,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listCredits: (query: ListCreditsParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<CreditTransactionDto>;
+        {
+          results: Array<CreditTransactionDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -8805,10 +9125,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List memberships
  * @request GET:/api/v1/memberships
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<MembershipDto>,
+ * @response `200` `{
+    results: Array<MembershipDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -8818,8 +9139,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listMemberships: (query: ListMembershipsParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<MembershipDto>;
+        {
+          results: Array<MembershipDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -9058,10 +9380,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List resource assignments
  * @request GET:/api/v1/assignments
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<AssignmentDto>,
+ * @response `200` `{
+    results: Array<AssignmentDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -9071,8 +9394,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listAssignments: (query: ListAssignmentsParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<AssignmentDto>;
+        {
+          results: Array<AssignmentDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -9206,10 +9530,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List check-ins
  * @request GET:/api/v1/checkins
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<CheckinDto>,
+ * @response `200` `{
+    results: Array<CheckinDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -9219,8 +9544,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listCheckins: (query: ListCheckinsParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<CheckinDto>;
+        {
+          results: Array<CheckinDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -9286,17 +9612,18 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
- * @description Staff/admin see everything; member-role callers see their own and their employer company's bookings. Filters: resourceId, from, to (interval overlap).
+ * @description Staff/admin see everything; member-role callers see their own and their employer company's bookings. Filters: resourceId, status, source, memberId, companyId, and from/to (interval overlap — a booking matches when it touches the range). `q` searches title, notes and the customer name.
  *
  * @tags Bookings
  * @name ListBookings
  * @summary List bookings
  * @request GET:/api/v1/bookings
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<BookingDto>,
+ * @response `200` `{
+    results: Array<BookingDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -9306,8 +9633,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listBookings: (query: ListBookingsParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<BookingDto>;
+        {
+          results: Array<BookingDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -9343,6 +9671,58 @@ export class HsService<SecurityDataType extends unknown> {
         body: data,
         secure: true,
         type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Staff/admin only — unlike the list, this is never scoped to a caller's own bookings, so it stays off the member role entirely. Counts for the list tabs and the summary cards, computed in the database. Takes the same filters as the list except `status` — the counts are the per-status breakdown, so filtering by it would collapse them. Every status is present, zero included.
+     *
+     * @tags Bookings
+     * @name GetBookingStats
+     * @summary Booking counts by status and source
+     * @request GET:/api/v1/bookings/stats
+     * @secure
+     * @response `200` `(BookingStatsDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `BookingStatsDto`
+     */
+    getBookingStats: (query: GetBookingStatsParams, params: RequestParams = {}) =>
+      this.http.request<BookingStatsDto, ResponseErrorDto | BookingStatsDto>({
+        path: `/api/v1/bookings/stats`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Everything one grid needs in a single read: per bookable room, its header summary, its bookable windows per local day, and its pending and confirmed bookings as blocks. Range ≤ 31 days. The grid covers one location — its timezone is on the envelope.
+     *
+     * @tags Bookings
+     * @name GetBookingCalendar
+     * @summary Calendar grid: rooms, windows and blocks
+     * @request GET:/api/v1/bookings/calendar
+     * @secure
+     * @response `200` `(BookingCalendarDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `422` `((ResponseErrorDto))` 422
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `BookingCalendarDto`
+     */
+    getBookingCalendar: (query: GetBookingCalendarParams, params: RequestParams = {}) =>
+      this.http.request<BookingCalendarDto, ResponseErrorDto | BookingCalendarDto>({
+        path: `/api/v1/bookings/calendar`,
+        method: "GET",
+        query: query,
+        secure: true,
         format: "json",
         ...params,
       }),
@@ -9508,17 +9888,18 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
- * @description Pipeline view. Filter by stage, interest, source or memberId; `q` searches the member's name.
+ * @description Pipeline view. Filter by stage, interest, source or memberId; `q` searches the member's name. Filter by creation time with createdFrom/createdTo (ISO instants, upper bound exclusive). They are instants rather than dates because an opportunity has no location and therefore no timezone in which to define a day — the client decides what day it means.
  *
  * @tags CRM
  * @name ListOpportunities
  * @summary List opportunities
  * @request GET:/api/v1/opportunities
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<OpportunityDto>,
+ * @response `200` `{
+    results: Array<OpportunityDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -9528,8 +9909,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listOpportunities: (query: ListOpportunitiesParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<OpportunityDto>;
+        {
+          results: Array<OpportunityDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -9569,7 +9951,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description What the filters above the list need, in one request: per stage, how many leads and what they are worth, and every source present in the data with its count. Totals, the open/won/lost split and the pipeline all follow from the stage rows. Accepts the same q and interest filters as the list, so the numbers match the rows on screen. Every stage is present, zero included; sources are those that exist, busiest first; and byWeek carries the last eight weeks of leads opened, won and lost, always all eight so a quiet week reads as zero rather than going missing.
+     * @description What the filters above the list need, in one request: per stage, how many leads and what they are worth, and every source present in the data with its count. Totals, the open/won/lost split and the pipeline all follow from the stage rows. Accepts the same q and interest filters as the list, so the numbers match the rows on screen. Every stage is present, zero included; sources are those that exist, busiest first; and byWeek carries the last eight weeks of leads opened, won and lost, always all eight so a quiet week reads as zero rather than going missing. Filter by creation time with createdFrom/createdTo (ISO instants, upper bound exclusive). They are instants rather than dates because an opportunity has no location and therefore no timezone in which to define a day — the client decides what day it means.
      *
      * @tags CRM
      * @name OpportunityStats
