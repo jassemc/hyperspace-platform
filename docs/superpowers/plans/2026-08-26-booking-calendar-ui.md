@@ -978,20 +978,31 @@ Add both to the `getListOpportunities` call and to the `opportunityStats` call.
 
 - [ ] **Step 2: Widen the memoised stats signature**
 
-`app/community/opportunities/stats.ts` currently takes `(q, interest)` positionally. Adding two more positional arguments is how a cache key gets silently mismatched between two call sites. Convert it to a single options object:
+**CORRECTION (found during Task 3 — do NOT convert this to an options object).**
+An earlier draft of this step said to replace the positional signature with a
+single options object. That is wrong and would *break* the caching that works
+today. React's `cache()` keys object arguments in a `WeakMap` **by reference**
+and primitives in a `Map` **by value** — verified in
+`node_modules/react/cjs/react.react-server.development.js`, inside
+`exports.cache`. Two structurally identical object literals from two server
+components are two distinct cache keys, so an options object guarantees a
+cache miss and a duplicate request.
+
+Keep the positional signature and add the two new bounds as further positional
+primitives:
 
 ```ts
-export interface OpportunityStatsQuery {
-  q?: string
-  interest?: OpportunityInterest
-  createdFrom?: string
-  createdTo?: string
-}
-
 export const opportunityStats = cache(
-  async (query: OpportunityStatsQuery): Promise<OpportunityStatsDto | null> => {
+  async (
+    q: string | undefined,
+    interest: OpportunityInterest | undefined,
+    createdFrom: string | undefined,
+    createdTo: string | undefined
+  ): Promise<OpportunityStatsDto | null> => {
     try {
-      return (await getOpportunityStats(query)) as OpportunityStatsDto
+      return (await getOpportunityStats({
+        q, interest, createdFrom, createdTo,
+      })) as OpportunityStatsDto
     } catch (error) {
       console.warn("Failed to load opportunity stats", error)
       return null
@@ -1000,7 +1011,10 @@ export const opportunityStats = cache(
 )
 ```
 
-Update both call sites — `table-section.tsx` and `section-cards.tsx` — to pass the object. **They must pass identical objects**, or `cache()` misses and the page makes two requests.
+The object is built *inside* the memoised function, where its identity no
+longer matters — only the four primitives crossing the `cache()` boundary do.
+
+Update both call sites — `table-section.tsx` and `section-cards.tsx` — to pass the same four values **positionally, in the same order**. Primitives compare by value, so identical arguments genuinely share one cache entry.
 
 - [ ] **Step 3: Add the filter**
 
