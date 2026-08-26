@@ -25,8 +25,13 @@ export default async function BookingsPage({
                     <AddBookingButton />
                 </div>
             </div>
-            {/* The cards describe the filtered set in both views. */}
-            <SectionCards searchParams={resolvedSearchParams} />
+            {/* The cards read the table's filters; the calendar's date
+                scoping is not among them, so they say which set they
+                describe rather than implying it follows the grid. */}
+            <SectionCards
+                searchParams={resolvedSearchParams}
+                view={isCalendar ? "calendar" : "table"}
+            />
             {isCalendar ? (
                 <Suspense fallback={<CalendarSkeleton />}>
                     <BookingCalendarSection

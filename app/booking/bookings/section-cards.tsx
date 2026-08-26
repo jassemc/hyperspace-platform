@@ -14,7 +14,18 @@ import { bookingStats, bookingTotals } from "./stats"
 
 export async function SectionCards({
   searchParams,
-}: Readonly<{ searchParams?: SearchParamsInput }>) {
+  view = "table",
+}: Readonly<{
+  searchParams?: SearchParamsInput
+  /**
+   * The calendar scopes itself by `date` and `calendarView`, which these
+   * counts do not read — they read `from`/`to`/`q`/`source`/`resourceId`.
+   * So in calendar view the total is not "the days you are looking at",
+   * and saying it matches the current filters would be a false claim,
+   * which is worse than no claim at all.
+   */
+  view?: "table" | "calendar"
+}>) {
   const params = await resolveSearchParams(searchParams)
   const { q } = pageQuery(params)
 
@@ -39,7 +50,7 @@ export async function SectionCards({
   return (
     <StatCards
       cards={[
-        { label: "Total bookings", value: stats?.total ?? 0, badge: "All", icon: CalendarCheckIcon, footer: "Matching the current filters" },
+        { label: "Total bookings", value: stats?.total ?? 0, badge: "All", icon: CalendarCheckIcon, footer: view === "calendar" ? "All bookings, not just the days shown" : "Matching the current filters" },
         { label: "Pending", value: count("pending"), badge: "To confirm", icon: ClockIcon, footer: "Awaiting confirmation" },
         { label: "Cancelled", value: count("cancelled"), badge: "Released", icon: XCircleIcon, footer: "Slots freed again" },
         { label: "Booked value", value: formatPriceHt(stats?.bookedValueHt ?? 0), badge: "HT", icon: CoinsIcon, footer: "Credit-covered bookings count as zero" },
