@@ -30,7 +30,13 @@ interface AddBookingFormProps {
   memberNames?: Record<string, string>
   companyNames?: Record<string, string>
   /** Set when opened from a calendar cell. */
-  prefill?: { resourceId: string; startsAt: string; endsAt: string }
+  prefill?: {
+    resourceId: string
+    startsAt: string
+    endsAt: string
+    /** Read off the calendar payload so the select never flashes blank. */
+    resourceName?: string
+  }
   /** Zone the datetime-local inputs are written in. Required with prefill. */
   timeZone?: string
 }
@@ -277,6 +283,13 @@ export function AddBookingForm({
                         required
                       >
                         <option value="">Select resource</option>
+                        {/* The calendar payload already named this room; show it
+                            immediately instead of a blank value until the full
+                            resource list (fetched below) resolves. */}
+                        {prefill?.resourceName &&
+                          !resources.some((resource) => resource.id === prefill.resourceId) && (
+                            <option value={prefill.resourceId}>{prefill.resourceName}</option>
+                          )}
                         {resources.map((resource) => (
                           <option key={resource.id} value={resource.id}>
                             {resource.name}
@@ -326,6 +339,12 @@ export function AddBookingForm({
                       </div>
                     )}
 
+                    {/* datetime-local carries no zone of its own, so the server
+                        action needs to know which zone these wall-clock
+                        strings were written in — see actions.ts:bookingPayload. */}
+                    {prefill && timeZone && (
+                      <input type="hidden" name="timeZone" value={timeZone} />
+                    )}
                     <div className="grid gap-2">
                       <Label htmlFor="startsAt">Starts at</Label>
                       <Input

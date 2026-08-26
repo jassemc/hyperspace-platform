@@ -13,6 +13,8 @@ interface Prefill {
   resourceId: string
   startsAt: string
   endsAt: string
+  /** Read off the calendar payload so the drawer's select never flashes blank. */
+  resourceName?: string
 }
 
 export function CalendarViews({
@@ -31,7 +33,13 @@ export function CalendarViews({
   const [prefill, setPrefill] = useState<Prefill | null>(null)
 
   const pick = (resourceId: string, startsAt: string, endsAt: string) =>
-    setPrefill({ resourceId, startsAt, endsAt })
+    setPrefill({
+      resourceId,
+      startsAt,
+      endsAt,
+      resourceName: calendar.resources.find((entry) => entry.resource.id === resourceId)
+        ?.resource.name,
+    })
 
   return (
     <>
@@ -39,6 +47,7 @@ export function CalendarViews({
       <CalendarToolbar
         date={state.date}
         view={state.view}
+        timeZone={calendar.timezone}
         timeRange={timeRange}
         vacantOnly={vacantOnly}
         onTimeRangeChange={setTimeRange}

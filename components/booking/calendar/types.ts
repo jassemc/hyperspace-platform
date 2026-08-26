@@ -2,6 +2,16 @@ import { wallClockToUtcMs } from "@/lib/slots"
 
 export type CalendarView = "day" | "week" | "month"
 
+/** Today's date, YYYY-MM-DD, as it reads in `timeZone` — never the reader's. */
+export function todayIn(timeZone: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date())
+}
+
 export interface CalendarViewState {
   view: CalendarView
   /** Anchor day, YYYY-MM-DD in the grid's timezone. */

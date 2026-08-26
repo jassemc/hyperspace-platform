@@ -5,11 +5,12 @@ import { useTransition } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DateField } from "@/components/ui/date-field"
-import type { CalendarView } from "./types"
+import { todayIn, type CalendarView } from "./types"
 
 export function CalendarToolbar({
   date,
   view,
+  timeZone,
   timeRange,
   vacantOnly,
   onTimeRangeChange,
@@ -18,6 +19,8 @@ export function CalendarToolbar({
   date: string
   /** Drives the step size of the arrows; Task 7 adds the view switch. */
   view: CalendarView
+  /** The grid's zone — "Today" must land on the grid's date, not the reader's. */
+  timeZone: string
   timeRange: { from: string; to: string }
   vacantOnly: boolean
   onTimeRangeChange: (value: { from: string; to: string }) => void
@@ -42,7 +45,7 @@ export function CalendarToolbar({
   return (
     <div className="mx-4 mb-3 flex flex-wrap items-center gap-3">
       <Button variant="outline" size="sm" disabled={isPending}
-        onClick={() => goTo(new Date().toISOString().slice(0, 10))}>
+        onClick={() => goTo(todayIn(timeZone))}>
         Today
       </Button>
       <div className="flex items-center gap-1">

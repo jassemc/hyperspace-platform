@@ -9,6 +9,7 @@ import {
   validateBooking,
 } from "@/lib/service"
 import type { CreateBookingDto, UpdateBookingDto } from "@/lib/service/HsService"
+import { wallClockToUtcMs } from "@/lib/slots"
 
 export type ActionState = {
   success?: boolean
@@ -42,6 +43,26 @@ function text(formData: FormData, field: string): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined
 }
 
+/**
+ * A `datetime-local` value ("2026-08-26T09:00") has no zone of its own.
+ * `new Date(value)` therefore parses it in *this process's* zone — fine
+ * for the plain Add-booking button, wrong for a cell clicked on a grid
+ * whose location is elsewhere: the same wall-clock string means a
+ * different instant depending on where the server happens to run.
+ * When the form supplies the grid's zone (the calendar's click-to-book
+ * path), convert through it instead; otherwise fall back to the
+ * previous behaviour so the zone-less path is unchanged.
+ */
+function toUtcIso(value: string, timeZone: string | undefined): string {
+  if (timeZone) {
+    const [date, hhmm] = value.split("T")
+    if (date && hhmm) {
+      return new Date(wallClockToUtcMs(date, hhmm.slice(0, 5), timeZone)).toISOString()
+    }
+  }
+  return new Date(value).toISOString()
+}
+
 function revalidate() {
   revalidatePath("/booking/bookings")
 }
@@ -52,11 +73,16 @@ function bookingPayload(formData: FormData): CreateBookingDto | { error: string 
   const endsAt = text(formData, "endsAt")
   const memberId = text(formData, "memberId")
   const companyId = text(formData, "companyId")
+  // Set only by the calendar's click-to-book path — see add-booking-form.tsx.
+  const timeZone = text(formData, "timeZone")
 
   if (!resourceId) return { error: "Select a resource" }
   if (!startsAt) return { error: "Start time is required" }
   if (!endsAt) return { error: "End time is required" }
-  if (new Date(endsAt) <= new Date(startsAt)) {
+
+  const startsAtUtc = toUtcIso(startsAt, timeZone)
+  const endsAtUtc = toUtcIso(endsAt, timeZone)
+  if (new Date(endsAtUtc) <= new Date(startsAtUtc)) {
     return { error: "The end time must be after the start time" }
   }
   // The customer is a member XOR a company.
@@ -68,8 +94,8 @@ function bookingPayload(formData: FormData): CreateBookingDto | { error: string 
     resourceId,
     memberId,
     companyId,
-    startsAt: new Date(startsAt).toISOString(),
-    endsAt: new Date(endsAt).toISOString(),
+    startsAt: startsAtUtc,
+    endsAt: endsAtUtc,
     title: text(formData, "title"),
     notes: text(formData, "notes"),
     extraIds: formData.getAll("extraIds").map(String).filter(Boolean),

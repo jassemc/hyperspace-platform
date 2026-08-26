@@ -1,17 +1,8 @@
 import { getBookingCalendar, getListResourceTypes } from "@/lib/service"
 import type { BookingCalendarDto, ResourceTypeDto } from "@/lib/service/HsService"
 import { firstParam, resolveSearchParams, type SearchParamsInput } from "@/lib/search-params"
-import { rangeFor, type CalendarView } from "@/components/booking/calendar/types"
+import { rangeFor, todayIn, type CalendarView } from "@/components/booking/calendar/types"
 import { CalendarViews } from "@/components/booking/calendar/calendar-views"
-
-function todayIn(timeZone: string): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date())
-}
 
 export async function BookingCalendarSection({
   searchParams,

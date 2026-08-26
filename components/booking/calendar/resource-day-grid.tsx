@@ -15,6 +15,94 @@ import { RoomHeaderCard } from "./room-header-card"
 const HOUR_PX = 56
 const SLOT_MIN = 30
 
+/**
+ * Visible side-by-side lanes for concurrent blocks. The exclusion
+ * constraint is scoped to confirmed bookings, so several pending
+ * requests legitimately compete for one slot — this is the only surface
+ * that shows them doing it, so they must not render on top of one
+ * another. Capped at three so a pathological pile-up doesn't crush the
+ * column; the rest fold into one "+N" indicator in the last lane.
+ */
+const MAX_LANES = 3
+
+interface LaneItem {
+  block: CalendarBlockDto
+  lane: number
+  lanes: number
+}
+
+interface OverflowItem {
+  overflow: CalendarBlockDto[]
+  lane: number
+  lanes: number
+  startMs: number
+  endMs: number
+}
+
+/**
+ * First-fit lane assignment over start/end, grouped into clusters of
+ * mutually-overlapping blocks so an unrelated pair earlier in the day
+ * doesn't inflate this pair's lane count.
+ */
+function layoutBlocks(blocks: CalendarBlockDto[]): (LaneItem | OverflowItem)[] {
+  const sorted = [...blocks].sort(
+    (a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt)
+  )
+
+  const out: (LaneItem | OverflowItem)[] = []
+  let cluster: { block: CalendarBlockDto; lane: number }[] = []
+  let laneEnds: number[] = []
+
+  const flush = () => {
+    if (cluster.length === 0) return
+    const needed = laneEnds.length
+    const lanes = Math.min(needed, MAX_LANES)
+    const overflowLane = MAX_LANES - 1
+    const overflow: CalendarBlockDto[] = []
+    for (const item of cluster) {
+      if (needed > MAX_LANES && item.lane >= overflowLane) {
+        overflow.push(item.block)
+      } else {
+        out.push({ block: item.block, lane: item.lane, lanes })
+      }
+    }
+    if (overflow.length > 0) {
+      out.push({
+        overflow,
+        lane: overflowLane,
+        lanes,
+        startMs: Math.min(...overflow.map((b) => Date.parse(b.startsAt))),
+        endMs: Math.max(...overflow.map((b) => Date.parse(b.endsAt))),
+      })
+    }
+    cluster = []
+    laneEnds = []
+  }
+
+  for (const block of sorted) {
+    const start = Date.parse(block.startsAt)
+    const end = Date.parse(block.endsAt)
+
+    // No lane is still occupied at this start: the previous cluster is
+    // over, so its lane count must not bleed into this one.
+    if (laneEnds.length > 0 && laneEnds.every((laneEnd) => laneEnd <= start)) {
+      flush()
+    }
+
+    let lane = laneEnds.findIndex((laneEnd) => laneEnd <= start)
+    if (lane === -1) lane = laneEnds.length
+    laneEnds[lane] = end
+    cluster.push({ block, lane })
+  }
+  flush()
+
+  return out
+}
+
+function isOverflowItem(item: LaneItem | OverflowItem): item is OverflowItem {
+  return "overflow" in item
+}
+
 interface DayGridProps {
   calendar: BookingCalendarDto
   date: string
@@ -81,7 +169,10 @@ export function ResourceDayGrid({
       <div className="flex min-w-max">
         {/* Hour gutter */}
         <div className="sticky left-0 z-10 w-16 shrink-0 border-r bg-background">
-          <div className="h-[104px] border-b" />
+          {/* Matches RoomColumn's header spacer below — p-2 16 + h-20 image
+              80 + gap-2 8 + name line 20 + meta line 16 = 140px. Keep both
+              in sync or the gutter desyncs from the columns. */}
+          <div className="h-[140px] border-b" />
           <div className="relative" style={{ height }}>
             {hourTicks.map((t) => (
               <div
@@ -135,12 +226,14 @@ function RoomColumn({
     endMs: wallClockToUtcMs(date, w.close, tz),
   }))
 
-  // Clickable half-hour slots inside the open windows.
-  const slots: { startMs: number; endMs: number }[] = []
+  // Clickable half-hour slots inside the open windows. Each carries its
+  // window's close, so a slot can be dropped when the resource's own
+  // minimum duration would run past it (or into the next booking).
+  const slots: { startMs: number; endMs: number; windowEndMs: number }[] = []
   const step = SLOT_MIN * 60_000
   for (const w of windows) {
     for (let t = w.startMs; t + step <= w.endMs; t += step) {
-      slots.push({ startMs: t, endMs: t + step })
+      slots.push({ startMs: t, endMs: t + step, windowEndMs: w.endMs })
     }
   }
 
@@ -150,10 +243,11 @@ function RoomColumn({
     )
 
   const minDuration = entry.resource.minDurationMin ?? SLOT_MIN
+  const laneItems = layoutBlocks(entry.blocks)
 
   return (
     <div className="w-40 shrink-0 border-r last:border-r-0">
-      <div className="h-[104px] border-b">
+      <div className="h-[140px] border-b">
         <RoomHeaderCard resource={entry.resource} />
       </div>
 
@@ -167,9 +261,15 @@ function RoomColumn({
           />
         ))}
 
-        {/* Free half-hours: clickable, and the only way to start a booking. */}
+        {/* Free half-hours: clickable, and the only way to start a booking.
+            A slot is only offered if the resource's own minimum duration
+            both stays clear of the next booking and fits before close —
+            otherwise it is a click that only errors server-side. */}
         {slots
-          .filter((s) => !isBusy(s.startMs, s.endMs))
+          .filter((s) => {
+            const prefillEnd = s.startMs + minDuration * 60_000
+            return !isBusy(s.startMs, prefillEnd) && prefillEnd <= s.windowEndMs
+          })
           .map((s) => (
             <button
               key={s.startMs}
@@ -190,41 +290,80 @@ function RoomColumn({
             </button>
           ))}
 
-        {/* Bookings. Pending is drawn differently because it does NOT hold
-            the slot — several may legitimately overlap. */}
-        {entry.blocks.map((block) => (
-          <BlockChip
-            key={block.bookingId}
-            block={block}
-            tz={tz}
-            top={topFor(Math.max(Date.parse(block.startsAt), axis.startMs))}
-            height={
-              topFor(Math.min(Date.parse(block.endsAt), axis.endMs)) -
-              topFor(Math.max(Date.parse(block.startsAt), axis.startMs))
-            }
-          />
-        ))}
+        {/* Bookings, laid out in side-by-side lanes. Pending is drawn
+            differently because it does NOT hold the slot — several may
+            legitimately overlap, and lanes are what let staff see them
+            competing instead of one silently hiding the rest. */}
+        {laneItems.map((item) =>
+          isOverflowItem(item) ? (
+            <OverflowChip
+              key={`overflow-${item.startMs}-${item.lane}`}
+              count={item.overflow.length}
+              titles={item.overflow.map((b) => b.title || b.customerName || "Untitled")}
+              lane={item.lane}
+              lanes={item.lanes}
+              top={topFor(Math.max(item.startMs, axis.startMs))}
+              height={
+                topFor(Math.min(item.endMs, axis.endMs)) -
+                topFor(Math.max(item.startMs, axis.startMs))
+              }
+            />
+          ) : (
+            <BlockChip
+              key={item.block.bookingId}
+              block={item.block}
+              tz={tz}
+              lane={item.lane}
+              lanes={item.lanes}
+              top={topFor(Math.max(Date.parse(item.block.startsAt), axis.startMs))}
+              height={
+                topFor(Math.min(Date.parse(item.block.endsAt), axis.endMs)) -
+                topFor(Math.max(Date.parse(item.block.startsAt), axis.startMs))
+              }
+            />
+          )
+        )}
       </div>
     </div>
   )
 }
 
+/** Inline left/width for a lane within the column, with a small gutter
+    between neighbours; collapses to the old inset-x-1 look when lanes === 1. */
+function laneStyle(lane: number, lanes: number, top: number, height: number) {
+  return {
+    top,
+    height: Math.max(height, 18),
+    left: `calc(${(lane / lanes) * 100}% + 4px)`,
+    width: `calc(${100 / lanes}% - 8px)`,
+  } as const
+}
+
 function BlockChip({
   block,
   tz,
+  lane,
+  lanes,
   top,
   height,
-}: Readonly<{ block: CalendarBlockDto; tz: string; top: number; height: number }>) {
+}: Readonly<{
+  block: CalendarBlockDto
+  tz: string
+  lane: number
+  lanes: number
+  top: number
+  height: number
+}>) {
   const pending = block.status === "pending"
   return (
     <div
       className={cn(
-        "absolute inset-x-1 overflow-hidden rounded-md border px-2 py-1 text-xs",
+        "absolute overflow-hidden rounded-md border px-2 py-1 text-xs",
         pending
           ? "border-dashed border-amber-400 bg-amber-50 text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-100"
           : "border-transparent bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-100"
       )}
-      style={{ top, height: Math.max(height, 18) }}
+      style={laneStyle(lane, lanes, top, height)}
       title={`${block.title ?? "Untitled"} — ${block.customerName ?? "No customer"}`}
     >
       <p className="truncate font-medium">
@@ -234,6 +373,36 @@ function BlockChip({
         {formatTimeOfDay(block.startsAt, tz)}–{formatTimeOfDay(block.endsAt, tz)}
         {pending ? " · pending" : ""}
       </p>
+    </div>
+  )
+}
+
+/**
+ * What a cluster's overflow beyond MAX_LANES collapses into: still
+ * disclosed, not silently dropped, but named rather than drawn stacked.
+ */
+function OverflowChip({
+  count,
+  titles,
+  lane,
+  lanes,
+  top,
+  height,
+}: Readonly<{
+  count: number
+  titles: string[]
+  lane: number
+  lanes: number
+  top: number
+  height: number
+}>) {
+  return (
+    <div
+      className="absolute flex items-center justify-center overflow-hidden rounded-md border border-dashed border-muted-foreground/40 bg-muted px-2 py-1 text-xs font-medium text-muted-foreground"
+      style={laneStyle(lane, lanes, top, height)}
+      title={titles.join(", ")}
+    >
+      +{count}
     </div>
   )
 }
