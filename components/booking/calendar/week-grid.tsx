@@ -116,12 +116,10 @@ export function WeekGrid({
   calendar,
   weekStartDate,
   resourceId,
-  onPickSlot,
 }: Readonly<{
   calendar: BookingCalendarDto
   weekStartDate: string
   resourceId?: string
-  onPickSlot: (resourceId: string, startUtc: string, endUtc: string) => void
 }>) {
   const tz = calendar.timezone
   const rooms = resourceId

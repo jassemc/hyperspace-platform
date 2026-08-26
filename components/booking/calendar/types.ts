@@ -36,6 +36,27 @@ export function weekStartOf(date: string): string {
 }
 
 /**
+ * `date` stepped by whole calendar months, with the day-of-month clamped
+ * to the target month's length. `Date#setUTCMonth` alone does not clamp —
+ * it overflows into the month after when the source day doesn't exist
+ * there, e.g. Jan 31 + 1 month silently becomes Mar 3 rather than Feb 28,
+ * and that drifted day-of-month then persists into every later step.
+ */
+export function addMonths(date: string, months: number): string {
+  const [year, month, day] = date.split("-").map(Number)
+  const targetFirst = new Date(Date.UTC(year, month - 1 + months, 1))
+  const daysInTarget = new Date(
+    Date.UTC(targetFirst.getUTCFullYear(), targetFirst.getUTCMonth() + 1, 0)
+  ).getUTCDate()
+  const clampedDay = Math.min(day, daysInTarget)
+  return new Date(
+    Date.UTC(targetFirst.getUTCFullYear(), targetFirst.getUTCMonth(), clampedDay)
+  )
+    .toISOString()
+    .slice(0, 10)
+}
+
+/**
  * The instants a view covers, bounded in the grid's own timezone — never
  * in the reader's. Month is clamped to 31 days, which is also the API's
  * ceiling.

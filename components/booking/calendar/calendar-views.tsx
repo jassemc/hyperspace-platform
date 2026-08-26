@@ -69,7 +69,6 @@ export function CalendarViews({
           calendar={calendar}
           weekStartDate={weekStartOf(state.date)}
           resourceId={state.resourceId}
-          onPickSlot={pick}
         />
       )}
       {state.view === "month" && (

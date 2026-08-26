@@ -6,7 +6,7 @@ import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DateField } from "@/components/ui/date-field"
 import { cn } from "@/lib/utils"
-import { addDays, todayIn, type CalendarView } from "./types"
+import { addDays, addMonths, todayIn, type CalendarView } from "./types"
 
 export function CalendarToolbar({
   date,
@@ -42,9 +42,7 @@ export function CalendarToolbar({
   // reach next month.
   const shift = (direction: 1 | -1) => {
     if (view === "month") {
-      const d = new Date(`${date}T00:00:00Z`)
-      d.setUTCMonth(d.getUTCMonth() + direction)
-      goTo(d.toISOString().slice(0, 10))
+      goTo(addMonths(date, direction))
       return
     }
     goTo(addDays(date, direction * (view === "week" ? 7 : 1)))
