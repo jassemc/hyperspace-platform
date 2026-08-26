@@ -7,12 +7,15 @@ import {
 } from "@/lib/service"
 import type {
   BookingDto,
+  BookingSource,
+  BookingStatus,
   CompanyDto,
   LocationDto,
   MemberDto,
   ResourceDto,
 } from "@/lib/service/HsService"
 import {
+  asEnum,
   firstParam,
   pageQuery,
   pageResult,
@@ -20,6 +23,8 @@ import {
   type SearchParamsInput,
 } from "@/lib/search-params"
 import { BookingTable } from "./booking-table"
+import { BOOKING_SOURCE_VALUES, BOOKING_STATUS_VALUES } from "./booking-status"
+import { bookingStats } from "./stats"
 
 export async function BookingTableSection({
   searchParams,
@@ -27,22 +32,39 @@ export async function BookingTableSection({
   const params = await resolveSearchParams(searchParams)
   const { limit, offset, q } = pageQuery(params)
 
+  const status = asEnum<BookingStatus>(firstParam(params.status), BOOKING_STATUS_VALUES)
+  const source = asEnum<BookingSource>(firstParam(params.source), BOOKING_SOURCE_VALUES)
+  const resourceId = firstParam(params.resourceId)
+  const from = firstParam(params.from)
+  const to = firstParam(params.to)
+
+  const statsQuery = { q, resourceId, from, to, source }
+
   let results: BookingDto[] = []
   let total = 0
 
-  try {
-    const response = await getListBookings({
+  const [response, stats] = await Promise.all([
+    getListBookings({
       limit,
       offset,
-      sort: "ASC",
+      // Upcoming first: the oldest booking ever taken is not what staff
+      // open this page to see.
+      sort: "DESC",
       q,
-      resourceId: firstParam(params.resourceId),
-      from: firstParam(params.from),
-      to: firstParam(params.to),
-    })
+      status,
+      source,
+      resourceId,
+      from,
+      to,
+    }).catch((error) => {
+      console.warn("Failed to load bookings", error)
+      return null
+    }),
+    bookingStats(statsQuery),
+  ])
+
+  if (response) {
     ;({ results, total } = pageResult<BookingDto>(response))
-  } catch (error) {
-    console.warn("Failed to load bookings", error)
   }
 
   // Bookings reference resource and customer by id only.
@@ -87,6 +109,12 @@ export async function BookingTableSection({
       memberNames={memberNames}
       companyNames={companyNames}
       timeZone={timeZone}
+      stats={stats}
+      activeStatus={status}
+      activeSource={source}
+      activeResourceId={resourceId}
+      activeFrom={from}
+      activeTo={to}
     />
   )
 }

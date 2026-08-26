@@ -1,4 +1,4 @@
-import type { BookingStatus } from "@/lib/service/HsService"
+import type { BookingSource, BookingStatus } from "@/lib/service/HsService"
 
 export const BOOKING_STATUS_LABELS: Record<BookingStatus, string> = {
     pending: "Pending",
@@ -20,3 +20,13 @@ export const BOOKING_STATUS_TABS = BOOKING_STATUS_VALUES.map((value) => ({
     value,
     label: BOOKING_STATUS_LABELS[value],
 }))
+
+export const BOOKING_SOURCE_LABELS: Record<BookingSource, string> = {
+    portal: "Member portal",
+    staff: "Staff",
+    public: "Website",
+}
+
+export const BOOKING_SOURCE_VALUES = Object.keys(
+    BOOKING_SOURCE_LABELS
+) as BookingSource[]

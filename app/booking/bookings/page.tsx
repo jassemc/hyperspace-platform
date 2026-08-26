@@ -15,7 +15,7 @@ export default async function BookingsPage({
                 <h1 className="text-4xl font-semibold">Bookings</h1>
                 <AddBookingButton />
             </div>
-            <SectionCards />
+            <SectionCards searchParams={resolvedSearchParams} />
             <Suspense fallback={<TableSkeleton rows={10} columns={7} />}>
                 <BookingTableSection searchParams={resolvedSearchParams} />
             </Suspense>

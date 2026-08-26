@@ -1,34 +1,40 @@
-import { getListBookings } from "@/lib/service"
-import type { BookingDto } from "@/lib/service/HsService"
-import { pageResult } from "@/lib/search-params"
 import { StatCards } from "@/components/stat-cards"
 import { CalendarCheckIcon, ClockIcon, XCircleIcon, CoinsIcon } from "lucide-react"
 import { formatPriceHt } from "@/lib/format"
+import {
+  firstParam,
+  pageQuery,
+  resolveSearchParams,
+  type SearchParamsInput,
+} from "@/lib/search-params"
+import { bookingStats, bookingTotals } from "./stats"
 
-export async function SectionCards() {
-  let bookings: BookingDto[] = []
-  let total = 0
+export async function SectionCards({
+  searchParams,
+}: Readonly<{ searchParams?: SearchParamsInput }>) {
+  const params = await resolveSearchParams(searchParams)
+  const { q } = pageQuery(params)
 
-  try {
-    const response = await getListBookings({ limit: 100, offset: 0, sort: "ASC" })
-    const page = pageResult<BookingDto>(response)
-    bookings = page.results
-    total = page.total
-  } catch (error) {
-    console.warn("Failed to load booking stats", error)
-  }
+  // Same argument list as the table's call, so cache() returns the very
+  // same promise rather than issuing a second request.
+  const stats = await bookingStats({
+    q,
+    resourceId: firstParam(params.resourceId),
+    from: firstParam(params.from),
+    to: firstParam(params.to),
+    source: firstParam(params.source),
+  })
 
-  const count = (status: string) => bookings.filter((booking) => booking.status === status).length
-  // A null price means the booking was fully covered by credits.
-  const booked = bookings.reduce((sum, booking) => sum + (booking.priceHt ?? 0), 0)
+  const totals = bookingTotals(stats)
+  const count = (status: string) => totals.countFor(status) ?? 0
 
   return (
     <StatCards
       cards={[
-        { label: "Total bookings", value: total, badge: "All", icon: CalendarCheckIcon, footer: "Across the current page" },
+        { label: "Total bookings", value: stats?.total ?? 0, badge: "All", icon: CalendarCheckIcon, footer: "Matching the current filters" },
         { label: "Pending", value: count("pending"), badge: "To confirm", icon: ClockIcon, footer: "Awaiting confirmation" },
         { label: "Cancelled", value: count("cancelled"), badge: "Released", icon: XCircleIcon, footer: "Slots freed again" },
-        { label: "Booked value", value: formatPriceHt(booked), badge: "HT", icon: CoinsIcon, footer: "Credit-covered bookings count as zero" },
+        { label: "Booked value", value: formatPriceHt(stats?.bookedValueHt ?? 0), badge: "HT", icon: CoinsIcon, footer: "Credit-covered bookings count as zero" },
       ]}
     />
   )
