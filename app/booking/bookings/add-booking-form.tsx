@@ -18,7 +18,12 @@ import { X } from "lucide-react"
 import { getListResources, getListMembers, getListCompanies } from "@/lib/service"
 import type { BookingDto, CompanyDto, MemberDto, ResourceDto } from "@/lib/service/HsService"
 import { formatDateTime, formatPriceHt } from "@/lib/format"
-import { createBookingAction, updateBookingAction, validateBookingAction } from "./actions"
+import {
+  createBookingAction,
+  updateBookingAction,
+  validateBookingAction,
+  type ActionState,
+} from "./actions"
 import { BOOKING_STATUS_LABELS } from "./booking-status"
 import { toast } from "sonner"
 
@@ -54,6 +59,20 @@ function toLocalInput(iso: string, timeZone: string): string {
     hour: "2-digit", minute: "2-digit", hourCycle: "h23",
   }).format(new Date(iso))
   return parts.replace(" ", "T")
+}
+
+/**
+ * The one reaction `ActionState.problemType` exists for. A conflict is not
+ * a validation failure: nothing about the form is wrong, someone else took
+ * the slot in between, and the API's raw detail ("Status Code 409: ...")
+ * does not say to pick another time. Everything else falls through to the
+ * server's own message.
+ */
+function messageFor(state: ActionState, fallback: string): string {
+  if (state.problemType === "booking_conflict") {
+    return "That slot was just taken. Pick another time or another room."
+  }
+  return state.error ?? fallback
 }
 
 type CustomerKind = "member" | "company" | "none"
@@ -150,9 +169,9 @@ export function AddBookingForm({
       onClose()
     } else if (createState.error && !createNotifiedRef.current) {
       createNotifiedRef.current = true
-      toast.error(createState.error)
+      toast.error(messageFor(createState, "Failed to create booking"))
     }
-  }, [createState.success, createState.error, onClose])
+  }, [createState, onClose])
 
   useEffect(() => {
     if (updateState.success && !updateNotifiedRef.current) {
@@ -161,9 +180,9 @@ export function AddBookingForm({
       onClose()
     } else if (updateState.error && !updateNotifiedRef.current) {
       updateNotifiedRef.current = true
-      toast.error(updateState.error)
+      toast.error(messageFor(updateState, "Failed to update booking"))
     }
-  }, [updateState.success, updateState.error, onClose])
+  }, [updateState, onClose])
 
   /**
    * Dry run against POST /bookings/validate so conflicts and the price show up
@@ -184,7 +203,7 @@ export function AddBookingForm({
             : `Available — ${formatPriceHt(price)} excl. VAT.`
         )
       } else {
-        setQuoteMessage(result.error ?? "The booking is not valid.")
+        setQuoteMessage(messageFor(result, "The booking is not valid."))
       }
     } finally {
       setChecking(false)
@@ -419,7 +438,11 @@ export function AddBookingForm({
                   />
                 </div>
 
-                {currentState.error && <div className="text-sm text-red-600">{currentState.error}</div>}
+                {currentState.error && (
+                  <div className="text-sm text-red-600">
+                    {messageFor(currentState, "The booking could not be saved.")}
+                  </div>
+                )}
               </div>
             </div>
 
