@@ -81,6 +81,14 @@ export function CalendarViews({
             params.delete("calendarView")   // day is the default, so absent
             router.replace(`?${params.toString()}`)
           }}
+          // The picker's own arrows land here too, so paging the month
+          // moves the URL and refetches instead of silently redrawing an
+          // unfetched month with every count at zero.
+          onPickMonth={(month) => {
+            const params = new URLSearchParams(searchParams.toString())
+            params.set("date", `${month}-01`)
+            router.replace(`?${params.toString()}`)
+          }}
         />
       )}
       {prefill && (
