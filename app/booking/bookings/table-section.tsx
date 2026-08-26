@@ -38,8 +38,6 @@ export async function BookingTableSection({
   const from = firstParam(params.from)
   const to = firstParam(params.to)
 
-  const statsQuery = { q, resourceId, from, to, source }
-
   let results: BookingDto[] = []
   let total = 0
 
@@ -60,7 +58,9 @@ export async function BookingTableSection({
       console.warn("Failed to load bookings", error)
       return null
     }),
-    bookingStats(statsQuery),
+    // Positional, and in the same order as SectionCards' call: cache() keys
+    // primitives by value, so this must match section-cards.tsx exactly.
+    bookingStats(q, resourceId, from, to, source),
   ])
 
   if (response) {

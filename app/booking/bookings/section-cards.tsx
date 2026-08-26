@@ -15,15 +15,17 @@ export async function SectionCards({
   const params = await resolveSearchParams(searchParams)
   const { q } = pageQuery(params)
 
-  // Same argument list as the table's call, so cache() returns the very
-  // same promise rather than issuing a second request.
-  const stats = await bookingStats({
+  // Same five values, same order, as the table's call: cache() keys
+  // primitive arguments by value, so this dedupes into a single request
+  // only because both call sites pass positional primitives, not an
+  // options object (objects would be keyed by reference and always miss).
+  const stats = await bookingStats(
     q,
-    resourceId: firstParam(params.resourceId),
-    from: firstParam(params.from),
-    to: firstParam(params.to),
-    source: firstParam(params.source),
-  })
+    firstParam(params.resourceId),
+    firstParam(params.from),
+    firstParam(params.to),
+    firstParam(params.source)
+  )
 
   const totals = bookingTotals(stats)
   const count = (status: string) => totals.countFor(status) ?? 0
