@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache"
 import { createResourceType, updateResourceType } from "@/lib/service"
+import { clearResourceTypeNav } from "@/components/app-sidebar-nav"
 import type { CreateResourceTypeDto, UpdateResourceTypeDto } from "@/lib/service/HsService"
 
 export type ActionState = {
@@ -22,6 +23,7 @@ export async function createResourceTypeAction(
     }
 
     await createResourceType(data)
+    clearResourceTypeNav()
     revalidatePath("/space/resource-types")
     return { success: true }
   } catch (error) {
@@ -45,6 +47,7 @@ export async function updateResourceTypeAction(
     }
 
     await updateResourceType(id, data)
+    clearResourceTypeNav()
     revalidatePath("/space/resource-types")
     return { success: true }
   } catch (error) {

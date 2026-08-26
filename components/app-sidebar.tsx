@@ -7,8 +7,6 @@ import { usePathname, useSearchParams } from "next/navigation"
 import { SidebarLogoutButton } from "@/components/sidebar-logout-button"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Button } from "@/components/ui/button"
-import { getListResourceTypes } from "@/lib/service"
-import type { ResourceTypeDto } from "@/lib/service/HsService"
 
 // Import navigation configuration and types
 import {
@@ -34,37 +32,20 @@ import {
 } from "@/components/sidebar";
 import { cn } from "@/lib/utils";
 
-type AppSidebarProps = Readonly<React.ComponentProps<typeof Sidebar>>
+type AppSidebarProps = Readonly<
+  React.ComponentProps<typeof Sidebar> & {
+    /** Read on the server by AppSidebarNav — see the note there. */
+    resourceTypeItems?: NavigationItem[]
+  }
+>
 
-export function AppSidebar({ ...props }: AppSidebarProps) {
+export function AppSidebar({ resourceTypeItems = [], ...props }: AppSidebarProps) {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const [activeItem, setActiveItem] = React.useState<MenuItem>(getDefaultActiveItem())
-  const [resourceTypeItems, setResourceTypeItems] = React.useState<NavigationItem[]>([])
   const [isHovered, setIsHovered] = React.useState(false)
   const [isSticky, setIsSticky] = React.useState(false)
   const { setOpen } = useSidebar()
-
-  // Resource types are managed data, so the menu entries are loaded from the API.
-  React.useEffect(() => {
-    let cancelled = false
-    getListResourceTypes({ limit: 100, offset: 0, sort: "ASC" })
-      .then((response) => {
-        if (cancelled) return
-        setResourceTypeItems(
-          ((response?.results ?? []) as ResourceTypeDto[]).map((type) => ({
-            title: type.name,
-            url: `/space/resources?resourceTypeId=${encodeURIComponent(type.id)}`,
-          }))
-        )
-      })
-      .catch((error) => {
-        console.warn("Failed to load resource types for navigation", error)
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [])
 
   const navMain = React.useMemo(
     () => applyDynamicSubMenuItems(navigationConfig.navMain, "resourceTypes", resourceTypeItems),
