@@ -1,0 +1,68 @@
+"use client"
+
+import { useState } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
+import type { BookingCalendarDto, ResourceTypeDto } from "@/lib/service/HsService"
+import { AddBookingForm } from "@/app/booking/bookings/add-booking-form"
+import { CalendarToolbar } from "./calendar-toolbar"
+import { ResourceTypeTabs } from "./resource-type-tabs"
+import { ResourceDayGrid } from "./resource-day-grid"
+import type { CalendarViewState } from "./types"
+
+interface Prefill {
+  resourceId: string
+  startsAt: string
+  endsAt: string
+}
+
+export function CalendarViews({
+  calendar,
+  state,
+  bookableTypes,
+}: Readonly<{
+  calendar: BookingCalendarDto
+  state: CalendarViewState
+  bookableTypes: ResourceTypeDto[]
+}>) {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+  const [timeRange, setTimeRange] = useState({ from: "09:00", to: "10:00" })
+  const [vacantOnly, setVacantOnly] = useState(false)
+  const [prefill, setPrefill] = useState<Prefill | null>(null)
+
+  const pick = (resourceId: string, startsAt: string, endsAt: string) =>
+    setPrefill({ resourceId, startsAt, endsAt })
+
+  return (
+    <>
+      <ResourceTypeTabs types={bookableTypes} activeTypeId={state.resourceTypeId} />
+      <CalendarToolbar
+        date={state.date}
+        view={state.view}
+        timeRange={timeRange}
+        vacantOnly={vacantOnly}
+        onTimeRangeChange={setTimeRange}
+        onVacantOnlyChange={setVacantOnly}
+      />
+      {state.view === "day" && (
+        <ResourceDayGrid
+          calendar={calendar}
+          date={state.date}
+          vacantOnly={vacantOnly}
+          timeRange={timeRange}
+          onPickSlot={pick}
+        />
+      )}
+      {/* Tasks 7 and 8 add the week and month branches here. */}
+      {prefill && (
+        <AddBookingForm
+          key={`${prefill.resourceId}-${prefill.startsAt}`}
+          isOpen
+          onClose={() => setPrefill(null)}
+          prefill={prefill}
+          timeZone={calendar.timezone}
+        />
+      )}
+    </>
+  )
+}

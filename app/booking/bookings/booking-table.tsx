@@ -131,6 +131,7 @@ export function BookingTable({
         resources={resources}
         memberNames={memberNames}
         companyNames={companyNames}
+        timeZone={timeZone}
       />
     </>
   )

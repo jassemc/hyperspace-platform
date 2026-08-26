@@ -1,7 +1,8 @@
-import { getBookingCalendar } from "@/lib/service"
-import type { BookingCalendarDto } from "@/lib/service/HsService"
+import { getBookingCalendar, getListResourceTypes } from "@/lib/service"
+import type { BookingCalendarDto, ResourceTypeDto } from "@/lib/service/HsService"
 import { firstParam, resolveSearchParams, type SearchParamsInput } from "@/lib/search-params"
 import { rangeFor, type CalendarView } from "@/components/booking/calendar/types"
+import { CalendarViews } from "@/components/booking/calendar/calendar-views"
 
 function todayIn(timeZone: string): string {
   return new Intl.DateTimeFormat("en-CA", {
@@ -30,6 +31,17 @@ export async function BookingCalendarSection({
   // Bounded in the grid's zone, not the reader's — the whole point of
   // carrying a timezone rather than assuming one.
   const { from, to } = rangeFor(state, timeZone)
+
+  // canBook is the flag, not bookingMode, which describes pricing rather
+  // than whether a thing can be booked at all.
+  const typePage = await getListResourceTypes({
+    limit: 100,
+    offset: 0,
+    sort: "ASC",
+  }).catch(() => null)
+  const bookableTypes = ((typePage?.results ?? []) as ResourceTypeDto[]).filter(
+    (type) => type.canBook
+  )
 
   let calendar: BookingCalendarDto | null = null
   let error: string | null = null
@@ -60,16 +72,7 @@ export async function BookingCalendarSection({
     )
   }
 
-  // CalendarViews does not exist yet — Task 6 replaces this placeholder
-  // with the real grid. This proves the fetch works: the location's
-  // timezone and room count came back from the server.
   return (
-    <pre className="mx-4 overflow-x-auto rounded-md border p-4 text-xs">
-      {JSON.stringify(
-        { timezone: calendar?.timezone, rooms: calendar?.resources.length },
-        null,
-        2
-      )}
-    </pre>
+    <CalendarViews calendar={calendar!} state={state} bookableTypes={bookableTypes} />
   )
 }

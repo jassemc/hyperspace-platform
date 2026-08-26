@@ -17,7 +17,7 @@ import {
 import { X } from "lucide-react"
 import { getListResources, getListMembers, getListCompanies } from "@/lib/service"
 import type { BookingDto, CompanyDto, MemberDto, ResourceDto } from "@/lib/service/HsService"
-import { formatPriceHt } from "@/lib/format"
+import { formatDateTime, formatPriceHt } from "@/lib/format"
 import { createBookingAction, updateBookingAction, validateBookingAction } from "./actions"
 import { BOOKING_STATUS_LABELS } from "./booking-status"
 import { toast } from "sonner"
@@ -29,6 +29,25 @@ interface AddBookingFormProps {
   resources?: ResourceDto[]
   memberNames?: Record<string, string>
   companyNames?: Record<string, string>
+  /** Set when opened from a calendar cell. */
+  prefill?: { resourceId: string; startsAt: string; endsAt: string }
+  /** Zone the datetime-local inputs are written in. Required with prefill. */
+  timeZone?: string
+}
+
+/**
+ * `datetime-local` inputs take a local wall-clock string with no zone of
+ * their own, so an instant is converted into the grid's zone here rather
+ * than the browser's — otherwise the field would silently show a
+ * different time than the cell the user clicked.
+ */
+function toLocalInput(iso: string, timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("sv-SE", {
+    timeZone,
+    year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+  }).format(new Date(iso))
+  return parts.replace(" ", "T")
 }
 
 type CustomerKind = "member" | "company" | "none"
@@ -58,6 +77,8 @@ export function AddBookingForm({
   resources: seedResources,
   memberNames: seedMemberNames,
   companyNames: seedCompanyNames,
+  prefill,
+  timeZone,
 }: Readonly<AddBookingFormProps>) {
   const [resources, setResources] = useState<ResourceDto[]>(seedResources ?? [])
   const [memberNames, setMemberNames] = useState<Record<string, string>>(seedMemberNames ?? {})
@@ -78,10 +99,10 @@ export function AddBookingForm({
       createNotifiedRef.current = false
       updateNotifiedRef.current = false
       setQuoteMessage(null)
-      setResourceId(editingBooking?.resourceId ?? "")
+      setResourceId(editingBooking?.resourceId ?? prefill?.resourceId ?? "")
       setCustomerKind(editingBooking?.companyId ? "company" : "member")
     }
-  }, [isOpen, editingBooking])
+  }, [isOpen, editingBooking, prefill])
 
   // The page-level Add button renders this form with no seed data, so the
   // lookups are fetched here rather than threaded through every caller.
@@ -213,8 +234,8 @@ export function AddBookingForm({
                 {editingBooking ? (
                   <>
                     <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-                      {new Date(editingBooking.startsAt).toLocaleString()} —{" "}
-                      {new Date(editingBooking.endsAt).toLocaleString()}
+                      {formatDateTime(editingBooking.startsAt, timeZone ?? "UTC")} —{" "}
+                      {formatDateTime(editingBooking.endsAt, timeZone ?? "UTC")}
                       <span className="block pt-1 text-xs">
                         Resource and times cannot be changed after creation.
                       </span>
@@ -307,11 +328,27 @@ export function AddBookingForm({
 
                     <div className="grid gap-2">
                       <Label htmlFor="startsAt">Starts at</Label>
-                      <Input id="startsAt" name="startsAt" type="datetime-local" required />
+                      <Input
+                        id="startsAt"
+                        name="startsAt"
+                        type="datetime-local"
+                        defaultValue={
+                          prefill && timeZone ? toLocalInput(prefill.startsAt, timeZone) : undefined
+                        }
+                        required
+                      />
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="endsAt">Ends at</Label>
-                      <Input id="endsAt" name="endsAt" type="datetime-local" required />
+                      <Input
+                        id="endsAt"
+                        name="endsAt"
+                        type="datetime-local"
+                        defaultValue={
+                          prefill && timeZone ? toLocalInput(prefill.endsAt, timeZone) : undefined
+                        }
+                        required
+                      />
                     </div>
 
                     {availableExtras.length > 0 && (
