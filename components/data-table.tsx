@@ -36,6 +36,7 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Loader2, Search, SlidersHorizontal, X } from "lucide-react"
+import { DateRangeFilter } from "@/components/ui/date-range-filter"
 
 interface StatusTabOption {
     value: string
@@ -51,13 +52,33 @@ export interface TableFilterOption {
 }
 
 /** A dropdown that narrows the list through its own URL param. */
-export interface TableFilter {
+export interface TableSelectFilter {
+    /** Defaults to "select" so every existing call site is unchanged. */
+    kind?: "select"
     /** The query-string key it owns, e.g. "interest". */
     key: string
     label: string
     value?: string
     options: TableFilterOption[]
 }
+
+/**
+ * A from/to pair owning two URL params. The control writes ISO instants,
+ * not date strings: the API takes instants and refuses to guess what a
+ * "day" means, because the answer depends on where the reader is.
+ */
+export interface TableDateRangeFilter {
+    kind: "dateRange"
+    label: string
+    fromKey: string
+    toKey: string
+    fromValue?: string
+    toValue?: string
+    /** Named shortcuts, e.g. "Last 7 days". Values are computed on click. */
+    presets?: { label: string; days: number }[]
+}
+
+export type TableFilter = TableSelectFilter | TableDateRangeFilter
 
 interface DataTableProps<TData, TValue> {
     columns: ColumnDef<TData, TValue>[]
@@ -78,6 +99,12 @@ interface DataTableProps<TData, TValue> {
     statusAllCount?: number
     /** Extra dropdown filters, each owning one query param. */
     filters?: TableFilter[]
+    /**
+     * Zone in which a picked day is converted to instants. Pass the
+     * location's when one is in scope; the reader's own is the right
+     * answer when nothing is (an opportunity has no location).
+     */
+    timeZone?: string
 }
 
 /** The count rides in the tab as a quiet pill, the way a filter chip reads. */
@@ -117,6 +144,7 @@ export function DataTable<TData, TValue>({
     searchPlaceholder = "Filter names...",
     statusAllCount,
     filters = [],
+    timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone,
 }: DataTableProps<TData, TValue>) {
     const searchParams = useSearchParams()
     const router = useRouter()
@@ -267,7 +295,11 @@ export function DataTable<TData, TValue>({
         : ((getTableColumn("name")?.getFilterValue() as string) ?? "")
     const typeValue = (getTableColumn("type")?.getFilterValue() as string) ?? ""
     const activeStatus = searchParams.get("status")
-    const activeFilters = filters.filter((filter) => Boolean(filter.value))
+    const activeFilters = filters.filter((filter) =>
+        filter.kind === "dateRange"
+            ? Boolean(filter.fromValue || filter.toValue)
+            : Boolean(filter.value)
+    )
     const activeCount =
         activeFilters.length +
         (searchValue ? 1 : 0) +
@@ -281,6 +313,25 @@ export function DataTable<TData, TValue>({
             params.set(key, value)
         } else {
             params.delete(key)
+        }
+        params.delete("page") // a narrower list starts at the first page
+        startTransition(() => router.replace(`?${params.toString()}`))
+    }
+
+    const applyRange = (
+        filter: TableDateRangeFilter,
+        value: { fromIso?: string; toIso?: string }
+    ) => {
+        const params = new URLSearchParams(searchParams.toString())
+        for (const [key, next] of [
+            [filter.fromKey, value.fromIso],
+            [filter.toKey, value.toIso],
+        ] as const) {
+            if (next) {
+                params.set(key, next)
+            } else {
+                params.delete(key)
+            }
         }
         params.delete("page") // a narrower list starts at the first page
         startTransition(() => router.replace(`?${params.toString()}`))
@@ -396,30 +447,42 @@ export function DataTable<TData, TValue>({
                             </Button>
                         </PopoverTrigger>
                         <PopoverContent className="w-64 space-y-3">
-                            {filters.map((filter) => (
-                                <div key={filter.key} className="grid gap-1.5">
-                                    <span className="text-xs text-muted-foreground">
-                                        {filter.label}
-                                    </span>
-                                    <select
-                                        className="h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-xs dark:bg-input/30"
-                                        value={filter.value ?? ""}
-                                        onChange={(event) =>
-                                            applyFilter(filter.key, event.target.value)
-                                        }
-                                    >
-                                        <option value="">Any</option>
-                                        {filter.options.map((option) => (
-                                            <option key={option.value} value={option.value}>
-                                                {option.label}
-                                                {typeof option.count === "number"
-                                                    ? ` (${option.count})`
-                                                    : ""}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-                            ))}
+                            {filters.map((filter) =>
+                                filter.kind === "dateRange" ? (
+                                    <DateRangeFilter
+                                        key={`${filter.fromKey}-${filter.toKey}`}
+                                        label={filter.label}
+                                        fromValue={filter.fromValue}
+                                        toValue={filter.toValue}
+                                        timeZone={timeZone}
+                                        presets={filter.presets}
+                                        onChange={(value) => applyRange(filter, value)}
+                                    />
+                                ) : (
+                                    <div key={filter.key} className="grid gap-1.5">
+                                        <span className="text-xs text-muted-foreground">
+                                            {filter.label}
+                                        </span>
+                                        <select
+                                            className="h-9 w-full rounded-md border border-input bg-transparent px-2 text-sm shadow-xs dark:bg-input/30"
+                                            value={filter.value ?? ""}
+                                            onChange={(event) =>
+                                                applyFilter(filter.key, event.target.value)
+                                            }
+                                        >
+                                            <option value="">Any</option>
+                                            {filter.options.map((option) => (
+                                                <option key={option.value} value={option.value}>
+                                                    {option.label}
+                                                    {typeof option.count === "number"
+                                                        ? ` (${option.count})`
+                                                        : ""}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                )
+                            )}
                             {hasFilters && (
                                 <Button
                                     variant="ghost"
