@@ -31,8 +31,11 @@ filters, no working search. `table-section.tsx:32` already *reads*
    portal calendar would be a separate endpoint with its own scoping.
 2. "Meeting rooms" means resources whose `resourceType.canBook` is true.
    `canBook` is preferred over testing `bookingMode !== 'none'`.
-3. Business time is `Africa/Tunis`, per `docs/CONVENTIONS.md` §2. Every
-   wall-clock ↔ instant conversion in this work goes through one helper.
+3. **The platform is multi-region.** Business time is resolved per
+   location from `LocationEntity.timezone` — never from a constant, and
+   never from the server clock. No code in this work names a region. See
+   §4.5; `docs/CONVENTIONS.md` §2 should be amended, as its "business-time
+   logic uses `Africa/Tunis`" line no longer describes the code.
 4. "Filter by created day" on CRM means a **range** (`createdFrom` /
    `createdTo`). A single day is a range of one; presets cover the common
    cases.
@@ -78,7 +81,7 @@ with no React wrapper — it must be mounted imperatively).
 
 **Chosen: custom.** The hard part here is not the grid, it is the
 availability math, and we already own it: `public-booking-page/lib/slots.ts`
-is timezone-correct against Africa/Tunis and `DayTimeline` already renders
+already does the wall-clock ↔ instant maths and `DayTimeline` already renders
 windows, busy blocks and a selection. No library models our three states
 (bookable window / busy / contested pending), so any of them would mean
 reshaping data into their event model and then fighting their CSS to
@@ -247,23 +250,55 @@ counts stop matching the rows they label.
 `Between` / `MoreThanOrEqual` / `LessThanOrEqual`. `statsQuery`
 (`opportunity.service.ts:213`) is a query builder, so it takes `andWhere`.
 
-**The trap.** `created_at` is `timestamptz` and a "day" here is an
-Africa/Tunis business day. Filtering on the UTC calendar day misfiles
-every lead created between 23:00 and midnight Tunis. The bounds must be
-converted from Tunis wall-clock to UTC instants before they reach the
-query — the same conversion the calendar needs (§4.5), and the same class
-of bug as the frontend timezone defect (audit B4).
+**The parameters are instants, not day strings.** `OpportunityEntity` has
+no location relation, so the server has no timezone to resolve a "day"
+against — and inventing one (a platform default, the caller's location,
+the server clock) would bake a region into a region-neutral entity. The
+API therefore takes ISO instants and does no conversion at all, exactly
+as the booking list's existing `from`/`to` do.
 
-### 4.5 Shared: Tunis day-boundary helper
+Turning a chosen day into a pair of instants is the **client's** job,
+using the timezone context it actually has (§5.6). This keeps the same
+API correct whether the operator is in Tunis, Lisbon or Dubai.
 
-One helper, used by §4.1, §4.4 and the frontend port (§5.4):
+### 4.5 Business time is per-location, never a constant
+
+The platform is multi-region and the codebase already reflects that:
+`LocationEntity.timezone:22` is documented as "IANA timezone driving all
+business-hour logic for this location", and there is **no `Africa/Tunis`
+anywhere in backend `src/`** — it survives only as a default value in
+`create-location.dto.ts` and in doc examples.
+
+The helper this work needs also already exists:
 
 ```
-tunisDayBounds(date: 'YYYY-MM-DD') -> { startUtc: Date, endUtc: Date }
+localParts(location, at) -> { date, time, weekday, offset }
+    src/modules/attendance/utils/location-hours.util.ts:31
 ```
 
-Placed in `src/common/` beside the other business-time utilities. This is
-the highest-value unit test in the plan (§7).
+It decomposes an instant into the location's local wall-clock parts via
+`Intl.DateTimeFormat` with `longOffset`, and `AvailabilityService` already
+uses it correctly at lines 168–186. **Nothing new is invented here.**
+
+Two changes:
+
+1. Add `localDayBounds(location, date)` beside it, returning the UTC
+   instants bounding that local calendar day — derived from `localParts`,
+   not from a fixed offset, so DST is handled wherever it applies.
+2. Move `location-hours.util.ts` from `src/modules/attendance/utils/` to
+   `src/common/`. It is already imported by `booking`, so its current home
+   makes `booking` depend on `attendance` for a pure time utility.
+
+Every window and block computation in §4.1 goes through this, resolving
+the timezone from the room's `locationId`. No module in this work holds a
+timezone constant.
+
+**Consequence for the calendar: the grid is per-location.** A day grid is
+one *place's* day, so a room set spanning two timezones has no coherent
+time axis. When `resourceIds` resolve to more than one location the
+endpoint returns `422 mixed_location_calendar`; `locationId` is how the
+caller disambiguates. Cross-location scheduling, if it is ever wanted, is
+a different view and a different design.
 
 ### 4.6 Migration
 
@@ -377,22 +412,51 @@ toolbar.
 This is the only change outside the booking module, and it is what serves
 both the booking date filter and the CRM created-day filter.
 
-### 5.5 `lib/slots.ts` port
+### 5.5 `lib/slots.ts` port — with the region taken out
 
 Copy `freeRangesForDay`, `startOptionsForDuration`, `durationChoices` and
 `wallClockToUtcMs` from `public-booking-page/lib/slots.ts`. They are pure
-functions with no dependency beyond a timezone constant.
+functions.
+
+**What must not come with them is `BUSINESS_TZ`.** That constant
+(`public-booking-page/lib/format.ts:8 = "Africa/Tunis"`) is defensible on
+a site serving one region; in a multi-region admin it is a bug waiting to
+happen. Every ported function takes the timezone as a parameter:
+
+```ts
+wallClockToUtcMs(date, hhmm, timeZone)
+freeRangesForDay(availability, date, nowMs, timeZone)
+```
+
+The calendar passes the timezone of the grid's location (§4.5), which the
+admin already has from `LocationDto.timezone` via `getListLocations`.
 
 **Block positioning uses `wallClockToUtcMs`, never bare `new Date()`.** A
-block's left offset is `(startUtc − dayStartUtc) / span`, where
-`dayStartUtc` comes from converting the window's Tunis wall-clock open
-time. Get this wrong and every block is an hour off, silently — the same
-defect as `actions.ts:51`, which parses a `datetime-local` string inside a
-server action and so resolves it in the *server's* timezone.
+block's offset along the axis is `(startUtc − dayStartUtc) / span`, where
+`dayStartUtc` comes from converting the window's *local* opening time in
+the location's timezone. Get this wrong and every block is silently
+displaced — the same defect as `actions.ts:51`, which parses a
+`datetime-local` string inside a server action and so resolves it in the
+*server's* timezone.
 
-Add `formatDateTime(value, tz)` to `lib/format.ts`, which already owns
-`formatDate`. The same three-line helper is currently copy-pasted into
-`bookings/columns.tsx:19` and `attention-lists.tsx:22`.
+Add `formatDateTime(value, timeZone)` to `lib/format.ts`, which already
+owns `formatDate`. `timeZone` is required, not defaulted: a default is how
+a region creeps back in. The same three-line helper is currently
+copy-pasted into `bookings/columns.tsx:19` and `attention-lists.tsx:22`,
+all three calling bare `toLocaleString()`.
+
+### 5.6 Day → instants on the client
+
+The CRM created-day filter and the booking date filters send instants
+(§4.4). The `dateRange` filter control (§5.4) converts the picked day to
+`[startUtc, endUtc)` before writing the URL, using — in order — the
+timezone of the location in scope, else the operator's browser timezone
+via `Intl.DateTimeFormat().resolvedOptions().timeZone`.
+
+The browser fallback matters: opportunities have no location, so their
+"day" is the day of the person reading the screen. That is the right
+answer for a multi-region tool, and it is only correct because the server
+refuses to guess.
 
 ---
 
@@ -404,7 +468,7 @@ Cheap, and in files this work already touches:
 |---|---|---|
 | B1 | `q` honoured + `serverSearch` on | §4.3, §5.3 |
 | B2 | Stats endpoint replaces 100-row scan | §4.2, §5.3 |
-| B4 | Timezone helper + `formatDateTime` | §4.5, §5.5 |
+| B4 | Per-location timezone via `localParts`; `formatDateTime(v, tz)` | §4.5, §5.5 |
 | B5 | No-show checkbox guarded on start time | one line, `add-booking-form.tsx:234` |
 | B6 | `cache()` around shared reads | `opportunities/stats.ts` pattern |
 | B7 | `BOOKING_STATUS_TABS` wired | §5.3 |
@@ -426,9 +490,15 @@ Q1 (quote breakdown panel), A2 (slot picker in the drawer), A6, A7.
 exist. CONVENTIONS §13 requires specs for every service with business
 rules. Written first:
 
-- `tunisDayBounds` across a day boundary — a lead created 23:30 Tunis
-  belongs to that Tunis day, not the next UTC one. **Highest-value test in
-  the plan**: §4.4 and §5.5 are the same bug, and this pins it.
+- `localDayBounds` across a day boundary, **in at least three timezones
+  with different signs and DST behaviour** — e.g. `Africa/Tunis` (+01, no
+  DST), `America/New_York` (negative offset, DST), `Asia/Kolkata` (+05:30,
+  half-hour offset). A booking at 23:30 local belongs to that local day,
+  not the next UTC one, and a half-hour zone breaks any implementation
+  that assumes whole-hour offsets. **Highest-value test in the plan.**
+- A DST transition day: the local day is 23 or 25 hours long, and
+  `localDayBounds` must return bounds that reflect that rather than
+  `start + 24h`.
 - `BookingCalendarService`: window/block composition; pending blocks
   present, cancelled absent; range cap; empty result for a room with no
   windows.
@@ -441,7 +511,10 @@ rules. Written first:
 plan does not add one (§2). Verification targets the cases that fail
 *silently*:
 
-1. A booking at 09:00 Tunis renders at 09:00 on the grid.
+1. A booking at 09:00 local renders at 09:00 on the grid — checked with
+   the seeded location's timezone set to something other than the
+   developer's own, so a machine-timezone assumption cannot pass by
+   accident.
 2. Two pending bookings on one slot both render, distinctly from
    confirmed.
 3. `?view=calendar` survives a refresh with filters applied.
@@ -465,10 +538,40 @@ plan does not add one (§2). Verification targets the cases that fail
 - **Contested pending is surfaced, not solved.** The calendar makes
   competing requests visible. Deciding *what staff do* about them — a
   chooser in the confirm dialog — is audit P1 and stays a follow-up.
+- **Region assumptions are silent failures.** A hardcoded timezone does
+  not throw; it renders a grid that is plausibly wrong by an offset, and
+  it looks correct to whoever built it. Two guards: the multi-timezone
+  tests in §7, and `formatDateTime` taking a required `timeZone` (§5.5) so
+  the type checker refuses the call sites that have not thought about it.
+- **One-location-at-a-time is a real limit.** §4.5 refuses a room set
+  spanning timezones. For an operator running one building this is
+  invisible; for one running several it means the grid is a per-location
+  view, which should be confirmed as acceptable before the plan is
+  executed rather than discovered in review.
 
 ## 9. Follow-ups (out of scope)
 
+**Region-generality, beyond this spec.** Timezone is now handled
+per-location, but two region assumptions remain and neither is fixed here:
+
+- **Currency is hardcoded TND.** `lib/format.ts:18` appends the literal
+  `" TND"`, and `money-column.transformer.ts` is `numeric(12,3)` because
+  millimes need three decimals — EUR and USD need two, JPY none. This is
+  the same class of problem as the timezone one but structural: it is a
+  schema decision, not a formatting one, and it wants its own design.
+  Flagged here because it is the largest remaining barrier to a
+  multi-region platform.
+- **`docs/CONVENTIONS.md:33`** still states "business-time logic uses
+  `Africa/Tunis`". The code has moved past that line; it should be amended
+  to say business time resolves from `LocationEntity.timezone`.
+- **`public-booking-page`** keeps `BUSINESS_TZ` (`lib/format.ts:8`). That
+  is defensible while the site serves one region, but if it becomes
+  multi-tenant it needs the same treatment as §5.5.
+
+**Feature follow-ups**
+
 - Recurrence (`rrule` + `exdates`), per OFFICERND-NOTES line 79.
+- Cross-location calendar (the view §4.5 deliberately refuses).
 - No-show auto-release policy.
 - Drag-to-create / drag-to-resize on the grid.
 - Quote breakdown panel (Q1) and the drawer slot picker (A2).
