@@ -1,6 +1,6 @@
 import { getListResources, getListResourceTypes } from "@/lib/service";
-import { PageDto } from "@/lib/service/HsService";
 import type { ListResourcesParams, ResourceDto, ResourceTypeDto } from "@/lib/service/HsService";
+import { pageResult } from "@/lib/search-params";
 import { ResourceTable } from "./resource-table";
 import { isResourceStatus } from "./resource-status";
 
@@ -31,9 +31,8 @@ export async function ResourceTableSection({ searchParams }: Readonly<{ searchPa
     let results: ResourceDto[] = []
     let total = 0
     try {
-        const response = await getListResources(query) as unknown as PageDto & { results?: ResourceDto[] }
-        results = response.results ?? []
-        total = response.meta?.totalItems ?? results.length
+        const response = await getListResources(query)
+        ;({ results, total } = pageResult<ResourceDto>(response))
     } catch (error) {
         console.warn("Failed to load resources", error)
     }
