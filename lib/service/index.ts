@@ -19,6 +19,7 @@ import type {
   CreateLocationDto,
   CreateMemberDto,
   CreateMembershipDto,
+  CreateMembershipPauseDto,
   CreateOpportunityDto,
   CreatePaymentDto,
   CreatePlanCategoryDto,
@@ -51,10 +52,13 @@ import type {
   ListResourceRatesParams,
   ListResourcesParams,
   ListResourceTypesParams,
+  OnboardLeadDto,
+  OpportunityStatsParams,
   PublicListPlansParams,
   PublicListResourcesParams,
   PublicResourceAvailabilityParams,
   RelocateAssignmentDto,
+  ResumeMembershipDto,
   UpdateAmenityDto,
   UpdateBookingDto,
   UpdateCompanyDto,
@@ -277,6 +281,14 @@ export async function getInvoice(id: string, params?: RequestParams) {
   return hsService.api.getInvoice(id, params);
 }
 
+export async function deleteDraftInvoice(id: string, params?: RequestParams) {
+  return hsService.api.deleteDraftInvoice(id, params);
+}
+
+export async function issueInvoice(id: string, params?: RequestParams) {
+  return hsService.api.issueInvoice(id, params);
+}
+
 export async function voidInvoice(id: string, params?: RequestParams) {
   return hsService.api.voidInvoice(id, params);
 }
@@ -327,6 +339,18 @@ export async function updateMembership(id: string, data: UpdateMembershipDto, pa
 
 export async function cancelMembership(id: string, params?: RequestParams) {
   return hsService.api.cancelMembership(id, params);
+}
+
+export async function getListMembershipPauses(id: string, params?: RequestParams) {
+  return hsService.api.listMembershipPauses(id, params);
+}
+
+export async function pauseMembership(id: string, data: CreateMembershipPauseDto, params?: RequestParams) {
+  return hsService.api.pauseMembership(id, data, params);
+}
+
+export async function resumeMembership(id: string, data: ResumeMembershipDto, params?: RequestParams) {
+  return hsService.api.resumeMembership(id, data, params);
 }
 
 export async function renewMembership(id: string, params?: RequestParams) {
@@ -405,8 +429,16 @@ export async function createOpportunity(data: CreateOpportunityDto, params?: Req
   return hsService.api.createOpportunity(data, params);
 }
 
+export async function getOpportunityStats(query: OpportunityStatsParams, params?: RequestParams) {
+  return hsService.api.opportunityStats(query, params);
+}
+
 export async function updateOpportunity(id: string, data: UpdateOpportunityDto, params?: RequestParams) {
   return hsService.api.updateOpportunity(id, data, params);
+}
+
+export async function onboardLead(data: OnboardLeadDto, params?: RequestParams) {
+  return hsService.api.onboardLead(data, params);
 }
 
 export async function getAnalyticsOccupancy(query: AnalyticsOccupancyParams, params?: RequestParams) {

@@ -29,7 +29,8 @@ const PAYMENT_METHODS: { value: PaymentMethod; label: string }[] = [
 
 interface InvoiceActionButtonsProps {
   invoiceId: string
-  invoiceNumber: string
+  // A draft invoice carries no number until it is issued.
+  invoiceNumber: string | null
   outstanding: number
   canPay: boolean
   canVoid: boolean
@@ -42,6 +43,7 @@ export function InvoiceActionButtons({
   canPay,
   canVoid,
 }: Readonly<InvoiceActionButtonsProps>) {
+  const label = invoiceNumber ?? "this draft invoice"
   const router = useRouter()
   const [pending, setPending] = useState<"pay" | "void" | null>(null)
   const [amount, setAmount] = useState(String(outstanding))
@@ -59,7 +61,7 @@ export function InvoiceActionButtons({
 
       const result = await recordPaymentAction({}, formData)
       if (result.success) {
-        toast.success(`Payment recorded on ${invoiceNumber}`)
+        toast.success(`Payment recorded on ${label}`)
         router.refresh()
       } else {
         toast.error(result.error ?? "Failed to record payment")
@@ -76,7 +78,7 @@ export function InvoiceActionButtons({
       formData.set("id", invoiceId)
       const result = await voidInvoiceAction({}, formData)
       if (result.success) {
-        toast.success(`${invoiceNumber} voided`)
+        toast.success(`${label} voided`)
         router.refresh()
       } else {
         toast.error(result.error ?? "Failed to void invoice")
@@ -105,7 +107,7 @@ export function InvoiceActionButtons({
             <AlertDialogHeader>
               <AlertDialogTitle>Record a payment</AlertDialogTitle>
               <AlertDialogDescription>
-                Against {invoiceNumber}. Partial payments are allowed.
+                Against {label}. Partial payments are allowed.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <div className="grid gap-3 py-2">
@@ -171,7 +173,7 @@ export function InvoiceActionButtons({
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Void {invoiceNumber}?</AlertDialogTitle>
+              <AlertDialogTitle>Void {label}?</AlertDialogTitle>
               <AlertDialogDescription>
                 Voiding cannot be undone. The charges on it return to uninvoiced.
               </AlertDialogDescription>

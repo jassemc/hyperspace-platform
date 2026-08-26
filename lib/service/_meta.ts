@@ -667,6 +667,32 @@ const meta = {
 
     {
       namespace: "api",
+      method: "DELETE",
+      usage: "deleteDraftInvoice",
+      path: "/api/v1/invoices/${id}",
+      functionName: "deleteDraftInvoice",
+      pathParams: [{ name: "id", type: "string", optional: false }],
+      requestParams: [],
+      combinedPathAndRequestParams: [],
+      payload: null,
+      responseType: "any",
+    },
+
+    {
+      namespace: "api",
+      method: "POST",
+      usage: "issueInvoice",
+      path: "/api/v1/invoices/${id}/issue",
+      functionName: "issueInvoice",
+      pathParams: [{ name: "id", type: "string", optional: false }],
+      requestParams: [],
+      combinedPathAndRequestParams: [],
+      payload: null,
+      responseType: "(InvoiceDto)",
+    },
+
+    {
+      namespace: "api",
       method: "POST",
       usage: "voidInvoice",
       path: "/api/v1/invoices/${id}/void",
@@ -832,6 +858,45 @@ const meta = {
       combinedPathAndRequestParams: [],
       payload: null,
       responseType: "(MembershipDto)",
+    },
+
+    {
+      namespace: "api",
+      method: "GET",
+      usage: "listMembershipPauses",
+      path: "/api/v1/memberships/${id}/pauses",
+      functionName: "getListMembershipPauses",
+      pathParams: [{ name: "id", type: "string", optional: false }],
+      requestParams: [],
+      combinedPathAndRequestParams: [],
+      payload: null,
+      responseType: "Array<MembershipPauseDto>",
+    },
+
+    {
+      namespace: "api",
+      method: "POST",
+      usage: "pauseMembership",
+      path: "/api/v1/memberships/${id}/pause",
+      functionName: "pauseMembership",
+      pathParams: [{ name: "id", type: "string", optional: false }],
+      requestParams: [],
+      combinedPathAndRequestParams: [],
+      payload: { name: "data", optional: false, type: "CreateMembershipPauseDto" },
+      responseType: "(MembershipPauseDto)",
+    },
+
+    {
+      namespace: "api",
+      method: "POST",
+      usage: "resumeMembership",
+      path: "/api/v1/memberships/${id}/resume",
+      functionName: "resumeMembership",
+      pathParams: [{ name: "id", type: "string", optional: false }],
+      requestParams: [],
+      combinedPathAndRequestParams: [],
+      payload: { name: "data", optional: false, type: "ResumeMembershipDto" },
+      responseType: "(MembershipPauseDto)",
     },
 
     {
@@ -1085,6 +1150,19 @@ const meta = {
 
     {
       namespace: "api",
+      method: "GET",
+      usage: "opportunityStats",
+      path: "/api/v1/opportunities/stats",
+      functionName: "getOpportunityStats",
+      pathParams: [],
+      requestParams: [{ name: "query", type: "OpportunityStatsParams" }],
+      combinedPathAndRequestParams: [],
+      payload: null,
+      responseType: "(OpportunityStatsDto)",
+    },
+
+    {
+      namespace: "api",
       method: "PATCH",
       usage: "updateOpportunity",
       path: "/api/v1/opportunities/${id}",
@@ -1094,6 +1172,19 @@ const meta = {
       combinedPathAndRequestParams: [],
       payload: { name: "data", optional: false, type: "UpdateOpportunityDto" },
       responseType: "(OpportunityDto)",
+    },
+
+    {
+      namespace: "api",
+      method: "POST",
+      usage: "onboardLead",
+      path: "/api/v1/onboarding",
+      functionName: "onboardLead",
+      pathParams: [],
+      requestParams: [],
+      combinedPathAndRequestParams: [],
+      payload: { name: "data", optional: false, type: "OnboardLeadDto" },
+      responseType: "(OnboardingResultDto)",
     },
 
     {
