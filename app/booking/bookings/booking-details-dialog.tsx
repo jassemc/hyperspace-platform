@@ -6,6 +6,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -38,18 +39,32 @@ function Row({ label, children }: Readonly<{ label: string; children: React.Reac
 export function BookingDetailsDialog({
   booking,
   timeZone,
-}: Readonly<{ booking: BookingDto; timeZone: string }>) {
+  open,
+  onOpenChange,
+  onEdit,
+}: Readonly<{
+  booking: BookingDto
+  timeZone: string
+  /** Controlled from the calendar; the table call site leaves this unset
+   *  and keeps its own trigger below. */
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
+  /** Renders an Edit button in the footer when provided. */
+  onEdit?: () => void
+}>) {
   const customer = booking.member?.fullName ?? booking.company?.name
   const email = booking.member?.email
 
   return (
-    <Dialog>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm" title="Booking details">
-          <Eye className="h-4 w-4" />
-          <span className="sr-only">Details</span>
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {open === undefined && (
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm" title="Booking details">
+            <Eye className="h-4 w-4" />
+            <span className="sr-only">Details</span>
+          </Button>
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>{booking.title || "Untitled booking"}</DialogTitle>
@@ -113,6 +128,14 @@ export function BookingDetailsDialog({
           <Row label="Created">{formatDateTime(booking.createdAt, timeZone)}</Row>
           <Row label="Updated">{formatDateTime(booking.updatedAt, timeZone)}</Row>
         </div>
+
+        {onEdit && (
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={onEdit}>
+              Edit
+            </Button>
+          </DialogFooter>
+        )}
       </DialogContent>
     </Dialog>
   )

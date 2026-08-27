@@ -114,6 +114,7 @@ interface DayGridProps {
   /** Wall-clock narrowing, e.g. { from: "09:00", to: "10:00" }. */
   timeRange?: { from: string; to: string }
   onPickSlot: (resourceId: string, startUtc: string, endUtc: string) => void
+  onOpenBooking: (bookingId: string) => void
 }
 
 export function ResourceDayGrid({
@@ -122,6 +123,7 @@ export function ResourceDayGrid({
   vacantOnly = false,
   timeRange,
   onPickSlot,
+  onOpenBooking,
 }: Readonly<DayGridProps>) {
   const tz = calendar.timezone
 
@@ -203,6 +205,7 @@ export function ResourceDayGrid({
             topFor={topFor}
             nowMs={nowMs}
             onPickSlot={onPickSlot}
+            onOpenBooking={onOpenBooking}
           />
         ))}
       </div>
@@ -219,6 +222,7 @@ function RoomColumn({
   topFor,
   nowMs,
   onPickSlot,
+  onOpenBooking,
 }: Readonly<{
   entry: CalendarResourceDto
   date: string
@@ -228,6 +232,7 @@ function RoomColumn({
   topFor: (ms: number) => number
   nowMs: number | null
   onPickSlot: (resourceId: string, startUtc: string, endUtc: string) => void
+  onOpenBooking: (bookingId: string) => void
 }>) {
   const day = entry.days.find((d) => d.date === date)
   const windows = (day?.windows ?? []).map((w) => ({
@@ -332,6 +337,7 @@ function RoomColumn({
                 topFor(Math.min(Date.parse(item.block.endsAt), axis.endMs)) -
                 topFor(Math.max(Date.parse(item.block.startsAt), axis.startMs))
               }
+              onOpen={() => onOpenBooking(item.block.bookingId)}
             />
           )
         )}
@@ -358,6 +364,7 @@ function BlockChip({
   lanes,
   top,
   height,
+  onOpen,
 }: Readonly<{
   block: CalendarBlockDto
   tz: string
@@ -365,12 +372,16 @@ function BlockChip({
   lanes: number
   top: number
   height: number
+  onOpen: () => void
 }>) {
   const pending = block.status === "pending"
   return (
-    <div
+    <button
+      type="button"
+      onClick={onOpen}
       className={cn(
-        "absolute overflow-hidden rounded-md border px-2 py-1 text-xs",
+        "absolute overflow-hidden rounded-md border px-2 py-1 text-left text-xs",
+        "hover:ring-1 hover:ring-ring focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
         BOOKING_BLOCK_STYLES[block.status]
       )}
       style={laneStyle(lane, lanes, top, height)}
@@ -383,7 +394,7 @@ function BlockChip({
         {formatTimeOfDay(block.startsAt, tz)}–{formatTimeOfDay(block.endsAt, tz)}
         {pending ? " · pending" : ""}
       </p>
-    </div>
+    </button>
   )
 }
 

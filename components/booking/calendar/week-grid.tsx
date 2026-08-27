@@ -152,10 +152,12 @@ export function WeekGrid({
   calendar,
   weekStartDate,
   resourceId,
+  onOpenBooking,
 }: Readonly<{
   calendar: BookingCalendarDto
   weekStartDate: string
   resourceId?: string
+  onOpenBooking: (bookingId: string) => void
 }>) {
   const tz = calendar.timezone
   const rooms = resourceId
@@ -283,10 +285,13 @@ export function WeekGrid({
                       +{item.overflow.length}
                     </div>
                   ) : (
-                    <div
+                    <button
                       key={item.block.bookingId}
+                      type="button"
+                      onClick={() => onOpenBooking(item.block.bookingId)}
                       className={cn(
-                        "absolute overflow-hidden rounded border px-1.5 py-0.5 text-[11px]",
+                        "absolute overflow-hidden rounded border px-1.5 py-0.5 text-left text-[11px]",
+                        "hover:ring-1 hover:ring-ring focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
                         BOOKING_BLOCK_STYLES[item.block.status]
                       )}
                       style={laneStyle(
@@ -302,7 +307,7 @@ export function WeekGrid({
                       <p className="truncate font-medium">
                         {resourceId ? (item.block.title ?? "Untitled") : item.block.roomName}
                       </p>
-                    </div>
+                    </button>
                   )
                 )}
               </div>
