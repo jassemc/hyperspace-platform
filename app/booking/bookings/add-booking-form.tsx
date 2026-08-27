@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { DateTimeField } from "@/components/ui/date-time-field"
+import { NativeSelect } from "@/components/ui/native-select"
 import {
   Drawer,
   DrawerClose,
@@ -75,9 +76,6 @@ function messageFor(state: ActionState, fallback: string): string {
 }
 
 type CustomerKind = "member" | "company"
-
-const selectClassName =
-  "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
 
 function SubmitButton({
   editingBooking,
@@ -330,10 +328,9 @@ export function AddBookingForm({
                   <>
                     <div className="grid gap-2">
                       <Label htmlFor="resourceId">Resource</Label>
-                      <select
+                      <NativeSelect
                         id="resourceId"
                         name="resourceId"
-                        className={selectClassName}
                         value={resourceId}
                         onChange={(e) => {
                           setResourceId(e.target.value)
@@ -354,46 +351,45 @@ export function AddBookingForm({
                             {resource.name}
                           </option>
                         ))}
-                      </select>
+                      </NativeSelect>
                     </div>
 
                     <div className="grid gap-2">
                       <Label htmlFor="customerKind">Customer type</Label>
-                      <select
+                      <NativeSelect
                         id="customerKind"
-                        className={selectClassName}
                         value={customerKind}
                         onChange={(e) => setCustomerKind(e.target.value as CustomerKind)}
                       >
                         <option value="member">Member</option>
                         <option value="company">Company</option>
-                      </select>
+                      </NativeSelect>
                     </div>
 
                     {customerKind === "member" && (
                       <div className="grid gap-2">
                         <Label htmlFor="memberId">Member</Label>
-                        <select id="memberId" name="memberId" className={selectClassName} required>
+                        <NativeSelect id="memberId" name="memberId" required>
                           <option value="">Select member</option>
                           {Object.entries(memberNames).map(([id, name]) => (
                             <option key={id} value={id}>
                               {name}
                             </option>
                           ))}
-                        </select>
+                        </NativeSelect>
                       </div>
                     )}
                     {customerKind === "company" && (
                       <div className="grid gap-2">
                         <Label htmlFor="companyId">Company</Label>
-                        <select id="companyId" name="companyId" className={selectClassName} required>
+                        <NativeSelect id="companyId" name="companyId" required>
                           <option value="">Select company</option>
                           {Object.entries(companyNames).map(([id, name]) => (
                             <option key={id} value={id}>
                               {name}
                             </option>
                           ))}
-                        </select>
+                        </NativeSelect>
                       </div>
                     )}
 
