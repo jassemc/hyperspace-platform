@@ -2,12 +2,16 @@
 
 import { BOOKING_BLOCK_STYLES } from "@/app/booking/bookings/booking-status"
 import { cn } from "@/lib/utils"
-import { FREE_SLOT_GROUND } from "./free-slots"
+import { CLOSED_GROUND, FREE_SLOT_GROUND } from "./free-slots"
 
 /**
  * A key for the grid. Two block styles and two ground states is two more
  * than a reader can be expected to infer, and "pending" in particular
  * carries a rule — it does not hold the slot — that nothing else states.
+ *
+ * The hatch belongs to "Closed" (CLOSED_GROUND): hatched-unavailable
+ * is the scheduler idiom, and the free ground is the clean background
+ * between hatched regions.
  *
  * The "Free" swatch reuses FREE_SLOT_GROUND — the look only, not
  * FREE_SLOT_CLASS's positioning/hover/focus — because this box sits in
@@ -32,7 +36,7 @@ export function CalendarLegend() {
     { label: "Confirmed", className: BOOKING_BLOCK_STYLES.confirmed },
     { label: "Pending (does not hold the slot)", className: BOOKING_BLOCK_STYLES.pending },
     { label: "Free — click to book", className: FREE_SLOT_GROUND },
-    { label: "Closed", className: "border-transparent bg-muted/40" },
+    { label: "Closed", className: cn("border-transparent", CLOSED_GROUND) },
   ]
 
   return (

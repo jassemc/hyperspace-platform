@@ -5,6 +5,7 @@ import type { BookingCalendarDto, CalendarBlockDto } from "@/lib/service/HsServi
 import { BOOKING_BLOCK_STYLES } from "@/app/booking/bookings/booking-status"
 import { formatTimeOfDay } from "@/lib/format"
 import { cn } from "@/lib/utils"
+import { CLOSED_GROUND } from "./free-slots"
 import { addDays, todayIn } from "./types"
 
 /** Chips shown per day before the rest folds into "+N more". */
@@ -85,6 +86,19 @@ export function MonthOverview({
     })
   }, [month])
 
+  // Days where no room has a bookable window — the location's day
+  // limits (a closed weekday, a holiday). Hatched like the closed time
+  // in the day and week grids.
+  const openDays = useMemo(() => {
+    const set = new Set<string>()
+    for (const entry of calendar.resources) {
+      for (const day of entry.days) {
+        if (day.windows.length > 0) set.add(day.date)
+      }
+    }
+    return set
+  }, [calendar])
+
   const today = todayIn(tz)
 
   return (
@@ -117,6 +131,7 @@ export function MonthOverview({
               key={date}
               className={cn(
                 "min-h-[6.5rem] cursor-pointer border-b border-r p-1 transition-colors hover:bg-accent/40",
+                inMonth && !openDays.has(date) && CLOSED_GROUND,
                 !inMonth && "bg-muted/30"
               )}
               onClick={() => onPickDay(date)}

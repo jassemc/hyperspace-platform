@@ -1,17 +1,29 @@
 import type { CalendarBlockDto } from "@/lib/service/HsService"
 
 /**
- * Free-slot "ground": appearance only — the diagonal hatch and the
- * dashed bottom border that say "this is open," with no positioning or
- * interaction baked in. Safe to drop onto anything that just needs the
- * look, e.g. the legend swatch (calendar-legend.tsx), which sits in
- * normal flow and must NOT pick up the hover/focus states below — a
- * bare decorative swatch reacting to mouse-over previously recreated
- * the exact "looks clickable when it isn't" defect this file exists to
- * avoid on the real grid.
+ * Closed/unavailable time — outside the location's (or resource's) day
+ * limits. Hatched, because that is the scheduler convention for "cannot
+ * book here": darker border-colour lines over the muted ground, so it
+ * cannot be read as the clean open background bookable time sits on.
+ * The hatch used to mean the opposite (it marked FREE slots); it moved
+ * here deliberately, and free slots went plain — two hatches with two
+ * meanings would have been ambiguous, and hatched-closed is the idiom
+ * every other calendar teaches.
  */
-export const FREE_SLOT_GROUND =
-  "border-b border-dashed border-border/60 bg-[repeating-linear-gradient(45deg,transparent,transparent_6px,var(--color-muted)_6px,var(--color-muted)_7px)]"
+export const CLOSED_GROUND =
+  "bg-muted/40 bg-[repeating-linear-gradient(45deg,transparent,transparent_6px,var(--color-border)_6px,var(--color-border)_7px)]"
+
+/**
+ * Free-slot "ground": appearance only — the dashed separator that
+ * divides bookable half-hours, sitting on the clean open background
+ * (the contrast against CLOSED_GROUND's hatch is what says "open").
+ * No positioning or interaction baked in: safe for the legend swatch
+ * (calendar-legend.tsx), which sits in normal flow and must NOT pick up
+ * the hover/focus states below — a bare decorative swatch reacting to
+ * mouse-over previously recreated the exact "looks clickable when it
+ * isn't" defect this file exists to avoid on the real grid.
+ */
+export const FREE_SLOT_GROUND = "border-b border-dashed border-border/60"
 
 /**
  * The full interactive class for a real clickable free slot: FREE_SLOT_GROUND
