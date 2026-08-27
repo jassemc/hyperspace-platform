@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useActionState, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useActionState, useMemo, useRef, useState } from "react"
 import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -131,6 +131,7 @@ export function BookingFormDialog({
     editingBooking?.resourceId ?? prefill?.resourceId ?? ""
   )
   const [checking, setChecking] = useState(false)
+  const [checkTick, setCheckTick] = useState(0)
   const [quoteMessage, setQuoteMessage] = useState<string | null>(null)
   const [slot, setSlot] = useState<SlotValue | null>(() =>
     seedSlot(editingBooking, prefill, timeZone)
@@ -193,12 +194,17 @@ export function BookingFormDialog({
    * Dry run against POST /bookings/validate so conflicts and the price show up
    * before anything is written.
    */
-  const runCheck = async () => {
+  // Monotonic guard: a slow response must not paint its quote over a
+  // newer request's answer.
+  const checkSeq = useRef(0)
+  const runCheck = useCallback(async () => {
     if (!formRef.current) return
+    const seq = ++checkSeq.current
     setChecking(true)
     setQuoteMessage(null)
     try {
       const result = await validateBookingAction({}, new FormData(formRef.current))
+      if (seq !== checkSeq.current) return
       if (result.success) {
         const quote = result.quote as { priceHt?: number | null } | undefined
         const price = quote?.priceHt
@@ -211,16 +217,20 @@ export function BookingFormDialog({
         setQuoteMessage(messageFor(result, "The booking is not valid."))
       }
     } finally {
-      setChecking(false)
+      if (seq === checkSeq.current) setChecking(false)
     }
-  }
+  }, [])
 
   /**
    * The quote describes one exact resource, slot and set of extras. Once
    * any of them moves it is answering a question nobody asked any more,
    * so it goes rather than sitting there looking green.
    */
-  const invalidateQuote = () => setQuoteMessage(null)
+  const invalidateQuote = () => {
+    setQuoteMessage(null)
+    // Also the re-check trigger: the debounced effect below keys on this.
+    setCheckTick((tick) => tick + 1)
+  }
 
   /**
    * One half of the manual pair. Kept as a merged draft so a part-typed
@@ -256,6 +266,16 @@ export function BookingFormDialog({
   // not just this dialog. Reachable in three clicks: toggle to manual, set
   // "Ends at" first, toggle back.
   const committedSlot = slot?.startsAt && slot.endsAt ? slot : null
+
+  // The dry run fires itself: any change to the resource, the times or
+  // the extras (checkTick — bumped by invalidateQuote) re-checks after a
+  // beat, instead of a button nobody pressed until the 409. Create only:
+  // the edit branch has no dry run — see the gate at the quote line.
+  useEffect(() => {
+    if (editingBooking || !resourceId || !committedSlot) return
+    const id = setTimeout(runCheck, 600)
+    return () => clearTimeout(id)
+  }, [editingBooking, resourceId, committedSlot, checkTick, runCheck])
 
   // The window this booking already has, produced by the very same helper
   // that seeds `slot`, so minute-truncation cannot read as a change.
@@ -458,10 +478,10 @@ export function BookingFormDialog({
               can exclude the booking being moved. */}
           {!editingBooking && (
             <div className="grid gap-2">
-              <Button type="button" variant="outline" onClick={runCheck} disabled={checking}>
-                {checking ? "Checking..." : "Check availability & price"}
-              </Button>
-              {quoteMessage && (
+              {checking && (
+                <p className="text-xs text-muted-foreground">Checking availability…</p>
+              )}
+              {!checking && quoteMessage && (
                 <p className="rounded-md border bg-muted/40 px-3 py-2 text-sm">{quoteMessage}</p>
               )}
             </div>
