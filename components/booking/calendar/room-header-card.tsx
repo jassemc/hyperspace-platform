@@ -2,6 +2,7 @@
 
 import { Users } from "lucide-react"
 import type { CalendarResourceSummaryDto } from "@/lib/service/HsService"
+import { PlaceholderImage } from "@/components/placeholder-image"
 
 /**
  * The row header: what the room *is*, not just its name. Everything
@@ -22,7 +23,7 @@ export function RoomHeaderCard({
           // eslint-disable-next-line @next/next/no-img-element
           <img src={resource.imageUrl} alt="" className="h-full w-full object-cover" />
         ) : (
-          <div className="h-full w-full bg-gradient-to-br from-muted to-muted-foreground/10" />
+          <PlaceholderImage name={resource.name} className="h-full w-full" />
         )}
       </div>
       <div className="min-w-0">
