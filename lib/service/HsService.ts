@@ -2339,6 +2339,14 @@ export interface BusyIntervalDto {
 export interface AvailabilityDto {
   /** @format uuid */
   resourceId: string;
+  /**
+   * IANA zone of the resource's location. Windows in `days[]` are
+   * wall-clock strings ("08:00") that only mean anything in this zone —
+   * a client rendering them against its own zone shows the wrong hours
+   * to anyone booking across a border.
+   * @example "Europe/Lisbon"
+   */
+  timezone: string;
   bookingMode: BookingMode;
   /** @example 60 */
   minDurationMin?: number | null;
@@ -6487,7 +6495,7 @@ export namespace Api {
   }
 
   /**
-   * @description Bookable windows per day (booking_times, falling back to the location opening hours, minus closed days) plus confirmed busy intervals clipped to the range (≤ 31 days). `from` is inclusive and `to` is exclusive, so a week is midnight to midnight — the day `to` lands on is not part of the range. Clients render free slots; the server re-validates at create time. `excludeBookingId` drops one booking from the busy intervals — pass the booking being rescheduled so its own current slot reads as free.
+   * @description Bookable windows per day (booking_times, falling back to the location opening hours, minus closed days) plus confirmed busy intervals clipped to the range (≤ 31 days). `from` is inclusive and `to` is exclusive, so a week is midnight to midnight — the day `to` lands on is not part of the range. Clients render free slots; the server re-validates at create time. The response carries the resource location's IANA `timezone`; the `days[]` windows ("08:00") are wall-clock in that zone, not UTC. `excludeBookingId` drops one booking from the busy intervals — pass the booking being rescheduled so its own current slot reads as free.
    * @tags Bookings
    * @name GetResourceAvailability
    * @summary Resource availability (windows + busy intervals)
@@ -6859,7 +6867,7 @@ export namespace Api {
   }
 
   /**
-   * @description Any bookable, visible resource. Bookable windows + busy intervals.
+   * @description Any bookable, visible resource. Bookable windows + busy intervals. The response carries the resource location's IANA `timezone`; the `days[]` windows ("08:00") are wall-clock in that zone, not UTC or the browser's zone — render them against `timezone`, not a compiled-in default.
    * @tags Public (website)
    * @name PublicResourceAvailability
    * @summary Resource availability for the website
@@ -7469,12 +7477,12 @@ export namespace Health {
 }
 
 /**
- * @title Platform Api
+ * @title Hyperspace OS API
  * @version 0.0.1
  * @baseUrl /
  * @contact
  *
- * Service for managing hyperspace operations
+ * Hyperspace OS backend API
  */
 export class HsService<SecurityDataType extends unknown> {
   http: HttpClient<SecurityDataType>;
@@ -10023,7 +10031,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Bookable windows per day (booking_times, falling back to the location opening hours, minus closed days) plus confirmed busy intervals clipped to the range (≤ 31 days). `from` is inclusive and `to` is exclusive, so a week is midnight to midnight — the day `to` lands on is not part of the range. Clients render free slots; the server re-validates at create time. `excludeBookingId` drops one booking from the busy intervals — pass the booking being rescheduled so its own current slot reads as free.
+     * @description Bookable windows per day (booking_times, falling back to the location opening hours, minus closed days) plus confirmed busy intervals clipped to the range (≤ 31 days). `from` is inclusive and `to` is exclusive, so a week is midnight to midnight — the day `to` lands on is not part of the range. Clients render free slots; the server re-validates at create time. The response carries the resource location's IANA `timezone`; the `days[]` windows ("08:00") are wall-clock in that zone, not UTC. `excludeBookingId` drops one booking from the busy intervals — pass the booking being rescheduled so its own current slot reads as free.
      *
      * @tags Bookings
      * @name GetResourceAvailability
@@ -10316,7 +10324,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Any bookable, visible resource. Bookable windows + busy intervals.
+     * @description Any bookable, visible resource. Bookable windows + busy intervals. The response carries the resource location's IANA `timezone`; the `days[]` windows ("08:00") are wall-clock in that zone, not UTC or the browser's zone — render them against `timezone`, not a compiled-in default.
      *
      * @tags Public (website)
      * @name PublicResourceAvailability
