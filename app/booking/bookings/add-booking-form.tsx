@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { DateTimeField } from "@/components/ui/date-time-field"
 import {
   Drawer,
   DrawerClose,
@@ -110,6 +111,8 @@ export function AddBookingForm({
   const [resourceId, setResourceId] = useState("")
   const [checking, setChecking] = useState(false)
   const [quoteMessage, setQuoteMessage] = useState<string | null>(null)
+  const [startsAt, setStartsAt] = useState("")
+  const [endsAt, setEndsAt] = useState("")
 
   const formRef = useRef<HTMLFormElement>(null)
   // The last state object each notify effect has already reacted to.
@@ -124,8 +127,10 @@ export function AddBookingForm({
       setQuoteMessage(null)
       setResourceId(editingBooking?.resourceId ?? prefill?.resourceId ?? "")
       setCustomerKind(editingBooking?.companyId ? "company" : "member")
+      setStartsAt(prefill && timeZone ? toLocalInput(prefill.startsAt, timeZone) : "")
+      setEndsAt(prefill && timeZone ? toLocalInput(prefill.endsAt, timeZone) : "")
     }
-  }, [isOpen, editingBooking, prefill])
+  }, [isOpen, editingBooking, prefill, timeZone])
 
   // The page-level Add button renders this form with no seed data, so the
   // lookups are fetched here rather than threaded through every caller.
@@ -386,27 +391,28 @@ export function AddBookingForm({
                     )}
                     <div className="grid gap-2">
                       <Label htmlFor="startsAt">Starts at</Label>
-                      <Input
+                      <DateTimeField
                         id="startsAt"
                         name="startsAt"
-                        type="datetime-local"
-                        defaultValue={
-                          prefill && timeZone ? toLocalInput(prefill.startsAt, timeZone) : undefined
-                        }
-                        onChange={invalidateQuote}
+                        value={startsAt}
+                        onChange={(next) => {
+                          setStartsAt(next)
+                          invalidateQuote()
+                        }}
                         required
                       />
                     </div>
                     <div className="grid gap-2">
                       <Label htmlFor="endsAt">Ends at</Label>
-                      <Input
+                      <DateTimeField
                         id="endsAt"
                         name="endsAt"
-                        type="datetime-local"
-                        defaultValue={
-                          prefill && timeZone ? toLocalInput(prefill.endsAt, timeZone) : undefined
-                        }
-                        onChange={invalidateQuote}
+                        value={endsAt}
+                        onChange={(next) => {
+                          setEndsAt(next)
+                          invalidateQuote()
+                        }}
+                        min={startsAt}
                         required
                       />
                     </div>
