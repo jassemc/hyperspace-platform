@@ -72,10 +72,24 @@ export function addMonths(date: string, months: number): string {
     .slice(0, 10)
 }
 
+const DAY_MS = 86_400_000
+/** The endpoint's own ceiling — see availability.service.ts's `date_range_too_wide`. */
+export const MAX_RANGE_MS = 31 * DAY_MS
+
 /**
  * The instants a view covers, bounded in the grid's own timezone — never
- * in the reader's. Month is clamped to 31 days, which is also the API's
- * ceiling.
+ * in the reader's — and clamped to 31 days, the API's ceiling.
+ *
+ * A calendar month's wall-clock span is not always exactly N*24h: a
+ * 31-day month that contains a DST fall-back (October in most of Europe
+ * and Africa/Cairo, November in America/New_York, April in the southern
+ * hemisphere) is 31 days and one hour wide, which is over the endpoint's
+ * cap and 422s the whole month — one month a year, in every zone that
+ * observes DST. The clamp is safe against the server's own day
+ * enumeration: it emits days up to the local day of `to - 1ms`, so an
+ * upper bound short of the next month's midnight still includes the
+ * 31st. Day and week spans are far under the cap, so it is a no-op for
+ * them and their own DST hour is preserved.
  */
 export function rangeFor(
   state: CalendarViewState,
@@ -90,10 +104,14 @@ export function rangeFor(
 
   const span = state.view === "day" ? 1 : state.view === "week" ? 7 : 31
 
+  const fromMs = wallClockToUtcMs(startDay, "00:00", timeZone)
+  const toMs = Math.min(
+    wallClockToUtcMs(addDays(startDay, span), "00:00", timeZone),
+    fromMs + MAX_RANGE_MS
+  )
+
   return {
-    from: new Date(wallClockToUtcMs(startDay, "00:00", timeZone)).toISOString(),
-    to: new Date(
-      wallClockToUtcMs(addDays(startDay, span), "00:00", timeZone)
-    ).toISOString(),
+    from: new Date(fromMs).toISOString(),
+    to: new Date(toMs).toISOString(),
   }
 }
