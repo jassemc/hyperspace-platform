@@ -205,6 +205,9 @@ function DayTimeline({
 }>) {
   const day = availability.days.find((entry) => entry.date === date)
   if (!day || day.windows.length === 0) return null
+  // Nothing selected and nothing busy: an all-open bar says nothing and
+  // reads as an empty input. Appear once there is something to show.
+  if (!selected && availability.busy.length === 0) return null
 
   const dayStart = Math.min(
     ...day.windows.map((w) => wallClockToUtcMs(date, w.open, timeZone))
@@ -227,7 +230,7 @@ function DayTimeline({
 
   return (
     <div aria-hidden="true" className="select-none">
-      <div className="relative h-8 overflow-hidden rounded-md border bg-muted">
+      <div className="relative h-5 overflow-hidden rounded-full bg-muted">
         {day.windows.map((w) => {
           const open = wallClockToUtcMs(date, w.open, timeZone)
           const close = wallClockToUtcMs(date, w.close, timeZone)
@@ -564,7 +567,7 @@ export function BookingSlotPicker({
               nav: "flex items-center justify-between absolute w-full px-1 h-9",
               button_previous: "h-7 w-7 rounded-md hover:bg-accent inline-flex items-center justify-center",
               button_next: "h-7 w-7 rounded-md hover:bg-accent inline-flex items-center justify-center",
-              month_grid: "border-collapse",
+              month_grid: "w-full border-collapse",
               weekdays: "flex",
               weekday: "text-muted-foreground w-10 text-xs font-normal",
               week: "flex w-full",
@@ -574,7 +577,7 @@ export function BookingSlotPicker({
               selected: "[&>button]:bg-primary [&>button]:text-primary-foreground [&>button]:hover:bg-primary",
               outside: "text-muted-foreground/50",
               disabled: "text-muted-foreground/40 pointer-events-none",
-              root: "relative w-fit",
+              root: "relative w-[280px]",
             }}
           />
         </DayStatusContext.Provider>
@@ -596,8 +599,17 @@ export function BookingSlotPicker({
       <div className={cn("min-w-0", loading && "pointer-events-none opacity-50")}>
         <p className="text-sm font-medium">
           {/* A date from a previously viewed month is stale here, not
-              "full" — prompt for a day instead of naming it. */}
-          {date && date.startsWith(month) ? date : "Pick a day"}
+              "full" — prompt for a day instead of naming it. Formatted
+              in UTC from the string's own calendar day (it is already
+              the location's day). */}
+          {date && date.startsWith(month)
+            ? new Intl.DateTimeFormat("en-US", {
+                timeZone: "UTC",
+                weekday: "long",
+                month: "long",
+                day: "numeric",
+              }).format(new Date(`${date}T12:00:00Z`))
+            : "Pick a day"}
         </p>
         <p className="mt-0.5 text-xs text-muted-foreground">
           {durationLabel(activeDuration)}
