@@ -111,6 +111,7 @@ export function BookingDetailsDialog({
           </Row>
           {booking.notes && <Row label="Notes">{booking.notes}</Row>}
           <Row label="Created">{formatDateTime(booking.createdAt, timeZone)}</Row>
+          <Row label="Updated">{formatDateTime(booking.updatedAt, timeZone)}</Row>
         </div>
       </DialogContent>
     </Dialog>

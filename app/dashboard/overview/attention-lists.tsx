@@ -4,7 +4,6 @@ import {
   getListCharges,
   getListCheckins,
   getListMembers,
-  getListResources,
 } from "@/lib/service"
 import type {
   BookingDto,
@@ -12,7 +11,6 @@ import type {
   CheckinDto,
   MemberDto,
   MembershipAnalyticsDto,
-  ResourceDto,
 } from "@/lib/service/HsService"
 import { pageResult } from "@/lib/search-params"
 import { apiName, apiString } from "@/lib/api-value"
@@ -22,13 +20,12 @@ import { primaryTimeZone } from "@/lib/locations"
 
 /** The things a staff member would act on first thing in the morning. */
 export async function AttentionLists() {
-  const [checkinPage, bookingPage, chargePage, memberPage, resourcePage, timeZone, analytics] =
+  const [checkinPage, bookingPage, chargePage, memberPage, timeZone, analytics] =
     await Promise.all([
       getListCheckins({ limit: 100, offset: 0, sort: "DESC" }).catch(() => null),
       getListBookings({ limit: 100, offset: 0, sort: "ASC" }).catch(() => null),
       getListCharges({ limit: 100, offset: 0, sort: "DESC", uninvoiced: true }).catch(() => null),
       getListMembers({ limit: 100, offset: 0, sort: "ASC" }).catch(() => null),
-      getListResources({ limit: 100, offset: 0, sort: "ASC" }).catch(() => null),
       primaryTimeZone(),
       getAnalyticsMemberships({ expiringWithinDays: 30 }).catch(() => null),
     ])
@@ -36,11 +33,6 @@ export async function AttentionLists() {
   const memberNames: Record<string, string> = {}
   for (const member of memberPage ? pageResult<MemberDto>(memberPage).results : []) {
     memberNames[member.id] = member.fullName
-  }
-
-  const resourceNames: Record<string, string> = {}
-  for (const resource of resourcePage ? pageResult<ResourceDto>(resourcePage).results : []) {
-    resourceNames[resource.id] = resource.name
   }
 
   const onSite = (checkinPage ? pageResult<CheckinDto>(checkinPage).results : []).filter(
@@ -82,7 +74,7 @@ export async function AttentionLists() {
           .slice(0, 10)
           .map((booking) => [
             booking.title || "Untitled booking",
-            resourceNames[booking.resourceId] ?? "Unknown resource",
+            booking.resource.name || "Unknown resource",
             formatDateTime(booking.startsAt, timeZone),
           ])}
       />

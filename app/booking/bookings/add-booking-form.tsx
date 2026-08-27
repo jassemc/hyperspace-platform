@@ -135,23 +135,34 @@ export function AddBookingForm({
     }
   }, [isOpen, editingBooking, prefill, timeZone])
 
-  // The page-level Add button renders this form with no seed data, so the
-  // lookups are fetched here rather than threaded through every caller.
+  // The page-level Add button renders this form with no seed data, so
+  // resources are fetched here rather than threaded through every caller.
+  // Members and companies are fetched independently of that seed: the
+  // create branch's Member/Company selects need them regardless of
+  // whether resources happened to arrive pre-seeded, so seeding resources
+  // must not silently starve the other two lookups.
   useEffect(() => {
     if (!isOpen) return
-    if ((seedResources ?? []).length > 0) return
 
     let cancelled = false
-    Promise.all([
+
+    if ((seedResources ?? []).length === 0) {
       // A resource whose type cannot be booked would be refused by the
       // API, so it is never offered.
-      getListResources({ limit: 100, offset: 0, sort: "ASC", canBook: true }),
+      getListResources({ limit: 100, offset: 0, sort: "ASC", canBook: true })
+        .then((resourcePage) => {
+          if (cancelled) return
+          setResources((resourcePage.results ?? []) as ResourceDto[])
+        })
+        .catch((error) => console.error("Failed to load resources", error))
+    }
+
+    Promise.all([
       getListMembers({ limit: 100, offset: 0, sort: "ASC" }),
       getListCompanies({ limit: 100, offset: 0, sort: "ASC" }),
     ])
-      .then(([resourcePage, memberPage, companyPage]) => {
+      .then(([memberPage, companyPage]) => {
         if (cancelled) return
-        setResources((resourcePage.results ?? []) as ResourceDto[])
         setMemberNames(
           Object.fromEntries(
             ((memberPage.results ?? []) as MemberDto[]).map((m) => [m.id, m.fullName])
@@ -401,11 +412,13 @@ export function AddBookingForm({
                         onChange={(next) => {
                           setStartsAt(next)
                           // A previously-picked end that the new start has
-                          // now passed is stale, not merely off the grid —
-                          // keeping it selected would look valid right up
-                          // until the server rejects it. Same-shape strings
-                          // compare correctly as-is.
-                          if (endsAt && endsAt < next) {
+                          // now reached or passed is stale, not merely off
+                          // the grid — keeping it selected would look valid
+                          // right up until the server rejects it (an end
+                          // equal to the new start is a zero-duration pair,
+                          // not a real range). Same-shape strings compare
+                          // correctly as-is.
+                          if (endsAt && endsAt <= next) {
                             setEndsAt("")
                           }
                           invalidateQuote()

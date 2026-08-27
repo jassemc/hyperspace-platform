@@ -30,6 +30,29 @@ function split(value: string): { date: string; time: string } {
   return { date, time: time.slice(0, 5) }
 }
 
+/**
+ * The time a freshly-picked date should default to, when no time is chosen
+ * yet. On `min`'s own day that must respect `min`'s time — defaulting to
+ * `TIMES[18]` ("09:00") regardless, as this used to, can land before `min`
+ * and produce an out-of-range pair the native `datetime-local` input this
+ * replaced could never have offered (see add-booking-form.tsx's `startsAt`
+ * handler for the symmetric case, where a stale end is cleared instead).
+ *
+ * If `min`'s time falls after every option on that day (i.e. past 23:30),
+ * there is no valid default to offer. Returning "" and letting the caller
+ * treat that as "not yet committable" is deliberate: guessing a fallback
+ * here would just reintroduce the same out-of-range bug this exists to
+ * fix. The pair is left empty rather than wrong; the user picks a later
+ * date instead.
+ */
+function firstAllowedTime(
+  forDate: string,
+  minParts?: { date: string; time: string }
+): string {
+  if (!minParts || forDate !== minParts.date) return TIMES[18]
+  return TIMES.find((option) => option >= minParts.time) ?? ""
+}
+
 interface DateTimeFieldProps {
   id?: string
   name: string
@@ -104,7 +127,7 @@ export function DateTimeField({
           id={id}
           name={`${name}__date`}
           value={date}
-          onChange={(next) => emit(next, time || TIMES[18])}
+          onChange={(next) => emit(next, time || firstAllowedTime(next, minParts))}
           min={minParts?.date}
         />
       </div>
