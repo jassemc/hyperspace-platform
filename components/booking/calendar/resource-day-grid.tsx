@@ -10,7 +10,7 @@ import { BOOKING_BLOCK_STYLES } from "@/app/booking/bookings/booking-status"
 import { formatTimeOfDay } from "@/lib/format"
 import { wallClockToUtcMs } from "@/lib/slots"
 import { cn } from "@/lib/utils"
-import { RoomHeaderCard } from "./room-header-card"
+import { RoomHeaderCard, ROOM_HEADER_PX } from "./room-header-card"
 
 /** Pixels per hour. Tall enough that a 30-minute block is still legible. */
 const HOUR_PX = 56
@@ -170,10 +170,7 @@ export function ResourceDayGrid({
       <div className="flex min-w-max">
         {/* Hour gutter */}
         <div className="sticky left-0 z-10 w-16 shrink-0 border-r bg-background">
-          {/* Matches RoomColumn's header spacer below — p-2 16 + h-20 image
-              80 + gap-2 8 + name line 20 + meta line 16 = 140px. Keep both
-              in sync or the gutter desyncs from the columns. */}
-          <div className="h-[140px] border-b" />
+          <div className="border-b" style={{ height: ROOM_HEADER_PX }} />
           <div className="relative" style={{ height }}>
             {hourTicks.map((t) => (
               <div
@@ -248,7 +245,7 @@ function RoomColumn({
 
   return (
     <div className="w-40 shrink-0 border-r last:border-r-0">
-      <div className="h-[140px] border-b">
+      <div className="border-b" style={{ height: ROOM_HEADER_PX }}>
         <RoomHeaderCard resource={entry.resource} />
       </div>
 
