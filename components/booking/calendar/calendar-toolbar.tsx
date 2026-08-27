@@ -102,6 +102,7 @@ export function CalendarToolbar({
         <PopoverContent align="start">
           <DayPicker
             mode="single"
+            weekStartsOn={1}
             selected={toPickerDate(date)}
             defaultMonth={toPickerDate(date)}
             onSelect={(picked) => {

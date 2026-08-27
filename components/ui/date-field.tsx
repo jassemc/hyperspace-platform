@@ -84,6 +84,7 @@ export function DateField({
         <PopoverContent portalled={portalled}>
           <DayPicker
             mode="single"
+            weekStartsOn={1}
             selected={selected}
             defaultMonth={selected ?? minDate}
             disabled={minDate ? { before: minDate } : undefined}

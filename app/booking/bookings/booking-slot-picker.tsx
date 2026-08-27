@@ -556,23 +556,25 @@ export function BookingSlotPicker({
                 return label
               },
             }}
+            // Monday-first, like every other grid in the product.
+            weekStartsOn={1}
             classNames={{
               months: "flex flex-col",
               month_caption: "flex items-center justify-center h-9 font-medium text-sm",
               nav: "flex items-center justify-between absolute w-full px-1 h-9",
               button_previous: "h-7 w-7 rounded-md hover:bg-accent inline-flex items-center justify-center",
               button_next: "h-7 w-7 rounded-md hover:bg-accent inline-flex items-center justify-center",
-              month_grid: "w-full border-collapse",
+              month_grid: "border-collapse",
               weekdays: "flex",
-              weekday: "text-muted-foreground w-9 text-xs font-normal",
+              weekday: "text-muted-foreground w-10 text-xs font-normal",
               week: "flex w-full",
-              day: "h-10 w-9 p-0 text-sm",
-              day_button: "h-10 w-9 rounded-md hover:bg-accent inline-flex flex-col items-center justify-center gap-0",
+              day: "h-11 w-10 p-0 text-sm",
+              day_button: "h-11 w-10 rounded-md hover:bg-accent inline-flex flex-col items-center justify-center gap-0",
               today: "font-semibold text-primary",
               selected: "[&>button]:bg-primary [&>button]:text-primary-foreground [&>button]:hover:bg-primary",
               outside: "text-muted-foreground/50",
               disabled: "text-muted-foreground/40 pointer-events-none",
-              root: "relative",
+              root: "relative w-fit",
             }}
           />
         </DayStatusContext.Provider>
