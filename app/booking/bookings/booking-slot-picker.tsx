@@ -155,9 +155,6 @@ function DayTimeline({
 }>) {
   const day = availability.days.find((entry) => entry.date === date)
   if (!day || day.windows.length === 0) return null
-  // Nothing selected and nothing busy: an all-open bar says nothing and
-  // reads as an empty input. Appear once there is something to show.
-  if (!selected && availability.busy.length === 0) return null
 
   const dayStart = Math.min(
     ...day.windows.map((w) => wallClockToUtcMs(date, w.open, timeZone))
@@ -180,7 +177,10 @@ function DayTimeline({
 
   return (
     <div aria-hidden="true" className="select-none">
-      <div className="relative h-5 overflow-hidden rounded-full bg-muted">
+      {/* Framed so the bar reads as a bar even when the day is fully
+          open and nothing is selected — the ground shows through as the
+          closed/edge colour, open windows paint clean over it. */}
+      <div className="relative h-5 overflow-hidden rounded-full border border-border bg-muted">
         {day.windows.map((w) => {
           const open = wallClockToUtcMs(date, w.open, timeZone)
           const close = wallClockToUtcMs(date, w.close, timeZone)
