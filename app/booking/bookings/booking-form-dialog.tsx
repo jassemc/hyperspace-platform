@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useActionState, useRef, useState } from "react"
+import { useEffect, useActionState, useMemo, useRef, useState } from "react"
 import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -88,15 +88,20 @@ function seedSlot(
 }
 
 /**
- * The one reaction `ActionState.problemType` exists for. A conflict is not
- * a validation failure: nothing about the form is wrong, someone else took
- * the slot in between, and the API's raw detail ("Status Code 409: ...")
- * does not say to pick another time. Everything else falls through to the
- * server's own message.
+ * What `ActionState.problemType` exists for. Neither of these is a
+ * validation failure — nothing about the form is wrong — and the API's raw
+ * detail ("Status Code 409: ...") says nothing about what to do next.
+ * Everything else falls through to the server's own message.
  */
 function messageFor(state: ActionState, fallback: string): string {
   if (state.problemType === "booking_conflict") {
     return "That slot was just taken. Pick another time or another room."
+  }
+  if (state.problemType === "booking_not_reschedulable") {
+    // Reachable when a move is combined with a no-show mark, or when the
+    // row is already cancelled: the API refuses to reschedule anything
+    // that is not confirmed or pending.
+    return "This booking's status does not allow moving it. Cancel and rebook instead."
   }
   return state.error ?? fallback
 }
@@ -224,8 +229,65 @@ export function BookingFormDialog({
    */
   const invalidateQuote = () => setQuoteMessage(null)
 
+  /**
+   * One half of the manual pair. Kept as a merged draft so a part-typed
+   * entry survives on screen, but collapsed back to `null` the moment
+   * both halves are empty rather than lingering as an object of two
+   * empty strings.
+   */
+  const updateHalf = (half: "startsAt" | "endsAt", next: string) => {
+    setSlot((current) => {
+      const startsAt = half === "startsAt" ? next : (current?.startsAt ?? "")
+      let endsAt = half === "endsAt" ? next : (current?.endsAt ?? "")
+      // A previously-picked end that the new start has now reached or
+      // passed is stale, not merely off the grid — keeping it selected
+      // would look valid right up until the server rejects it (an end
+      // equal to the new start is a zero-duration pair, not a real
+      // range). Same-shape strings compare correctly as-is.
+      if (half === "startsAt" && endsAt && endsAt <= next) endsAt = ""
+      return startsAt || endsAt ? { startsAt, endsAt } : null
+    })
+    invalidateQuote()
+  }
+
   const currentState = editingBooking ? updateState : createState
   const formAction = editingBooking ? updateFormAction : createFormAction
+
+  // The manual fields edit a *draft*: either half can be empty while the
+  // user is part-way through one. A half-empty pair is not a SlotValue and
+  // must not leave this component — BookingSlotPicker seeds its month from
+  // `value?.startsAt ?? today`, and `??` does not catch "", so an empty
+  // half would make `monthOf("")` produce "" and its fetch effect reach
+  // `new Date(NaN).toISOString()`. That throws inside a useEffect, which
+  // React unwinds to the nearest error boundary — the whole bookings page,
+  // not just this dialog. Reachable in three clicks: toggle to manual, set
+  // "Ends at" first, toggle back.
+  const committedSlot = slot?.startsAt && slot.endsAt ? slot : null
+
+  // The window this booking already has, produced by the very same helper
+  // that seeds `slot`, so minute-truncation cannot read as a change.
+  const baselineSlot = useMemo(
+    () => (editingBooking ? seedSlot(editingBooking, undefined, timeZone) : null),
+    [editingBooking, timeZone]
+  )
+
+  /**
+   * Whether to post `startsAt`/`endsAt` at all.
+   *
+   * Create always does. Edit posts them ONLY when the window actually
+   * moved, because the API treats any supplied window as a reschedule and
+   * a reschedule is not free: it re-quotes the room at *today's* rate card
+   * (only extras are frozen), re-runs credit consumption against the live
+   * balance, and 409s outright on a booking that is cancelled or being
+   * marked no-show. Posting the unchanged window on a title edit would
+   * silently re-price the booking and break the no-show checkbox, which
+   * lives in this same form.
+   */
+  const timesChanged =
+    committedSlot !== null &&
+    (baselineSlot === null ||
+      committedSlot.startsAt !== baselineSlot.startsAt ||
+      committedSlot.endsAt !== baselineSlot.endsAt)
 
   return (
     <Dialog
@@ -282,9 +344,14 @@ export function BookingFormDialog({
             onExtrasChange={invalidateQuote}
           />
 
-          <div className="grid gap-3">
+          <div className="grid gap-3" role="group" aria-labelledby="booking-when-label">
             <div className="flex items-center justify-between">
-              <Label>When</Label>
+              {/* A group heading, not a control label: it names the
+                  picker-or-manual pair below, which is a region rather
+                  than a single field. */}
+              <span id="booking-when-label" className="text-sm font-medium leading-none">
+                When
+              </span>
               <Button
                 type="button"
                 variant="link"
@@ -295,69 +362,56 @@ export function BookingFormDialog({
               </Button>
             </div>
 
+            {/* The ONLY emitters of these two names in this form. They sit
+                outside the manual/picker branch so there is exactly one of
+                each in either mode, and so a single condition decides
+                whether the submission is a reschedule at all — see
+                `timesChanged`. The manual DateTimeFields below therefore
+                carry deliberately inert names: DateTimeField always writes
+                a hidden input of its own, and a second `startsAt` would
+                leave `FormData.get` reading whichever came first. */}
+            {timesChanged && (
+              <>
+                <input type="hidden" name="startsAt" value={committedSlot?.startsAt ?? ""} />
+                <input type="hidden" name="endsAt" value={committedSlot?.endsAt ?? ""} />
+              </>
+            )}
+
             {manualTimes ? (
               <>
                 <div className="grid gap-2">
                   <Label htmlFor="startsAt">Starts at</Label>
                   <DateTimeField
                     id="startsAt"
-                    name="startsAt"
+                    name="startsAt__manual"
                     value={slot?.startsAt ?? ""}
-                    onChange={(next) => {
-                      setSlot((current) => ({
-                        startsAt: next,
-                        // A previously-picked end that the new start has
-                        // now reached or passed is stale, not merely off
-                        // the grid — keeping it selected would look valid
-                        // right up until the server rejects it (an end
-                        // equal to the new start is a zero-duration pair,
-                        // not a real range). Same-shape strings compare
-                        // correctly as-is.
-                        endsAt:
-                          current?.endsAt && current.endsAt <= next
-                            ? ""
-                            : (current?.endsAt ?? ""),
-                      }))
-                      invalidateQuote()
-                    }}
+                    onChange={(next) => updateHalf("startsAt", next)}
                   />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="endsAt">Ends at</Label>
                   <DateTimeField
                     id="endsAt"
-                    name="endsAt"
+                    name="endsAt__manual"
                     value={slot?.endsAt ?? ""}
                     min={slot?.startsAt}
-                    onChange={(next) => {
-                      setSlot((current) => ({
-                        startsAt: current?.startsAt ?? "",
-                        endsAt: next,
-                      }))
-                      invalidateQuote()
-                    }}
+                    onChange={(next) => updateHalf("endsAt", next)}
                   />
                 </div>
               </>
             ) : (
-              <>
-                {/* DateTimeField writes its own hidden input under this
-                    name, so these belong to the picker branch alone. */}
-                <input type="hidden" name="startsAt" value={slot?.startsAt ?? ""} />
-                <input type="hidden" name="endsAt" value={slot?.endsAt ?? ""} />
-                <BookingSlotPicker
-                  resourceId={resourceId}
-                  timeZone={timeZone}
-                  value={slot}
-                  onChange={(next) => {
-                    setSlot(next)
-                    invalidateQuote()
-                  }}
-                  // The booking's own row would otherwise read as busy and
-                  // hide the slot it already occupies.
-                  excludeBookingId={editingBooking?.id}
-                />
-              </>
+              <BookingSlotPicker
+                resourceId={resourceId}
+                timeZone={timeZone}
+                value={committedSlot}
+                onChange={(next) => {
+                  setSlot(next)
+                  invalidateQuote()
+                }}
+                // The booking's own row would otherwise read as busy and
+                // hide the slot it already occupies.
+                excludeBookingId={editingBooking?.id}
+              />
             )}
           </div>
 
@@ -387,6 +441,14 @@ export function BookingFormDialog({
             </div>
           )}
 
+          {/* Create only, deliberately. POST /bookings/validate takes a
+              CreateBookingDto and has no `excludeBookingId` (only
+              GET /resources/{id}/availability does), so a dry run on an
+              edit would be checked against a grid that still contains the
+              booking's own row — and the commonest reschedule, nudging a
+              window by half an hour, overlaps itself. It would report a
+              conflict that does not exist. Left gated until the endpoint
+              can exclude the booking being moved. */}
           {!editingBooking && (
             <div className="grid gap-2">
               <Button type="button" variant="outline" onClick={runCheck} disabled={checking}>
@@ -419,10 +481,9 @@ export function BookingFormDialog({
             <div className="flex w-full gap-3">
               <SubmitButton
                 editingBooking={editingBooking}
-                // Both modes now carry times, and the manual branch can
-                // hold half a pair (a start with its end cleared), so the
-                // two fields are checked rather than the object.
-                disabled={!slot?.startsAt || !slot?.endsAt}
+                // The manual branch can hold half a pair (a start with its
+                // end cleared), which `committedSlot` already refuses.
+                disabled={!committedSlot}
               />
               <DialogClose asChild>
                 <Button type="button" variant="outline" className="flex-1">

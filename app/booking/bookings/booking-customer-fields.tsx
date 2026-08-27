@@ -50,10 +50,12 @@ export function BookingCustomerFields({
 
   // The page-level Add button renders this form with no seed data, so
   // resources are fetched here rather than threaded through every caller.
-  // Members and companies are fetched independently of that seed: the
-  // create branch's Member/Company selects need them regardless of
-  // whether resources happened to arrive pre-seeded, so seeding resources
-  // must not silently starve the other two lookups.
+  // Members and companies are fetched independently of that seed — the
+  // create branch's Member/Company selects need them regardless of whether
+  // resources happened to arrive pre-seeded, so seeding resources must not
+  // silently starve the other two lookups — but they are still gated on
+  // `disabled`, because in edit mode those selects are not rendered at all
+  // and the two requests would be pure waste on every dialog open.
   useEffect(() => {
     let cancelled = false
 
@@ -68,29 +70,31 @@ export function BookingCustomerFields({
         .catch((error) => console.error("Failed to load resources", error))
     }
 
-    Promise.all([
-      getListMembers({ limit: 100, offset: 0, sort: "ASC" }),
-      getListCompanies({ limit: 100, offset: 0, sort: "ASC" }),
-    ])
-      .then(([memberPage, companyPage]) => {
-        if (cancelled) return
-        setMemberNames(
-          Object.fromEntries(
-            ((memberPage.results ?? []) as MemberDto[]).map((m) => [m.id, m.fullName])
+    if (!disabled) {
+      Promise.all([
+        getListMembers({ limit: 100, offset: 0, sort: "ASC" }),
+        getListCompanies({ limit: 100, offset: 0, sort: "ASC" }),
+      ])
+        .then(([memberPage, companyPage]) => {
+          if (cancelled) return
+          setMemberNames(
+            Object.fromEntries(
+              ((memberPage.results ?? []) as MemberDto[]).map((m) => [m.id, m.fullName])
+            )
           )
-        )
-        setCompanyNames(
-          Object.fromEntries(
-            ((companyPage.results ?? []) as CompanyDto[]).map((c) => [c.id, c.name])
+          setCompanyNames(
+            Object.fromEntries(
+              ((companyPage.results ?? []) as CompanyDto[]).map((c) => [c.id, c.name])
+            )
           )
-        )
-      })
-      .catch((error) => console.error("Failed to load booking options", error))
+        })
+        .catch((error) => console.error("Failed to load booking options", error))
+    }
 
     return () => {
       cancelled = true
     }
-  }, [seedResources])
+  }, [seedResources, disabled])
 
   const selectedResource = resources.find((resource) => resource.id === resourceId)
   const availableExtras = (selectedResource?.rates ?? []).flatMap((rate) => rate.extras ?? [])
@@ -105,6 +109,10 @@ export function BookingCustomerFields({
           value={resourceId}
           onChange={(e) => onResourceChange(e.target.value)}
           disabled={disabled}
+          // A disabled <select> is out of the tab order, so the note below
+          // is otherwise unreachable by keyboard or screen reader — the one
+          // audience that cannot see it greyed out and infer why.
+          aria-describedby={disabled ? "resourceId-frozen" : undefined}
           required
         >
           <option value="">Select resource</option>
@@ -125,7 +133,7 @@ export function BookingCustomerFields({
           ))}
         </NativeSelect>
         {disabled && (
-          <p className="text-xs text-muted-foreground">
+          <p id="resourceId-frozen" className="text-xs text-muted-foreground">
             Changing rooms is a cancel-and-rebook: the rate, the extras and the
             credits all hang off this one.
           </p>
