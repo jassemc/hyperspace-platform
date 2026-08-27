@@ -42,6 +42,9 @@ interface DateFieldProps {
   placeholder?: string
   required?: boolean
   clearable?: boolean
+  /** Render the calendar in place — required inside a vaul drawer; see
+   *  PopoverContent's portalled prop. */
+  portalled?: boolean
 }
 
 export function DateField({
@@ -53,6 +56,7 @@ export function DateField({
   placeholder = "Pick a date",
   required = false,
   clearable = false,
+  portalled = true,
 }: Readonly<DateFieldProps>) {
   const [open, setOpen] = React.useState(false)
   const selected = toDate(value)
@@ -77,7 +81,7 @@ export function DateField({
             {selected ? LONG_DATE.format(selected) : placeholder}
           </Button>
         </PopoverTrigger>
-        <PopoverContent>
+        <PopoverContent portalled={portalled}>
           <DayPicker
             mode="single"
             selected={selected}

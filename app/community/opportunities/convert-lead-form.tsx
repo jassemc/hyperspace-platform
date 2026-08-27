@@ -197,6 +197,11 @@ export function ConvertLeadForm({
                     value={startsAt}
                     onChange={setStartsAt}
                     required
+                    // In place, not portalled: the vaul drawer's modal
+                    // mode makes the body pointer-inert, so a portalled
+                    // calendar rendered but ate every click — these
+                    // fields read as "not editable".
+                    portalled={false}
                   />
                 </div>
 
@@ -210,6 +215,7 @@ export function ConvertLeadForm({
                     min={startsAt}
                     placeholder="Open-ended"
                     clearable
+                    portalled={false}
                   />
                   <p className="text-xs text-muted-foreground">
                     Leave empty for an open-ended membership. Dates cannot be
