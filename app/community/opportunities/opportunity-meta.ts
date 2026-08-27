@@ -1,4 +1,11 @@
-import type { OpportunityInterest, OpportunityStage } from "@/lib/service/HsService"
+import type {
+    OpportunityInterest,
+    OpportunityStage,
+    OpportunityStatsDto,
+    PlanBenefitDto,
+} from "@/lib/service/HsService"
+import { apiNumber, apiString } from "@/lib/api-value"
+import { formatEnumLabel } from "@/lib/format"
 
 export const OPPORTUNITY_STAGE_LABELS: Record<OpportunityStage, string> = {
     new: "New",
@@ -20,6 +27,15 @@ export const OPPORTUNITY_STAGE_CLASSES: Record<OpportunityStage, string> = {
 
 export const OPPORTUNITY_STAGE_VALUES = Object.keys(OPPORTUNITY_STAGE_LABELS) as OpportunityStage[]
 
+/**
+ * Won is reached by converting the lead into a membership, never by editing
+ * the stage: setting it by hand stamps closed_at and the onboarding endpoint
+ * then refuses the opportunity for good.
+ */
+export const OPPORTUNITY_STAGE_EDITABLE_VALUES = OPPORTUNITY_STAGE_VALUES.filter(
+    (value) => value !== "won"
+)
+
 export const OPPORTUNITY_STAGE_TABS = OPPORTUNITY_STAGE_VALUES.map((value) => ({
     value,
     label: OPPORTUNITY_STAGE_LABELS[value],
@@ -36,3 +52,99 @@ export const OPPORTUNITY_INTEREST_LABELS: Record<OpportunityInterest, string> = 
 export const OPPORTUNITY_INTEREST_VALUES = Object.keys(
     OPPORTUNITY_INTEREST_LABELS
 ) as OpportunityInterest[]
+
+/** Reads as "20 × half day per cycle — Meeting Room", or just "Locker". */
+export function benefitLabel(benefit: PlanBenefitDto): string {
+    if (benefit.benefitKind === "amenity") {
+        return apiString(benefit.amenityName) ?? formatEnumLabel(benefit.benefitType)
+    }
+
+    const amount = apiNumber(benefit.amount)
+    const unit = formatEnumLabel(benefit.benefitType)
+    const head = amount === null ? unit : `${amount} × ${unit}`
+    const renewal = benefit.renewal === "per_cycle" ? " per cycle" : ""
+    // The benefit names its own type now.
+    const scopeName = apiString(benefit.resourceTypeName)
+
+    return scopeName ? `${head}${renewal} — ${scopeName}` : `${head}${renewal}`
+}
+
+/** Won is money made, lost is money gone; neither is still in play. */
+const CLOSED_STAGES: OpportunityStage[] = ["won", "lost"]
+
+export interface OpportunityTotals {
+    total: number
+    open: number
+    won: number
+    lost: number
+    /** Expected value of everything not yet closed. */
+    pipelineHt: number
+    /** Reached a tour or a quote: the deals worth chasing this week. */
+    engaged: number
+    /** Value riding on those late-stage deals. */
+    engagedHt: number
+    /** Won against everything closed, as a percentage; null before any close. */
+    winRate: number | null
+    /** The stage holding the most open leads, with its count. */
+    busiestOpen: { stage: OpportunityStage; count: number } | null
+    /** The last eight weeks, oldest first. */
+    weeks: { week: string; created: number; won: number; lost: number }[]
+    /** Change from the week before last to last week, as a signed percentage. */
+    changeIn: (key: "created" | "won") => number | undefined
+    countFor: (stage: OpportunityStage) => number
+}
+
+/**
+ * Every figure on the screen comes from the per-stage rows the API returns,
+ * so the tabs and the cards can never disagree.
+ */
+export function opportunityTotals(
+    stats: OpportunityStatsDto | null | undefined
+): OpportunityTotals {
+    const rows = stats?.byStage ?? []
+    const counts = new Map(rows.map((row) => [row.stage, row.count]))
+
+    const total = rows.reduce((sum, row) => sum + row.count, 0)
+    const won = counts.get("won") ?? 0
+    const lost = counts.get("lost") ?? 0
+
+    const openRows = rows.filter((row) => !CLOSED_STAGES.includes(row.stage))
+    const lateRows = rows.filter(
+        (row) => row.stage === "tour" || row.stage === "quote"
+    )
+    const closed = won + lost
+    const busiest = openRows
+        .filter((row) => row.count > 0)
+        .sort((a, b) => b.count - a.count)[0]
+
+    const weeks = stats?.byWeek ?? []
+
+    /**
+     * Two complete weeks, compared. From nothing to something has no percentage
+     * to report, so it goes unsaid rather than being called 100%.
+     */
+    const changeIn = (key: "created" | "won") => {
+        if (weeks.length < 2) return undefined
+        const previous = weeks[weeks.length - 2][key]
+        const latest = weeks[weeks.length - 1][key]
+        if (previous === 0) return undefined
+        return Math.round(((latest - previous) / previous) * 1000) / 10
+    }
+
+    return {
+        total,
+        won,
+        lost,
+        weeks,
+        changeIn,
+        open: total - won - lost,
+        pipelineHt: openRows.reduce((sum, row) => sum + row.expectedValue, 0),
+        engaged: lateRows.reduce((sum, row) => sum + row.count, 0),
+        engagedHt: lateRows.reduce((sum, row) => sum + row.expectedValue, 0),
+        winRate: closed === 0 ? null : Math.round((won / closed) * 100),
+        busiestOpen: busiest
+            ? { stage: busiest.stage, count: busiest.count }
+            : null,
+        countFor: (stage) => counts.get(stage) ?? 0,
+    }
+}

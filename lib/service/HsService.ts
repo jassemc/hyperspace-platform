@@ -69,13 +69,6 @@ export interface PageMetaDto {
   hasNextPage: boolean;
 }
 
-export interface PageDto {
-  /** An array of results for the current page. */
-  results: Array<string>;
-  /** Metadata for the paginated response, including pagination details. */
-  meta: PageMetaDto;
-}
-
 export interface AddressDto {
   /** @example "Tunisia" */
   country?: string;
@@ -700,6 +693,11 @@ export interface ResourceDto {
   locationId: string;
   /** @format uuid */
   resourceTypeId: string;
+  /**
+   * The type itself, so a caller can tell a bookable space from an
+   * assignable one without fetching every resource type alongside.
+   */
+  resourceType?: ResourceTypeDto;
   /** @format uuid */
   parentId?: string | null;
   /**
@@ -1003,6 +1001,12 @@ export interface PlanBenefitDto {
   /** @format uuid */
   resourceTypeId?: string | null;
   /**
+   * The type's name, so a caller can render "5 × room hour — Meeting Room"
+   * without fetching the resource types just for this label.
+   * @example "Meeting Room"
+   */
+  resourceTypeName?: string | null;
+  /**
    * Links an amenity-kind benefit to the structured amenities table.
    * @format uuid
    */
@@ -1055,6 +1059,11 @@ export interface PlanDto {
   vatRate: number;
   /** @example 0 */
   deposit: number;
+  /**
+   * One-time joining fee, charged once at membership creation.
+   * @example 0
+   */
+  setupFee: number;
   /** @example 0 */
   cancellationDays: number;
   status: PlanStatus;
@@ -1144,6 +1153,12 @@ export interface CreatePlanDto {
   vatRate?: number;
   /** @default 0 */
   deposit?: number;
+  /**
+   * One-time joining fee, charged once at membership creation.
+   * Contractual: changing it on a plan in use archives+clones.
+   * @default 0
+   */
+  setupFee?: number;
   /** @default 0 */
   cancellationDays?: number;
   /** @default false */
@@ -1187,6 +1202,12 @@ export interface UpdatePlanDto {
   vatRate?: number;
   /** @default 0 */
   deposit?: number;
+  /**
+   * One-time joining fee, charged once at membership creation.
+   * Contractual: changing it on a plan in use archives+clones.
+   * @default 0
+   */
+  setupFee?: number;
   /** @default 0 */
   cancellationDays?: number;
   /** @default false */
@@ -1309,7 +1330,7 @@ export interface UpdateExtraDto {
   amenityId?: string | null;
 }
 
-export type ChargeKind = "plan_fee" | "booking" | "store" | "one_off" | "deposit";
+export type ChargeKind = "plan_fee" | "booking" | "store" | "one_off" | "deposit" | "setup_fee";
 
 export interface ChargeDto {
   /**
@@ -1319,27 +1340,36 @@ export interface ChargeDto {
    */
   id: string;
   /** @format uuid */
-  memberId?: object;
+  memberId?: string | null;
   /** @format uuid */
-  companyId?: object;
+  companyId?: string | null;
   /** @format uuid */
-  membershipId?: object;
+  membershipId?: string | null;
   /** @format uuid */
-  bookingId?: object;
-  /** @format uuid */
-  planId?: object;
+  bookingId?: string | null;
+  /**
+   * Soft reference to the one-off plan this fee was derived from, if any.
+   * @format uuid
+   */
+  planId?: string | null;
   kind: ChargeKind;
   /** @example "Part time — cycle 1 (2026-07-12)" */
   description: string;
   /** @example 120 */
   amountHt: number;
-  /** @example 19 */
+  /**
+   * VAT rate as a percentage (19 = 19%, 20.5 = 20.5%).
+   * @example 19
+   */
   vatRate: number;
-  /** @example 22.8 */
+  /**
+   * Per-line VAT (derived, HT × rate / 100 rounded to 3 decimals).
+   * @example 22.8
+   */
   vat: number;
-  accountingCode?: object;
+  accountingCode?: string | null;
   /** @format uuid */
-  invoiceId?: object;
+  invoiceId?: string | null;
   /**
    * The date of creation of the resource
    * @format date-time
@@ -1359,14 +1389,31 @@ export interface CreateChargeDto {
   memberId?: string;
   /** @format uuid */
   companyId?: string;
-  /** @format uuid */
+  /**
+   * Derive defaults from a one-off catalog plan. See class doc.
+   * @format uuid
+   */
   planId?: string;
   kind: "one_off" | "store";
-  /** @example "Printing — 50 pages" */
+  /**
+   * Required unless `planId` is given (defaults to the plan's name) — but
+   * an explicitly supplied value is always validated, even alongside a
+   * `planId`, so callers cannot smuggle in an empty string.
+   * @example "Printing — 50 pages"
+   */
   description?: string;
-  /** @example 25 */
+  /**
+   * HT dinars (TND); negative allowed (credit-note line). Never zero.
+   * Required unless `planId` is given (defaults to the plan's priceHt) —
+   * but an explicitly supplied value is always validated, even alongside
+   * a `planId`, so callers cannot smuggle in 0 or a non-numeric value.
+   * @example 25
+   */
   amountHt?: number;
-  /** @default 19 */
+  /**
+   * VAT rate as a percentage. Defaults to 19 (19%).
+   * @default 19
+   */
   vatRate?: number;
   /** @example "707" */
   accountingCode?: string;
@@ -1382,11 +1429,11 @@ export interface InvoiceDto {
    */
   id: string;
   /** @format uuid */
-  memberId?: object;
+  memberId?: string | null;
   /** @format uuid */
-  companyId?: object;
+  companyId?: string | null;
   /** @example "HS-2026-0042" */
-  number: string;
+  number: string | null;
   /** @example "2026-07-12" */
   issuedAt: string;
   /** @example "2026-07-12" */
@@ -1398,8 +1445,12 @@ export interface InvoiceDto {
   totalVat: number;
   /** @example 386.75 */
   totalTtc: number;
-  /** @example 200 */
+  /**
+   * Σ recorded payments (settlement progress).
+   * @example 200
+   */
   paid: number;
+  /** The frozen line items (auditable per-line VAT). */
   charges: Array<ChargeDto>;
   /**
    * The date of creation of the resource
@@ -1416,13 +1467,30 @@ export interface InvoiceDto {
 }
 
 export interface CreateInvoiceDto {
-  /** @format uuid */
+  /**
+   * Customer: exactly one of memberId / companyId.
+   * @format uuid
+   */
   memberId?: string;
   /** @format uuid */
   companyId?: string;
+  /**
+   * Charges to invoice; omit to take ALL the customer's uninvoiced
+   * charges.
+   */
   chargeIds?: Array<string>;
-  /** @example "2026-08-11" */
+  /**
+   * Defaults to the issue date (due on receipt).
+   * @example "2026-08-11"
+   */
   dueAt?: string;
+  /**
+   * Assemble the invoice for review instead of issuing it: no number is
+   * drawn and the totals stay recomputable until `POST /invoices/:id/issue`.
+   * The charges are still claimed, so nothing else can invoice them.
+   * @default false
+   */
+  draft?: boolean;
 }
 
 export type PaymentMethod = "cash" | "virement" | "card" | "check";
@@ -1440,11 +1508,14 @@ export interface PaymentDto {
   amount: number;
   method: PaymentMethod;
   /** @example "VIR-2026-4471" */
-  reference?: object;
+  reference?: string | null;
   /** @format date-time */
   paidAt: string;
-  /** @format uuid */
-  recordedBy?: object;
+  /**
+   * Staff/admin user who recorded the payment.
+   * @format uuid
+   */
+  recordedBy?: string | null;
   /**
    * The date of creation of the resource
    * @format date-time
@@ -1461,9 +1532,15 @@ export interface PaymentDto {
 
 export interface RecordPaymentResultDto {
   payment: PaymentDto;
-  /** @example 386.75 */
+  /**
+   * Settlement progress after this payment.
+   * @example 386.75
+   */
   paid: number;
-  /** @example true */
+  /**
+   * True when the payment settled the invoice (status flipped to paid).
+   * @example true
+   */
   settled: boolean;
 }
 
@@ -1473,7 +1550,10 @@ export interface CreatePaymentDto {
   method: PaymentMethod;
   /** @example "VIR-2026-4471" */
   reference?: string;
-  /** @example "2026-07-12T14:30:00Z" */
+  /**
+   * Defaults to now.
+   * @example "2026-07-12T14:30:00Z"
+   */
   paidAt?: string;
 }
 
@@ -1489,14 +1569,17 @@ export interface CreditTransactionDto {
   /** @example -1 */
   delta: number;
   /** @format uuid */
-  bookingId?: object;
+  bookingId?: string | null;
   /** @format uuid */
-  checkinId?: object;
-  /** @format uuid */
-  resourceTypeId?: object;
+  checkinId?: string | null;
+  /**
+   * Resource-type scope of the grant/consumption; NULL = wildcard.
+   * @format uuid
+   */
+  resourceTypeId?: string | null;
   /** @format date-time */
-  expiresAt?: string;
-  reason?: object;
+  expiresAt?: string | null;
+  reason?: string | null;
   /** @format date-time */
   occurredAt: string;
   /**
@@ -1518,16 +1601,25 @@ export type CreditTransactionKind = "grant" | "consumption";
 export interface CreditBalanceDto {
   /** @example "half_day" */
   creditType: string;
-  /** @example 18 */
+  /**
+   * Currently usable amount (non-expired grants minus consumption, FIFO).
+   * @example 18
+   */
   available: number;
   /** @example 20 */
   granted: number;
   /** @example 2 */
   consumed: number;
-  /** @example 0 */
+  /**
+   * Credits lost to expiry (granted, never consumed, now expired).
+   * @example 0
+   */
   expired: number;
-  /** @format date-time */
-  nextExpiry?: string;
+  /**
+   * Earliest upcoming expiry among grants still holding balance.
+   * @format date-time
+   */
+  nextExpiry?: string | null;
 }
 
 export interface MembershipCreditBalancesDto {
@@ -1547,22 +1639,37 @@ export interface GrantCreditDto {
   creditType: string;
   /** @example 5 */
   amount: number;
-  /** @format date-time */
+  /**
+   * Must lie in the future; omit for a never-expiring grant.
+   * @format date-time
+   */
   expiresAt?: string;
-  /** @format uuid */
+  /**
+   * Restricts the grant to one resource type; omit for wildcard.
+   * @format uuid
+   */
   resourceTypeId?: string;
   /** @example "goodwill — meeting overran the booked slot" */
   reason?: string;
 }
 
 export interface UpdateCreditDto {
-  /** @format date-time */
+  /**
+   * Future date-time, or null for a never-expiring grant.
+   * @format date-time
+   */
   expiresAt?: string | null;
-  /** @format uuid */
-  resourceTypeId?: object | null;
+  /**
+   * Resource-type scope, or null for wildcard.
+   * @format uuid
+   */
+  resourceTypeId?: string | null;
   /** @example "granted for the wrong resource type" */
   reason?: string;
 }
+
+/** Who receives this membership's charges. */
+export type MembershipBillTo = "member" | "company";
 
 /** Derived from dates on every read. */
 export type MembershipStatus = "pending" | "active" | "paused" | "ended";
@@ -1578,6 +1685,8 @@ export interface MembershipDto {
   memberId?: string | null;
   /** @format uuid */
   companyId?: string | null;
+  /** Who receives this membership's charges. */
+  billTo: MembershipBillTo;
   /**
    * Soft reference to the (possibly archived) catalog plan.
    * @format uuid
@@ -1615,12 +1724,21 @@ export interface MembershipDto {
 
 export interface CreateMembershipDto {
   /**
-   * Exactly one of memberId / companyId (customer XOR, §3.3).
+   * The customer. At least one of memberId / companyId is required.
+   * BOTH together is an employee's seat paid by their employer: the
+   * entitlements belong to that member alone (colleagues do not share
+   * them, unlike a company-held membership) while `billTo` decides who
+   * is charged.
    * @format uuid
    */
   memberId?: string;
   /** @format uuid */
   companyId?: string;
+  /**
+   * Who receives the charges. Defaults to `company` when a companyId is
+   * given, else `member`; must name a customer that is actually set.
+   */
+  billTo?: MembershipBillTo;
   /** @format uuid */
   planId: string;
   /**
@@ -1655,6 +1773,12 @@ export interface CreateMembershipDto {
    * @example 100
    */
   deposit?: number;
+  /**
+   * Overrides the plan's one-time setup fee for THIS membership only
+   * (0 = waived). Written into the snapshot; charged once at creation.
+   * @example 0
+   */
+  setupFee?: number;
 }
 
 export interface UpdateMembershipDto {
@@ -1664,6 +1788,66 @@ export interface UpdateMembershipDto {
    */
   name?: string;
   notes?: string;
+}
+
+export interface MembershipPauseDto {
+  /**
+   * Unique identifier
+   * @format uuid
+   * @example "9df3cd63-ad9a-48fb-8d48-2744da103c39"
+   */
+  id: string;
+  /** @format uuid */
+  membershipId: string;
+  /**
+   * First paused day, inclusive.
+   * @example "2026-09-01"
+   */
+  startsAt: string;
+  /**
+   * First active day again, EXCLUSIVE; null while still paused.
+   * @example "2026-10-01"
+   */
+  endsAt?: string | null;
+  /** @example "Travelling" */
+  reason?: string | null;
+  /**
+   * The date of creation of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  createdAt: string;
+  /**
+   * The date of the last update of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  updatedAt: string;
+}
+
+export interface CreateMembershipPauseDto {
+  /**
+   * First paused day, inclusive. Must fall inside the membership.
+   * @example "2026-09-01"
+   */
+  startsAt: string;
+  /**
+   * First active day again, EXCLUSIVE. Omit for an open-ended pause
+   * closed later by resume. Silently capped at the membership's end.
+   * @example "2026-10-01"
+   */
+  endsAt?: string;
+  /** @example "Travelling" */
+  reason?: string;
+}
+
+export interface ResumeMembershipDto {
+  /**
+   * First active day again, EXCLUSIVE. Defaults to today, so resuming
+   * without a body makes the membership active again immediately.
+   * @example "2026-09-20"
+   */
+  endsAt?: string;
 }
 
 export interface AssignmentDto {
@@ -1814,6 +1998,29 @@ export interface OccupancyBucketDto {
   totalCheckins?: number;
 }
 
+export interface BookingResourceDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Alpha Room" */
+  name: string;
+}
+
+export interface BookingMemberDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Dali May" */
+  fullName: string;
+  /** @example "dali@example.tn" */
+  email?: string | null;
+}
+
+export interface BookingCompanyDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Hyperspace SARL" */
+  name: string;
+}
+
 export type BookingStatus = "pending" | "confirmed" | "cancelled" | "no_show";
 
 export type BookingSource = "portal" | "staff" | "public";
@@ -1840,10 +2047,13 @@ export interface BookingDto {
   id: string;
   /** @format uuid */
   resourceId: string;
+  resource: BookingResourceDto;
   /** @format uuid */
   memberId?: string | null;
+  member?: BookingMemberDto | null;
   /** @format uuid */
   companyId?: string | null;
+  company?: BookingCompanyDto | null;
   /** @format date-time */
   startsAt: string;
   /** @format date-time */
@@ -1871,6 +2081,149 @@ export interface BookingDto {
    * @example "2025-05-25T10:03:33.169Z"
    */
   updatedAt: string;
+}
+
+export interface BookingStatusCountDto {
+  status: BookingStatus;
+  /** @example 12 */
+  count: number;
+  /**
+   * Their priceHt summed. Which statuses count as money is the caller's
+   * call — cancelled is money released, no_show is money kept.
+   * @example 480
+   */
+  valueHt: number;
+}
+
+export interface BookingSourceCountDto {
+  source: BookingSource;
+  /** @example 4 */
+  count: number;
+}
+
+export interface BookingResourceCountDto {
+  /** @format uuid */
+  resourceId: string;
+  /** @example "Alpha Room" */
+  name: string;
+  /** @example 9 */
+  count: number;
+}
+
+export interface BookingWeekStatsDto {
+  /**
+   * Monday of the week, as a business date in Africa/Tunis.
+   * @example "2026-08-24"
+   */
+  week: string;
+  /**
+   * Bookings taken that week, by when they were created.
+   * @example 6
+   */
+  created: number;
+  /**
+   * Bookings whose slot starts that week, by startsAt.
+   * @example 4
+   */
+  starting: number;
+  /**
+   * Their priceHt summed; credit-covered bookings contribute 0.
+   * @example 320
+   */
+  bookedValueHt: number;
+}
+
+export interface BookingStatsDto {
+  /** Every status, always — a zero reads as empty, a gap reads as broken. */
+  byStatus: Array<BookingStatusCountDto>;
+  bySource: Array<BookingSourceCountDto>;
+  /** @example 42 */
+  total: number;
+  /**
+   * Sum of priceHt; credit-covered bookings (NULL price) contribute 0.
+   * @example 1240.5
+   */
+  bookedValueHt: number;
+  byResource: Array<BookingResourceCountDto>;
+  /**
+   * The last eight weeks, oldest first, always all eight — a week nothing
+   * happened in reads as zero rather than going missing and bending the shape
+   * of a chart drawn from it.
+   */
+  byWeek: Array<BookingWeekStatsDto>;
+}
+
+export interface AmenitySummaryDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Screen" */
+  name: string;
+  /** @example "tv" */
+  icon: string | null;
+}
+
+export interface CalendarResourceSummaryDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Alpha Room" */
+  name: string;
+  /** @example 8 */
+  capacity: number;
+  imageUrl: string | null;
+  /** @format uuid */
+  resourceTypeId: string;
+  bookingMode: BookingMode;
+  /** @example 60 */
+  minDurationMin: number | null;
+  /** @example 480 */
+  maxDurationMin: number | null;
+  /** @example 24 */
+  cancellationHours: number;
+  amenities: Array<AmenitySummaryDto>;
+}
+
+export interface AvailabilityDayDto {
+  /** @example "2026-07-13" */
+  date: string;
+  /** Bookable windows that day (booking_times ?? location hours). */
+  windows: Array<TimeWindowDto>;
+}
+
+export interface CalendarBlockDto {
+  /** @format uuid */
+  bookingId: string;
+  /** @format date-time */
+  startsAt: string;
+  /** @format date-time */
+  endsAt: string;
+  status: BookingStatus;
+  title: string | null;
+  /**
+   * Resolved server-side; the grid must not re-derive it from ids.
+   * @example "Amel Ben Ali"
+   */
+  customerName: string | null;
+  source: BookingSource;
+}
+
+export interface CalendarResourceDto {
+  resource: CalendarResourceSummaryDto;
+  days: Array<AvailabilityDayDto>;
+  blocks: Array<CalendarBlockDto>;
+}
+
+export interface BookingCalendarDto {
+  /** @format date-time */
+  from: string;
+  /** @format date-time */
+  to: string;
+  /**
+   * IANA zone of the location this grid belongs to. The time axis is
+   * drawn in it — clients must not fall back to the browser's zone.
+   * @example "Europe/Lisbon"
+   */
+  timezone: string;
+  resources: Array<CalendarResourceDto>;
 }
 
 export interface CreateBookingDto {
@@ -1960,13 +2313,20 @@ export interface UpdateBookingDto {
   title?: string;
   notes?: string;
   status?: "no_show";
-}
-
-export interface AvailabilityDayDto {
-  /** @example "2026-07-13" */
-  date: string;
-  /** Bookable windows that day (booking_times ?? location hours). */
-  windows: Array<TimeWindowDto>;
+  /**
+   * Reschedule. Both times or neither — one alone is refused with
+   * `reschedule_requires_both`, because "move the end" alone is far
+   * more often a dropped field than an intent.
+   *
+   * The resource deliberately cannot move: it would change the rate,
+   * invalidate the extras (they hang off the old resource's rates) and
+   * rescope the credits, which are scoped to a resource TYPE. Changing
+   * rooms stays cancel-and-rebook.
+   * @example "2026-08-26T09:00:00Z"
+   */
+  startsAt?: string;
+  /** @example "2026-08-26T11:00:00Z" */
+  endsAt?: string;
 }
 
 export interface BusyIntervalDto {
@@ -1979,6 +2339,14 @@ export interface BusyIntervalDto {
 export interface AvailabilityDto {
   /** @format uuid */
   resourceId: string;
+  /**
+   * IANA zone of the resource's location. Windows in `days[]` are
+   * wall-clock strings ("08:00") that only mean anything in this zone —
+   * a client rendering them against its own zone shows the wrong hours
+   * to anyone booking across a border.
+   * @example "Europe/Lisbon"
+   */
+  timezone: string;
   bookingMode: BookingMode;
   /** @example 60 */
   minDurationMin?: number | null;
@@ -1991,18 +2359,52 @@ export interface AvailabilityDto {
   busy: Array<BusyIntervalDto>;
 }
 
+export interface OpportunityMemberDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Dali May" */
+  fullName: string;
+  /** @example "dali@example.tn" */
+  email?: string | null;
+}
+
 export type OpportunityInterest = "coworking" | "domiciliation" | "private_office" | "meeting_room" | "other";
 
 export type OpportunityStage = "new" | "contacted" | "tour" | "quote" | "won" | "lost";
+
+export interface OpportunityPlanDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Part time" */
+  name: string;
+  /**
+   * Price excluding VAT, in dinars (200 = 200 TND).
+   * @example 200
+   */
+  priceHt: number;
+}
+
+export interface OpportunityResourceDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Private Office 2" */
+  name: string;
+}
 
 export interface RequestedExtraDto {
   /** @format uuid */
   extraId: string;
   /** @example "Locker" */
   name: string;
-  /** @example 30 */
+  /**
+   * Price excluding VAT, in dinars (30 = 30 TND).
+   * @example 30
+   */
   priceHt: number;
-  /** @example 19 */
+  /**
+   * VAT rate as a percentage (19 = 19%, 20.5 = 20.5%).
+   * @example 19
+   */
   vatRate: number;
 }
 
@@ -2015,20 +2417,38 @@ export interface OpportunityDto {
   id: string;
   /** @format uuid */
   memberId: string;
+  member: OpportunityMemberDto;
   interest: OpportunityInterest;
   stage: OpportunityStage;
   /** @example 240 */
-  expectedValue?: object;
+  expectedValue?: number | null;
   /** @example "website" */
-  source?: object;
-  notes?: object;
+  source?: string | null;
+  notes?: string | null;
   /** @format date-time */
-  closedAt?: string;
-  /** @format uuid */
-  requestedPlanId?: object;
+  closedAt?: string | null;
+  /**
+   * The plan a website visitor requested (Task 6). NULL otherwise.
+   * @format uuid
+   */
+  requestedPlanId?: string | null;
+  requestedPlan?: OpportunityPlanDto | null;
+  /**
+   * The specific space the visitor or staff requested. NULL otherwise.
+   * @format uuid
+   */
+  requestedResourceId?: string | null;
+  requestedResource?: OpportunityResourceDto | null;
+  /** Paid add-ons selected with the requested plan. */
   requestedExtras: Array<RequestedExtraDto>;
-  /** @example 200 */
-  requestedPlanPriceHt?: object;
+  /**
+   * The PLAN FEE ONLY portion of the requested-plan quote — NOT
+   * `expectedValue` (which also sums the requested extras). This is the
+   * figure to paste into `CreateMembershipDto.priceHt` when converting.
+   * Null for opportunities not sourced from a plan request.
+   * @example 200
+   */
+  requestedPlanPriceHt?: number | null;
   /**
    * The date of creation of the resource
    * @format date-time
@@ -2043,6 +2463,75 @@ export interface OpportunityDto {
   updatedAt: string;
 }
 
+export interface OpportunityStageStatsDto {
+  stage: OpportunityStage;
+  /**
+   * Leads sitting in this stage. Present for every stage, zero included, so
+   * a caller can render the whole pipeline without filling in the gaps.
+   * @example 3
+   */
+  count: number;
+  /**
+   * Their expected value summed, excluding VAT, in dinars. Which stages
+   * count as pipeline is the caller's call — won is money made, lost is
+   * money gone.
+   * @example 450
+   */
+  expectedValue: number;
+}
+
+export interface OpportunitySourceStatsDto {
+  /**
+   * Where the lead came from. Free text, so this is what the data actually
+   * holds rather than a list someone decided in advance.
+   * @example "website"
+   */
+  source: string;
+  /** @example 7 */
+  count: number;
+}
+
+export interface OpportunityWeekStatsDto {
+  /**
+   * Monday of the week, as a business date in Africa/Tunis.
+   * @example "2026-08-24"
+   */
+  week: string;
+  /**
+   * Leads opened that week.
+   * @example 4
+   */
+  created: number;
+  /**
+   * Leads closed won that week — by when they closed, not when they opened.
+   * @example 1
+   */
+  won: number;
+  /** @example 0 */
+  lost: number;
+  /**
+   * Expected value of the leads opened that week, excluding VAT, in dinars.
+   * @example 800
+   */
+  value: number;
+}
+
+export interface OpportunityStatsDto {
+  byStage: Array<OpportunityStageStatsDto>;
+  /**
+   * Every source present in the data, busiest first — the options a source
+   * filter can offer. Leads without one are left out: an option nothing can
+   * be filtered by is worse than no option.
+   */
+  bySource: Array<OpportunitySourceStatsDto>;
+  /**
+   * The last eight weeks, oldest first, always all eight — a week nothing
+   * happened in reads as zero rather than going missing and bending the shape
+   * of a chart drawn from it.
+   */
+  byWeek: Array<OpportunityWeekStatsDto>;
+}
+
 export interface CreateOpportunityDto {
   /** @format uuid */
   memberId: string;
@@ -2054,10 +2543,23 @@ export interface CreateOpportunityDto {
   /** @example "walk-in" */
   source?: string;
   notes?: string;
-  /** @format uuid */
+  /**
+   * The plan a website visitor requested (Task 6).
+   * @format uuid
+   */
   requestedPlanId?: string;
+  /**
+   * The specific space the visitor or staff requested.
+   * @format uuid
+   */
+  requestedResourceId?: string;
+  /** Paid add-ons selected with the requested plan. */
   requestedExtras?: Array<RequestedExtraDto>;
-  /** @example 200 */
+  /**
+   * The PLAN FEE ONLY portion of the requested-plan quote (Task 6 —
+   * distinct from `expectedValue`, which also includes extras).
+   * @example 200
+   */
   requestedPlanPriceHt?: number;
 }
 
@@ -2067,20 +2569,56 @@ export interface UpdateOpportunityDto {
   interest?: OpportunityInterest;
   /** @default "new" */
   stage?: OpportunityStage;
-  /** @example 240 */
-  expectedValue?: number;
-  /** @example "walk-in" */
-  source?: string;
-  notes?: string;
-  /** @format uuid */
-  requestedPlanId?: string;
+  /** Paid add-ons selected with the requested plan. */
   requestedExtras?: Array<RequestedExtraDto>;
+  /** @example 240 */
+  expectedValue?: number | null;
+  /** @example "walk-in" */
+  source?: string | null;
+  notes?: string | null;
+  /** @format uuid */
+  requestedPlanId?: string | null;
+  /** @format uuid */
+  requestedResourceId?: string | null;
   /** @example 200 */
-  requestedPlanPriceHt?: number;
+  requestedPlanPriceHt?: number | null;
+}
+
+export interface OnboardingResultDto {
+  membership: MembershipDto;
+  /**
+   * The space held from day one, or null when the opportunity named
+   * none — assigning one later is a separate, ordinary action.
+   */
+  assignment?: AssignmentDto | null;
+  /**
+   * The converted opportunity, now stage=won.
+   * @format uuid
+   */
+  opportunityId: string;
+}
+
+export interface OnboardLeadDto {
+  /** @format uuid */
+  opportunityId: string;
+  /**
+   * First day of the membership (Africa/Tunis business date).
+   * @example "2026-09-01"
+   */
+  startsAt: string;
+  /**
+   * Optional fixed term: the LAST active day (inclusive), same
+   * semantics as CreateMembershipDto.endsAt.
+   * @example "2027-02-28"
+   */
+  endsAt?: string;
 }
 
 export interface RevenueBucketDto {
-  /** @example "2026-07" */
+  /**
+   * Month ('2026-07') or plan name ('Part time') / charge-kind bucket.
+   * @example "2026-07"
+   */
   bucket: string;
   /** @example 305 */
   totalHt: number;
@@ -2105,21 +2643,27 @@ export interface ExpiringMembershipDto {
   /** @example "Part time" */
   planName: string;
   /** @format uuid */
-  memberId?: object;
+  memberId?: string | null;
   /** @format uuid */
-  companyId?: object;
+  companyId?: string | null;
   /** @example "2026-08-01" */
   endsAt: string;
 }
 
 export interface ChurnCohortDto {
-  /** @example "2026-05" */
+  /**
+   * Cohort = membership start month.
+   * @example "2026-05"
+   */
   cohort: string;
   /** @example 10 */
   started: number;
   /** @example 3 */
   ended: number;
-  /** @example 0.3 */
+  /**
+   * ended / started, 4 decimals.
+   * @example 0.3
+   */
   churnRate: number;
 }
 
@@ -2135,7 +2679,7 @@ export interface PublicPlanCategoryDto {
   /** @example "Domiciliation" */
   name: string;
   /** @example "Registered business address services." */
-  description?: object;
+  description?: string | null;
 }
 
 export interface PublicPlanBenefitDto {
@@ -2144,11 +2688,14 @@ export interface PublicPlanBenefitDto {
   /** @example "half_day" */
   type: string;
   /** @example 20 */
-  amount?: object;
-  /** @example "Locker" */
-  amenityName?: object;
+  amount?: number | null;
+  /**
+   * Resolved when the amenity benefit links to the structured amenities table.
+   * @example "Locker"
+   */
+  amenityName?: string | null;
   /** @example "locker" */
-  amenityIcon?: object;
+  amenityIcon?: string | null;
 }
 
 export interface PublicPlanExtraDto {
@@ -2160,10 +2707,13 @@ export interface PublicPlanExtraDto {
   priceHt: number;
   /** @example 19 */
   vatRate: number;
-  /** @example "Locker" */
-  amenityName?: object;
+  /**
+   * Resolved when the extra links to the amenities table.
+   * @example "Locker"
+   */
+  amenityName?: string | null;
   /** @example "lock" */
-  amenityIcon?: object;
+  amenityIcon?: string | null;
 }
 
 export interface PublicPlanDto {
@@ -2176,22 +2726,39 @@ export interface PublicPlanDto {
   /** @example "Part time" */
   name: string;
   /** @example "PART_TIME" */
-  code?: object;
+  code?: string | null;
   /** @example "recurring" */
   kind: "recurring" | "one_off";
   /** @example 1 */
-  cycleMonths?: object;
+  cycleMonths?: number | null;
   /** @example 120 */
   priceHt: number;
   /** @example 19 */
   vatRate: number;
-  /** @example 142.8 */
+  /**
+   * Convenience for the website: HT × (1 + VAT).
+   * @example 142.8
+   */
   priceTtc: number;
-  description?: object;
-  category?: PublicPlanCategoryDto;
-  /** @example 3 */
-  availableResourcesCount: object | null;
+  /**
+   * One-time joining fee HT, charged once when the membership starts.
+   * @example 0
+   */
+  setupFee: number;
+  description?: string | null;
+  /** The website service section this plan belongs to; null = none. */
+  category?: PublicPlanCategoryDto | null;
+  /**
+   * How many active, visible unit resources sold under this plan (via
+   * their target plans, e.g. dedicated desks or private offices) are
+   * currently available. 0 = unit-backed but sold out; null = the plan
+   * is not unit-backed (no linked units, or pool-level links only —
+   * seat counts for pools live on the catalog card), so show no badge.
+   * @example 3
+   */
+  availableResourcesCount: number | null;
   benefits: Array<PublicPlanBenefitDto>;
+  /** Paid add-ons offered with this plan. */
   extras: Array<PublicPlanExtraDto>;
   /**
    * The date of creation of the resource
@@ -2213,7 +2780,7 @@ export interface PublicAmenityDto {
   /** @example "Projector" */
   name: string;
   /** @example "projector" */
-  icon?: object;
+  icon?: string | null;
 }
 
 export interface PublicRateExtraDto {
@@ -2225,23 +2792,36 @@ export interface PublicRateExtraDto {
   priceHt: number;
   /** @example 19 */
   vatRate: number;
-  /** @example "Locker" */
-  amenityName?: object;
+  /**
+   * Resolved when the extra links to the amenities table.
+   * @example "Locker"
+   */
+  amenityName?: string | null;
   /** @example "lock" */
-  amenityIcon?: object;
+  amenityIcon?: string | null;
 }
 
 export interface PublicResourceRateDto {
-  /** @example "hour" */
+  /**
+   * Billing interval: once, hour, half_day, day, week or month.
+   * @example "hour"
+   */
   intervalType: string;
-  /** @example false */
+  /**
+   * Applies on Sat/Sun instead of the standard rate of the interval.
+   * @example false
+   */
   isWeekendRate: boolean;
   /** @example 30 */
   priceHt: number;
   /** @example 19 */
   vatRate: number;
-  /** @example 35.7 */
+  /**
+   * Convenience for the website: HT × (1 + VAT).
+   * @example 35.7
+   */
   priceTtc: number;
+  /** Add-ons offered with this rate. */
   extras: Array<PublicRateExtraDto>;
 }
 
@@ -2253,12 +2833,15 @@ export interface PublicTargetPlanDto {
   /** @example "recurring" */
   kind: "recurring" | "one_off";
   /** @example 1 */
-  cycleMonths?: object;
+  cycleMonths?: number | null;
   /** @example 240 */
   priceHt: number;
   /** @example 19 */
   vatRate: number;
-  /** @example 285.6 */
+  /**
+   * Convenience for the website: HT × (1 + VAT).
+   * @example 285.6
+   */
   priceTtc: number;
 }
 
@@ -2271,30 +2854,43 @@ export interface PublicResourceDto {
   id: string;
   /** @example "Meeting Room" */
   name: string;
-  description?: object;
-  /** @example "https://cdn.hscowork.tn/spaces/office-1.jpg" */
-  imageUrl?: object;
+  description?: string | null;
+  /**
+   * Card photo.
+   * @example "https://cdn.hscowork.tn/spaces/office-1.jpg"
+   */
+  imageUrl?: string | null;
   /** @example "meeting_room" */
   resourceTypeSlug: string;
   /** @example "Meeting Room" */
   resourceTypeName: string;
   /** @example "hourly" */
   bookingMode: string;
+  /** Derived live status — the card's availability badge. */
   status: ResourceStatus;
   /** @example 8 */
   capacity: number;
-  /** @example 5 */
-  availableUnitsCount?: object | null;
+  /**
+   * Pool/parent cards (e.g. the open space): live unit counts over the
+   * direct child seats. Null for unit cards.
+   * @example 5
+   */
+  availableUnitsCount?: number | null;
   /** @example 8 */
-  totalUnitsCount?: object | null;
+  totalUnitsCount?: number | null;
   /** @example 60 */
-  minDurationMin?: object;
+  minDurationMin?: number | null;
   /** @example 480 */
-  maxDurationMin?: object;
+  maxDurationMin?: number | null;
   /** @example 24 */
   cancellationHours: number;
   amenities: Array<PublicAmenityDto>;
+  /** Attached price options — one per (interval, weekend) slot. */
   rates: Array<PublicResourceRateDto>;
+  /**
+   * Plans this space is sold under, cheapest first; empty for purely
+   * bookable spaces. Request via POST /public/plan-requests.
+   */
   targetPlans: Array<PublicTargetPlanDto>;
   /**
    * The date of creation of the resource
@@ -2317,7 +2913,10 @@ export interface PublicResourceTypeDto {
   name: string;
   /** @example "hourly" */
   bookingMode: string;
-  /** @example true */
+  /**
+   * True = cards of this tab book time slots; false = plan requests.
+   * @example true
+   */
   canBook: boolean;
 }
 
@@ -2326,14 +2925,29 @@ export interface BookingRequestResultDto {
   bookingId: string;
   /** @example "pending" */
   status: string;
-  /** @example null */
-  priceHt?: object;
+  /**
+   * NULL when fully credit-covered (§4.11).
+   * @example null
+   */
+  priceHt?: number | null;
   extras: Array<QuoteExtraDto>;
-  /** @example 80 */
+  /**
+   * priceHt + the sum of extras' priceHt (0 when fully free).
+   * @example 80
+   */
   grandTotalHt: number;
-  /** @example 89.2 */
+  /**
+   * totalTtc + the sum of extras' totalTtc (0 when fully free).
+   * @example 89.2
+   */
   grandTotalTtc: number;
 }
+
+/**
+ * Which public frontend sent this request — recorded as the
+ * opportunity's `source`. Omitted keeps the historical `website`.
+ */
+export type RequestSource = "website" | "booking";
 
 export interface CreateBookingRequestDto {
   /** @example "Sami Ben Salah" */
@@ -2350,7 +2964,14 @@ export interface CreateBookingRequestDto {
   endsAt: string;
   /** @example "Team workshop, 6 people" */
   notes?: string;
+  /** Extras offered by the booked resource's rates (§6.3 Task 6). */
   extraIds?: Array<string>;
+  /**
+   * Which public frontend sent this request — recorded as the
+   * opportunity's `source`. Omitted keeps the historical `website`.
+   * @default "website"
+   */
+  source?: RequestSource;
 }
 
 export interface PlanRequestResultDto {
@@ -2361,9 +2982,15 @@ export interface PlanRequestResultDto {
   /** @example 200 */
   priceHt: number;
   extras: Array<QuoteExtraDto>;
-  /** @example 230 */
+  /**
+   * priceHt + the sum of the selected extras' priceHt.
+   * @example 230
+   */
   totalHt: number;
-  /** @example 273.7 */
+  /**
+   * planTtc + the sum of the selected extras' totalTtc.
+   * @example 273.7
+   */
   totalTtc: number;
 }
 
@@ -2376,15 +3003,36 @@ export interface CreatePlanRequestDto {
   phone?: string;
   /** @example "Acme SARL" */
   companyName?: string;
-  /** @format uuid */
+  /**
+   * Plan to request. Optional when `resourceId` is sent and the space
+   * is sold under exactly one plan; REQUIRED (one of the space's
+   * plans) when it is sold under several.
+   * @format uuid
+   */
   planId?: string;
-  /** @format uuid */
+  /**
+   * Space card the visitor clicked (catalog `GET /public/resources`);
+   * the plan resolves through the space's target plans and the space is
+   * recorded on the opportunity. At least one of planId/resourceId is
+   * required.
+   * @format uuid
+   */
   resourceId?: string;
+  /** Paid add-ons selected with the plan (§5 GET /public/plans). */
   extraIds?: Array<string>;
   /** @example "Interested in starting next month" */
   notes?: string;
-  /** @default "coworking" */
+  /**
+   * Defaults to coworking — plans have no type field to derive it from.
+   * @default "coworking"
+   */
   interest?: OpportunityInterest;
+  /**
+   * Which public frontend sent this request — recorded as the
+   * opportunity's `source`. Omitted keeps the historical `website`.
+   * @default "website"
+   */
+  source?: RequestSource;
 }
 
 export interface ContactRequestResultDto {
@@ -2401,17 +3049,34 @@ export interface CreateContactRequestDto {
   phone?: string;
   /** @example "Acme SARL" */
   companyName?: string;
-  /** @example "coworking" */
+  /**
+   * Service section the visitor asks about
+   * (`GET /public/plan-categories`), or a bare interest slug such as
+   * `meeting_room` — accepted without a category row, since bookable
+   * services have no plan category. Mutually exclusive with `freeDay`.
+   * @example "coworking"
+   */
   categorySlug?: string;
-  /** @example true */
+  /**
+   * True to request a free trial day instead of a category.
+   * @example true
+   */
   freeDay?: boolean;
   /**
+   * Preferred visit date (Africa/Tunis business day) — recorded on the
+   * opportunity for staff, mainly with `freeDay`.
    * @format date
    * @example "2026-09-01"
    */
   preferredDate?: string;
   /** @example "We are a team of 4" */
   notes?: string;
+  /**
+   * Which public frontend sent this request — recorded as the
+   * opportunity's `source`. Omitted keeps the historical `website`.
+   * @default "website"
+   */
+  source?: RequestSource;
 }
 
 export interface ListLocationsParams {
@@ -2518,6 +3183,13 @@ export interface ListResourcesParams {
   resourceTypeId?: string;
   /** Keep only resources whose derived status matches. */
   status?: ResourceStatus;
+  /**
+   * Keep only resources whose type allows booking. A resource on a
+   * `canBook: false` type cannot be booked at all, so offering it in a
+   * booking form is a trap.
+   * @example true
+   */
+  canBook?: boolean;
   /** The search term to filter results. */
   q?: string;
 }
@@ -2642,6 +3314,7 @@ export interface ListChargesParams {
   /** @format uuid */
   companyId?: string;
   kind?: ChargeKind;
+  /** true → only charges not yet on an invoice. */
   uninvoiced?: boolean;
   /** The search term to filter results. */
   q?: string;
@@ -2688,7 +3361,10 @@ export interface ListCreditsParams {
   sort: Sort;
   /** @format uuid */
   membershipId?: string;
-  /** @format uuid */
+  /**
+   * Memberships held by the member OR their employer company.
+   * @format uuid
+   */
   memberId?: string;
   /** @format uuid */
   companyId?: string;
@@ -2698,10 +3374,17 @@ export interface ListCreditsParams {
   checkinId?: string;
   /** @example "room_hour" */
   creditType?: string;
+  /** grant = positive deltas, consumption = negative deltas. */
   kind?: CreditTransactionKind;
-  /** @format date-time */
+  /**
+   * Inclusive lower bound on occurred_at.
+   * @format date-time
+   */
   startDate?: string;
-  /** @format date-time */
+  /**
+   * Inclusive upper bound on occurred_at.
+   * @format date-time
+   */
   endDate?: string;
   /** The search term to filter results. */
   q?: string;
@@ -2710,13 +3393,22 @@ export interface ListCreditsParams {
 export interface GetCreditBalancesParams {
   /** @format uuid */
   membershipId?: string;
-  /** @format uuid */
+  /**
+   * Memberships held by the member OR their employer company.
+   * @format uuid
+   */
   memberId?: string;
   /** @format uuid */
   companyId?: string;
-  /** @format date-time */
+  /**
+   * Inclusive start of the statement window.
+   * @format date-time
+   */
   startDate?: string;
-  /** @format date-time */
+  /**
+   * Inclusive end of the statement window; defaults to now.
+   * @format date-time
+   */
   endDate?: string;
 }
 
@@ -2840,15 +3532,76 @@ export interface ListBookingsParams {
   from?: string;
   /** @example "2026-07-31T23:59:59Z" */
   to?: string;
+  status?: BookingStatus;
+  source?: BookingSource;
+  /**
+   * Customer filter; member XOR company, same as the booking itself.
+   * @format uuid
+   */
+  memberId?: string;
+  /** @format uuid */
+  companyId?: string;
   /** The search term to filter results. */
   q?: string;
 }
 
-export interface GetResourceAvailabilityParams {
-  /** @example "2026-07-13T00:00:00Z" */
+export interface GetBookingStatsParams {
+  q?: string;
+  /** @format uuid */
+  resourceId?: string;
+  /** @example "2026-08-01T00:00:00Z" */
+  from?: string;
+  /** @example "2026-08-31T23:59:59Z" */
+  to?: string;
+  source?: BookingSource;
+  /** @format uuid */
+  memberId?: string;
+  /** @format uuid */
+  companyId?: string;
+}
+
+export interface GetBookingCalendarParams {
+  /**
+   * Inclusive start instant.
+   * @example "2026-08-24T00:00:00Z"
+   */
   from: string;
-  /** @example "2026-07-19T23:59:59Z" */
+  /**
+   * EXCLUSIVE end instant — a one-day grid is midnight to midnight.
+   * @example "2026-08-25T00:00:00Z"
+   */
   to: string;
+  /**
+   * Comma-separated; omit for every bookable room in scope.
+   * @example "6f9619ff-8b86-4d11-b42d-00c04fc964ff,c6a2f0de-9a2c-4a1e-9b7a-2f1d3c4b5a60"
+   */
+  resourceIds?: string;
+  /** @format uuid */
+  resourceTypeId?: string;
+  /** @format uuid */
+  locationId?: string;
+}
+
+export interface GetResourceAvailabilityParams {
+  /**
+   * Inclusive start instant.
+   * @example "2026-07-13T00:00:00Z"
+   */
+  from: string;
+  /**
+   * EXCLUSIVE end instant — the same half-open convention the busy
+   * query (`starts_at < :to`) and the calendar already use. To cover
+   * 13–19 July, pass the 20th at 00:00, not the 19th at 23:59:59.
+   * @example "2026-07-20T00:00:00Z"
+   */
+  to: string;
+  /**
+   * The booking currently being rescheduled. Its own busy interval is
+   * dropped from the response, so the slot it already holds reads as
+   * free — which is where "make it half an hour longer" starts.
+   * @format uuid
+   */
+  excludeBookingId?: string;
   id: string;
 }
 
@@ -2867,12 +3620,49 @@ export interface ListOpportunitiesParams {
   limit: number;
   /** The direction to sort the results, either 'ASC' or 'DESC'. */
   sort: Sort;
+  /**
+   * Exact match on the free-text source; the options come from stats.
+   * @example "website"
+   */
+  source?: string;
   stage?: OpportunityStage;
   interest?: OpportunityInterest;
   /** @format uuid */
   memberId?: string;
+  /**
+   * Instants, not dates. An opportunity has no location, so the server
+   * has no timezone in which to decide what "a day" is — and picking one
+   * would bake a region into a region-neutral entity. The client turns
+   * the day it means into a pair of instants.
+   * @example "2026-08-01T00:00:00Z"
+   */
+  createdFrom?: string;
+  /**
+   * Exclusive upper bound.
+   * @example "2026-08-08T00:00:00Z"
+   */
+  createdTo?: string;
   /** The search term to filter results. */
   q?: string;
+}
+
+export interface OpportunityStatsParams {
+  /** Same search as the list: the member's name or the source. */
+  q?: string;
+  interest?: OpportunityInterest;
+  /**
+   * Instants, not dates. An opportunity has no location, so the server
+   * has no timezone in which to decide what "a day" is — and picking one
+   * would bake a region into a region-neutral entity. The client turns
+   * the day it means into a pair of instants.
+   * @example "2026-08-01T00:00:00Z"
+   */
+  createdFrom?: string;
+  /**
+   * Exclusive upper bound.
+   * @example "2026-08-08T00:00:00Z"
+   */
+  createdTo?: string;
 }
 
 export interface AnalyticsOccupancyParams {
@@ -2905,22 +3695,42 @@ export interface AnalyticsMembershipsParams {
 }
 
 export interface PublicListPlansParams {
-  /** @example "domiciliation" */
+  /**
+   * Category slug, as returned by GET /public/plan-categories.
+   * @example "domiciliation"
+   */
   category?: string;
 }
 
 export interface PublicResourceAvailabilityParams {
-  /** @example "2026-07-13T00:00:00Z" */
+  /**
+   * Inclusive start instant.
+   * @example "2026-07-13T00:00:00Z"
+   */
   from: string;
-  /** @example "2026-07-19T23:59:59Z" */
+  /**
+   * EXCLUSIVE end instant — the same half-open convention the busy
+   * query (`starts_at < :to`) and the calendar already use. To cover
+   * 13–19 July, pass the 20th at 00:00, not the 19th at 23:59:59.
+   * @example "2026-07-20T00:00:00Z"
+   */
   to: string;
   id: string;
 }
 
 export interface PublicListResourcesParams {
-  /** @example "meeting_room" */
+  /**
+   * Resource-type slug, as returned by GET /public/resource-types.
+   * @example "meeting_room"
+   */
   resourceType?: string;
-  /** @example "DAY_PASS" */
+  /**
+   * Plan code, as returned by GET /public/plans — keeps spaces whose
+   * target plans include it. Code, not id: the code survives
+   * archive+clone, so a stored link never goes stale. Unknown code =
+   * empty list (filter semantics, like an unmatched resourceType).
+   * @example "DAY_PASS"
+   */
   planCode?: string;
 }
 
@@ -2932,10 +3742,11 @@ export namespace Api {
  * @summary List locations
  * @request GET:/api/v1/locations
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<LocationDto>,
+ * @response `200` `{
+    results: Array<LocationDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -2965,8 +3776,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<LocationDto>;
+    export type ResponseBody = {
+      results: Array<LocationDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -3052,10 +3864,11 @@ export namespace Api {
  * @summary List companies
  * @request GET:/api/v1/companies
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<CompanyDto>,
+ * @response `200` `{
+    results: Array<CompanyDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -3087,8 +3900,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<CompanyDto>;
+    export type ResponseBody = {
+      results: Array<CompanyDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -3174,10 +3988,11 @@ export namespace Api {
  * @summary List members
  * @request GET:/api/v1/members
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<MemberDto>,
+ * @response `200` `{
+    results: Array<MemberDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -3212,8 +4027,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<MemberDto>;
+    export type ResponseBody = {
+      results: Array<MemberDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -3276,7 +4092,7 @@ export namespace Api {
    * @secure
    * @response `200` `(MemberDto)` 200
    * @response `401` `(ResponseErrorDto)` Unauthorized
-   * @response `403` `(ResponseErrorDto)` Forbidden
+   * @response `403` `((ResponseErrorDto))` 403
    * @response `404` `(ResponseErrorDto)` Not Found
    * @response `422` `(ResponseErrorDto)` Unprocessable Entity
    * @response `429` `(ResponseErrorDto)` Too Many Requests
@@ -3352,10 +4168,11 @@ export namespace Api {
  * @summary List resource types
  * @request GET:/api/v1/resource-types
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<ResourceTypeDto>,
+ * @response `200` `{
+    results: Array<ResourceTypeDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -3385,8 +4202,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<ResourceTypeDto>;
+    export type ResponseBody = {
+      results: Array<ResourceTypeDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -3473,10 +4291,11 @@ export namespace Api {
  * @summary List resources
  * @request GET:/api/v1/resources
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<ResourceDto>,
+ * @response `200` `{
+    results: Array<ResourceDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -3507,13 +4326,21 @@ export namespace Api {
       resourceTypeId?: string;
       /** Keep only resources whose derived status matches. */
       status?: ResourceStatus;
+      /**
+       * Keep only resources whose type allows booking. A resource on a
+       * `canBook: false` type cannot be booked at all, so offering it in a
+       * booking form is a trap.
+       * @example true
+       */
+      canBook?: boolean;
       /** The search term to filter results. */
       q?: string;
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<ResourceDto>;
+    export type ResponseBody = {
+      results: Array<ResourceDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -3680,10 +4507,11 @@ export namespace Api {
  * @summary List resource rates
  * @request GET:/api/v1/resource-rates
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<ResourceRateDto>,
+ * @response `200` `{
+    results: Array<ResourceRateDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -3715,8 +4543,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<ResourceRateDto>;
+    export type ResponseBody = {
+      results: Array<ResourceRateDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -3805,10 +4634,11 @@ export namespace Api {
  * @summary List plans
  * @request GET:/api/v1/plans
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<PlanDto>,
+ * @response `200` `{
+    results: Array<PlanDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -3841,8 +4671,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<PlanDto>;
+    export type ResponseBody = {
+      results: Array<PlanDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -3929,10 +4760,11 @@ export namespace Api {
  * @summary List plan categories
  * @request GET:/api/v1/plan-categories
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<PlanCategoryDto>,
+ * @response `200` `{
+    results: Array<PlanCategoryDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -3962,8 +4794,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<PlanCategoryDto>;
+    export type ResponseBody = {
+      results: Array<PlanCategoryDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -4051,10 +4884,11 @@ export namespace Api {
  * @summary List amenities
  * @request GET:/api/v1/amenities
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<AmenityDto>,
+ * @response `200` `{
+    results: Array<AmenityDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -4084,8 +4918,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<AmenityDto>;
+    export type ResponseBody = {
+      results: Array<AmenityDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -4172,10 +5007,11 @@ export namespace Api {
  * @summary List extras
  * @request GET:/api/v1/extras
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<ExtraDto>,
+ * @response `200` `{
+    results: Array<ExtraDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -4205,8 +5041,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<ExtraDto>;
+    export type ResponseBody = {
+      results: Array<ExtraDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -4292,10 +5129,11 @@ export namespace Api {
  * @summary List charges
  * @request GET:/api/v1/charges
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<ChargeDto>,
+ * @response `200` `{
+    results: Array<ChargeDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -4325,14 +5163,16 @@ export namespace Api {
       /** @format uuid */
       companyId?: string;
       kind?: ChargeKind;
+      /** true → only charges not yet on an invoice. */
       uninvoiced?: boolean;
       /** The search term to filter results. */
       q?: string;
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<ChargeDto>;
+    export type ResponseBody = {
+      results: Array<ChargeDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -4366,10 +5206,11 @@ export namespace Api {
  * @summary List invoices
  * @request GET:/api/v1/invoices
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<InvoiceDto>,
+ * @response `200` `{
+    results: Array<InvoiceDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -4404,13 +5245,14 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<InvoiceDto>;
+    export type ResponseBody = {
+      results: Array<InvoiceDto>;
+      meta: PageMetaDto;
     };
   }
 
   /**
-   * @description Claims the given chargeIds — or ALL uninvoiced charges of the customer — race-safely, freezes HT/VAT/TTC totals (VAT rounded per line) and draws the next sequential HS-YYYY-NNNN number. A negative selection produces a credit note. Invoices are born issued (status sent).
+   * @description Claims the given chargeIds — or ALL uninvoiced charges of the customer — race-safely, freezes HT/VAT/TTC totals (VAT rounded per line) and draws the next sequential HS-YYYY-NNNN number. A negative selection produces a credit note. Invoices are born issued (status sent). Charges of cancelled/pending bookings are never billable: the sweep skips them silently, an explicit chargeIds selection naming one fails with 422.
    * @tags Billing
    * @name CreateInvoice
    * @summary Issue an invoice (§6.4)
@@ -4419,6 +5261,7 @@ export namespace Api {
    * @response `201` `(InvoiceDto)` 201
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
    * @response `409` `(ResponseErrorDto)` Conflict
    * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
@@ -4486,6 +5329,59 @@ export namespace Api {
   }
 
   /**
+   * @description Drafts only — the charges are released back to uninvoiced. An issued invoice is retired with void, never deleted.
+   * @tags Billing
+   * @name DeleteDraftInvoice
+   * @summary Drafts only — an issued invoice is retired with void (§4.14).
+   * @request DELETE:/api/v1/invoices/{id}
+   * @secure
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `409` `(ResponseErrorDto)` Conflict
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `void`
+   */
+  export namespace DeleteDraftInvoice {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = any;
+  }
+
+  /**
+   * @description Draws the sequential number, stamps today as the issue date and re-freezes the totals from the charges as they stand now. The invoice becomes immutable.
+   * @tags Billing
+   * @name IssueInvoice
+   * @summary Issue a draft invoice
+   * @request POST:/api/v1/invoices/{id}/issue
+   * @secure
+   * @response `200` `(InvoiceDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `409` `(ResponseErrorDto)` Conflict
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `InvoiceDto`
+   */
+  export namespace IssueInvoice {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = InvoiceDto;
+  }
+
+  /**
    * @description Requires zero recorded payments. The invoice’s charges are released back to uninvoiced so they can be re-invoiced.
    * @tags Billing
    * @name VoidInvoice
@@ -4496,7 +5392,7 @@ export namespace Api {
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
    * @response `404` `(ResponseErrorDto)` Not Found
-   * @response `409` `(ResponseErrorDto)` Conflict
+   * @response `409` `((ResponseErrorDto))` 409
    * @response `422` `(ResponseErrorDto)` Unprocessable Entity
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
@@ -4513,7 +5409,7 @@ export namespace Api {
   }
 
   /**
-   * @description Payments accumulate; when Σ payments ≥ the TTC total the invoice flips to paid. recorded_by is the calling staff user, resolved server-side.
+   * @description Payments accumulate; when Σ payments reach the TTC total the invoice flips to paid. A payment exceeding the remaining balance is rejected (the recording locks the invoice row, so concurrent payments cannot double-settle). recorded_by is the calling staff user, resolved server-side.
    * @tags Billing
    * @name RecordPayment
    * @summary Record a payment against an invoice
@@ -4524,7 +5420,7 @@ export namespace Api {
    * @response `403` `((ResponseErrorDto))` 403
    * @response `404` `(ResponseErrorDto)` Not Found
    * @response `409` `((ResponseErrorDto))` 409
-   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
    * @response `default` `RecordPaymentResultDto`
@@ -4546,10 +5442,11 @@ export namespace Api {
  * @summary List credit ledger rows
  * @request GET:/api/v1/credits
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<CreditTransactionDto>,
+ * @response `200` `{
+    results: Array<CreditTransactionDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -4576,7 +5473,10 @@ export namespace Api {
       sort: Sort;
       /** @format uuid */
       membershipId?: string;
-      /** @format uuid */
+      /**
+       * Memberships held by the member OR their employer company.
+       * @format uuid
+       */
       memberId?: string;
       /** @format uuid */
       companyId?: string;
@@ -4586,18 +5486,26 @@ export namespace Api {
       checkinId?: string;
       /** @example "room_hour" */
       creditType?: string;
+      /** grant = positive deltas, consumption = negative deltas. */
       kind?: CreditTransactionKind;
-      /** @format date-time */
+      /**
+       * Inclusive lower bound on occurred_at.
+       * @format date-time
+       */
       startDate?: string;
-      /** @format date-time */
+      /**
+       * Inclusive upper bound on occurred_at.
+       * @format date-time
+       */
       endDate?: string;
       /** The search term to filter results. */
       q?: string;
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<CreditTransactionDto>;
+    export type ResponseBody = {
+      results: Array<CreditTransactionDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -4612,7 +5520,7 @@ export namespace Api {
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
    * @response `404` `((ResponseErrorDto))` 404
-   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
    * @response `default` `CreditTransactionDto`
@@ -4646,13 +5554,22 @@ export namespace Api {
     export type RequestQuery = {
       /** @format uuid */
       membershipId?: string;
-      /** @format uuid */
+      /**
+       * Memberships held by the member OR their employer company.
+       * @format uuid
+       */
       memberId?: string;
       /** @format uuid */
       companyId?: string;
-      /** @format date-time */
+      /**
+       * Inclusive start of the statement window.
+       * @format date-time
+       */
       startDate?: string;
-      /** @format date-time */
+      /**
+       * Inclusive end of the statement window; defaults to now.
+       * @format date-time
+       */
       endDate?: string;
     };
     export type RequestBody = never;
@@ -4747,10 +5664,11 @@ export namespace Api {
  * @summary List memberships
  * @request GET:/api/v1/memberships
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<MembershipDto>,
+ * @response `200` `{
+    results: Array<MembershipDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -4796,8 +5714,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<MembershipDto>;
+    export type ResponseBody = {
+      results: Array<MembershipDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -4904,6 +5823,86 @@ export namespace Api {
   }
 
   /**
+   * @description Pauses are history: resuming closes a row, it never deletes one.
+   * @tags Memberships
+   * @name ListMembershipPauses
+   * @summary List a membership’s pause history
+   * @request GET:/api/v1/memberships/{id}/pauses
+   * @secure
+   * @response `200` `Array<MembershipPauseDto>`
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `Array<MembershipPauseDto>`
+   */
+  export namespace ListMembershipPauses {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = Array<MembershipPauseDto>;
+  }
+
+  /**
+   * @description Suspends the membership for a half-open date range (startsAt inclusive, endsAt exclusive; omit endsAt to pause indefinitely and close it later with resume). While paused the membership grants no credits, check-ins or bookings, and a cycle covered end to end by pauses is not billed — a partially paused cycle bills in full. The resource assignment is KEPT and credits already granted keep their original expiry.
+   * @tags Memberships
+   * @name PauseMembership
+   * @summary Pause a membership
+   * @request POST:/api/v1/memberships/{id}/pause
+   * @secure
+   * @response `201` `(MembershipPauseDto)` 201
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `409` `(ResponseErrorDto)` Conflict
+   * @response `422` `((ResponseErrorDto))` 422
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `MembershipPauseDto`
+   */
+  export namespace PauseMembership {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = CreateMembershipPauseDto;
+    export type RequestHeaders = {};
+    export type ResponseBody = MembershipPauseDto;
+  }
+
+  /**
+   * @description Closes the open pause. endsAt is the first ACTIVE day again and defaults to today.
+   * @tags Memberships
+   * @name ResumeMembership
+   * @summary Resume a paused membership
+   * @request POST:/api/v1/memberships/{id}/resume
+   * @secure
+   * @response `200` `(MembershipPauseDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `409` `(ResponseErrorDto)` Conflict
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `MembershipPauseDto`
+   */
+  export namespace ResumeMembership {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = ResumeMembershipDto;
+    export type RequestHeaders = {};
+    export type ResponseBody = MembershipPauseDto;
+  }
+
+  /**
    * @description Cycles are anchored to starts_at. Grants the per-cycle credits (expiring at the cycle's end) and writes the cycle's plan_fee charge. Recurring plans only.
    * @tags Memberships
    * @name RenewMembership
@@ -4937,10 +5936,11 @@ export namespace Api {
  * @summary List resource assignments
  * @request GET:/api/v1/assignments
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<AssignmentDto>,
+ * @response `200` `{
+    results: Array<AssignmentDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -4979,8 +5979,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<AssignmentDto>;
+    export type ResponseBody = {
+      results: Array<AssignmentDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -5018,6 +6019,7 @@ export namespace Api {
    * @response `200` `(AssignmentDto)` 200
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
    * @response `409` `(ResponseErrorDto)` Conflict
    * @response `422` `(ResponseErrorDto)` Unprocessable Entity
    * @response `429` `(ResponseErrorDto)` Too Many Requests
@@ -5044,7 +6046,8 @@ export namespace Api {
    * @response `201` `(AssignmentDto)` 201
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
-   * @response `409` `(ResponseErrorDto)` Conflict
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `409` `((ResponseErrorDto))` 409
    * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
@@ -5071,7 +6074,7 @@ export namespace Api {
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
    * @response `409` `(ResponseErrorDto)` Conflict
-   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
    * @response `default` `CheckinDto`
@@ -5091,10 +6094,11 @@ export namespace Api {
  * @summary List check-ins
  * @request GET:/api/v1/checkins
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<CheckinDto>,
+ * @response `200` `{
+    results: Array<CheckinDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -5130,8 +6134,9 @@ export namespace Api {
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<CheckinDto>;
+    export type ResponseBody = {
+      results: Array<CheckinDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -5172,7 +6177,7 @@ export namespace Api {
    * @response `200` `(OccupancyBucketDto)` 200
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
-   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
    * @response `default` `Array<OccupancyBucketDto>`
@@ -5195,16 +6200,17 @@ export namespace Api {
   }
 
   /**
- * @description Staff/admin see everything; member-role callers see their own and their employer company's bookings. Filters: resourceId, from, to (interval overlap).
+ * @description Staff/admin see everything; member-role callers see their own and their employer company's bookings. Filters: resourceId, status, source, memberId, companyId, and from/to (interval overlap — a booking matches when it touches the range). `q` searches title, notes and the customer name.
  * @tags Bookings
  * @name ListBookings
  * @summary List bookings
  * @request GET:/api/v1/bookings
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<BookingDto>,
+ * @response `200` `{
+    results: Array<BookingDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -5235,13 +6241,23 @@ export namespace Api {
       from?: string;
       /** @example "2026-07-31T23:59:59Z" */
       to?: string;
+      status?: BookingStatus;
+      source?: BookingSource;
+      /**
+       * Customer filter; member XOR company, same as the booking itself.
+       * @format uuid
+       */
+      memberId?: string;
+      /** @format uuid */
+      companyId?: string;
       /** The search term to filter results. */
       q?: string;
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<BookingDto>;
+    export type ResponseBody = {
+      results: Array<BookingDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -5270,6 +6286,86 @@ export namespace Api {
   }
 
   /**
+   * @description Staff/admin only — unlike the list, this is never scoped to a caller's own bookings, so it stays off the member role entirely. Counts for the list tabs and the summary cards, computed in the database. Takes the same filters as the list except `status` — the counts are the per-status breakdown, so filtering by it would collapse them. Every status is present, zero included. Because `status` is not accepted, `total` and `bookedValueHt` NEVER narrow by it: on a status tab they still describe every row the other filters match, not the visible ones, and `bookedValueHt` sums cancelled and no-show bookings along with the rest. Label them accordingly — they are range totals, not tab totals. Also returns `byResource` (busiest room first) and `byWeek` — the last eight weeks, oldest first, always all eight, so a chart drawn from it keeps its shape. There is no weekly cancellation series: bookings have no cancelled_at column, and updated_at moves on any title or notes edit.
+   * @tags Bookings
+   * @name GetBookingStats
+   * @summary Booking counts, values and weekly trend
+   * @request GET:/api/v1/bookings/stats
+   * @secure
+   * @response `200` `(BookingStatsDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `BookingStatsDto`
+   */
+  export namespace GetBookingStats {
+    export type RequestParams = {};
+    export type RequestQuery = {
+      q?: string;
+      /** @format uuid */
+      resourceId?: string;
+      /** @example "2026-08-01T00:00:00Z" */
+      from?: string;
+      /** @example "2026-08-31T23:59:59Z" */
+      to?: string;
+      source?: BookingSource;
+      /** @format uuid */
+      memberId?: string;
+      /** @format uuid */
+      companyId?: string;
+    };
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = BookingStatsDto;
+  }
+
+  /**
+   * @description Everything one grid needs in a single read: per bookable room, its header summary, its bookable windows per local day, and its pending and confirmed bookings as blocks. `from` is inclusive and `to` is exclusive, so a one-day grid is midnight to midnight. Range ≤ 31 days. The grid covers one location — its timezone is on the envelope.
+   * @tags Bookings
+   * @name GetBookingCalendar
+   * @summary Calendar grid: rooms, windows and blocks
+   * @request GET:/api/v1/bookings/calendar
+   * @secure
+   * @response `200` `(BookingCalendarDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `422` `((ResponseErrorDto))` 422
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `BookingCalendarDto`
+   */
+  export namespace GetBookingCalendar {
+    export type RequestParams = {};
+    export type RequestQuery = {
+      /**
+       * Inclusive start instant.
+       * @example "2026-08-24T00:00:00Z"
+       */
+      from: string;
+      /**
+       * EXCLUSIVE end instant — a one-day grid is midnight to midnight.
+       * @example "2026-08-25T00:00:00Z"
+       */
+      to: string;
+      /**
+       * Comma-separated; omit for every bookable room in scope.
+       * @example "6f9619ff-8b86-4d11-b42d-00c04fc964ff,c6a2f0de-9a2c-4a1e-9b7a-2f1d3c4b5a60"
+       */
+      resourceIds?: string;
+      /** @format uuid */
+      resourceTypeId?: string;
+      /** @format uuid */
+      locationId?: string;
+    };
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = BookingCalendarDto;
+  }
+
+  /**
    * No description
    * @tags Bookings
    * @name GetBooking
@@ -5278,7 +6374,7 @@ export namespace Api {
    * @secure
    * @response `200` `(BookingDto)` 200
    * @response `401` `(ResponseErrorDto)` Unauthorized
-   * @response `403` `((ResponseErrorDto))` 403
+   * @response `403` `(ResponseErrorDto)` Forbidden
    * @response `404` `(ResponseErrorDto)` Not Found
    * @response `422` `(ResponseErrorDto)` Unprocessable Entity
    * @response `429` `(ResponseErrorDto)` Too Many Requests
@@ -5296,17 +6392,18 @@ export namespace Api {
   }
 
   /**
-   * @description Metadata only — rescheduling is cancel + rebook. Members may edit inside the cancellation window; staff may flag no_show after the start time.
+   * @description Title and notes anytime; staff may flag no_show after the start time. Passing startsAt AND endsAt reschedules: the slot is re-checked (ignoring this booking itself), the room is re-priced at the new duration and its credits and charges are reversed and re-applied. Extras keep the prices they were booked at. The resource cannot change — moving a booking between rooms is still cancel + rebook. Members may edit inside the cancellation window.
    * @tags Bookings
    * @name UpdateBooking
-   * @summary Update booking metadata (title/notes; staff: no_show)
+   * @summary Update a booking (metadata, no_show, or reschedule)
    * @request PATCH:/api/v1/bookings/{id}
    * @secure
    * @response `200` `(BookingDto)` 200
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
-   * @response `404` `(ResponseErrorDto)` Not Found
-   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `404` `((ResponseErrorDto))` 404
+   * @response `409` `((ResponseErrorDto))` 409
+   * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
    * @response `default` `BookingDto`
@@ -5353,7 +6450,7 @@ export namespace Api {
    * @secure
    * @response `200` `(BookingDto)` 200
    * @response `401` `(ResponseErrorDto)` Unauthorized
-   * @response `403` `(ResponseErrorDto)` Forbidden
+   * @response `403` `((ResponseErrorDto))` 403
    * @response `409` `(ResponseErrorDto)` Conflict
    * @response `422` `(ResponseErrorDto)` Unprocessable Entity
    * @response `429` `(ResponseErrorDto)` Too Many Requests
@@ -5382,7 +6479,7 @@ export namespace Api {
    * @response `403` `((ResponseErrorDto))` 403
    * @response `404` `(ResponseErrorDto)` Not Found
    * @response `409` `(ResponseErrorDto)` Conflict
-   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
    * @response `default` `BookingDto`
@@ -5398,7 +6495,7 @@ export namespace Api {
   }
 
   /**
-   * @description Bookable windows per day (booking_times, falling back to the location opening hours, minus closed days) plus confirmed busy intervals clipped to the range (≤ 31 days). Clients render free slots; the server re-validates at create time.
+   * @description Bookable windows per day (booking_times, falling back to the location opening hours, minus closed days) plus confirmed busy intervals clipped to the range (≤ 31 days). `from` is inclusive and `to` is exclusive, so a week is midnight to midnight — the day `to` lands on is not part of the range. Clients render free slots; the server re-validates at create time. The response carries the resource location's IANA `timezone`; the `days[]` windows ("08:00") are wall-clock in that zone, not UTC. `excludeBookingId` drops one booking from the busy intervals — pass the booking being rescheduled so its own current slot reads as free.
    * @tags Bookings
    * @name GetResourceAvailability
    * @summary Resource availability (windows + busy intervals)
@@ -5406,7 +6503,8 @@ export namespace Api {
    * @secure
    * @response `200` `(AvailabilityDto)` 200
    * @response `401` `(ResponseErrorDto)` Unauthorized
-   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
    * @response `default` `AvailabilityDto`
@@ -5416,10 +6514,25 @@ export namespace Api {
       id: string;
     };
     export type RequestQuery = {
-      /** @example "2026-07-13T00:00:00Z" */
+      /**
+       * Inclusive start instant.
+       * @example "2026-07-13T00:00:00Z"
+       */
       from: string;
-      /** @example "2026-07-19T23:59:59Z" */
+      /**
+       * EXCLUSIVE end instant — the same half-open convention the busy
+       * query (`starts_at < :to`) and the calendar already use. To cover
+       * 13–19 July, pass the 20th at 00:00, not the 19th at 23:59:59.
+       * @example "2026-07-20T00:00:00Z"
+       */
       to: string;
+      /**
+       * The booking currently being rescheduled. Its own busy interval is
+       * dropped from the response, so the slot it already holds reads as
+       * free — which is where "make it half an hour longer" starts.
+       * @format uuid
+       */
+      excludeBookingId?: string;
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
@@ -5427,16 +6540,17 @@ export namespace Api {
   }
 
   /**
- * @description Pipeline view. Filter by stage, interest, memberId.
+ * @description Pipeline view. Filter by stage, interest, source or memberId; `q` searches the member's name. Filter by creation time with createdFrom/createdTo (ISO instants, upper bound exclusive). They are instants rather than dates because an opportunity has no location and therefore no timezone in which to define a day — the client decides what day it means.
  * @tags CRM
  * @name ListOpportunities
  * @summary List opportunities
  * @request GET:/api/v1/opportunities
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<OpportunityDto>,
+ * @response `200` `{
+    results: Array<OpportunityDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -5461,17 +6575,36 @@ export namespace Api {
       limit: number;
       /** The direction to sort the results, either 'ASC' or 'DESC'. */
       sort: Sort;
+      /**
+       * Exact match on the free-text source; the options come from stats.
+       * @example "website"
+       */
+      source?: string;
       stage?: OpportunityStage;
       interest?: OpportunityInterest;
       /** @format uuid */
       memberId?: string;
+      /**
+       * Instants, not dates. An opportunity has no location, so the server
+       * has no timezone in which to decide what "a day" is — and picking one
+       * would bake a region into a region-neutral entity. The client turns
+       * the day it means into a pair of instants.
+       * @example "2026-08-01T00:00:00Z"
+       */
+      createdFrom?: string;
+      /**
+       * Exclusive upper bound.
+       * @example "2026-08-08T00:00:00Z"
+       */
+      createdTo?: string;
       /** The search term to filter results. */
       q?: string;
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = PageDto & {
-      results?: Array<OpportunityDto>;
+    export type ResponseBody = {
+      results: Array<OpportunityDto>;
+      meta: PageMetaDto;
     };
   }
 
@@ -5496,6 +6629,46 @@ export namespace Api {
     export type RequestBody = CreateOpportunityDto;
     export type RequestHeaders = {};
     export type ResponseBody = OpportunityDto;
+  }
+
+  /**
+   * @description What the filters above the list need, in one request: per stage, how many leads and what they are worth, and every source present in the data with its count. Totals, the open/won/lost split and the pipeline all follow from the stage rows. Accepts the same q and interest filters as the list, so the numbers match the rows on screen. Every stage is present, zero included; sources are those that exist, busiest first; and byWeek carries the last eight weeks of leads opened, won and lost, always all eight so a quiet week reads as zero rather than going missing. Filter by creation time with createdFrom/createdTo (ISO instants, upper bound exclusive). They are instants rather than dates because an opportunity has no location and therefore no timezone in which to define a day — the client decides what day it means.
+   * @tags CRM
+   * @name OpportunityStats
+   * @summary Pipeline totals
+   * @request GET:/api/v1/opportunities/stats
+   * @secure
+   * @response `200` `(OpportunityStatsDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `OpportunityStatsDto`
+   */
+  export namespace OpportunityStats {
+    export type RequestParams = {};
+    export type RequestQuery = {
+      /** Same search as the list: the member's name or the source. */
+      q?: string;
+      interest?: OpportunityInterest;
+      /**
+       * Instants, not dates. An opportunity has no location, so the server
+       * has no timezone in which to decide what "a day" is — and picking one
+       * would bake a region into a region-neutral entity. The client turns
+       * the day it means into a pair of instants.
+       * @example "2026-08-01T00:00:00Z"
+       */
+      createdFrom?: string;
+      /**
+       * Exclusive upper bound.
+       * @example "2026-08-08T00:00:00Z"
+       */
+      createdTo?: string;
+    };
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = OpportunityStatsDto;
   }
 
   /**
@@ -5525,6 +6698,31 @@ export namespace Api {
   }
 
   /**
+   * @description ONE transaction: creates the membership from the opportunity (requested plan, extras, quoted plan-fee figure), grants its initial credits and charges, and marks the opportunity won. When the opportunity names a space it is assigned from day one (assignable resources only, for now); when it names none the membership is created anyway and `assignment` comes back null, for staff to assign later. The request carries the dates and nothing else — to change what is sold, PATCH the opportunity first.
+   * @tags Onboarding
+   * @name OnboardLead
+   * @summary Onboard a lead (opportunity → membership + assignment)
+   * @request POST:/api/v1/onboarding
+   * @secure
+   * @response `201` `(OnboardingResultDto)` 201
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `409` `((ResponseErrorDto))` 409
+   * @response `422` `((ResponseErrorDto))` 422
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `OnboardingResultDto`
+   */
+  export namespace OnboardLead {
+    export type RequestParams = {};
+    export type RequestQuery = {};
+    export type RequestBody = OnboardLeadDto;
+    export type RequestHeaders = {};
+    export type ResponseBody = OnboardingResultDto;
+  }
+
+  /**
    * @description Same engine as /attendance/occupancy, gated to the owner: concurrent check-ins vs hot-desk capacity per hour/day.
    * @tags Analytics
    * @name AnalyticsOccupancy
@@ -5534,7 +6732,7 @@ export namespace Api {
    * @response `200` `(OccupancyBucketDto)` 200
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
-   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
    * @response `default` `Array<OccupancyBucketDto>`
@@ -5631,7 +6829,10 @@ export namespace Api {
   export namespace PublicListPlans {
     export type RequestParams = {};
     export type RequestQuery = {
-      /** @example "domiciliation" */
+      /**
+       * Category slug, as returned by GET /public/plan-categories.
+       * @example "domiciliation"
+       */
       category?: string;
     };
     export type RequestBody = never;
@@ -5666,7 +6867,7 @@ export namespace Api {
   }
 
   /**
-   * @description Any bookable, visible resource. Bookable windows + busy intervals.
+   * @description Any bookable, visible resource. Bookable windows + busy intervals. The response carries the resource location's IANA `timezone`; the `days[]` windows ("08:00") are wall-clock in that zone, not UTC or the browser's zone — render them against `timezone`, not a compiled-in default.
    * @tags Public (website)
    * @name PublicResourceAvailability
    * @summary Resource availability for the website
@@ -5682,9 +6883,17 @@ export namespace Api {
       id: string;
     };
     export type RequestQuery = {
-      /** @example "2026-07-13T00:00:00Z" */
+      /**
+       * Inclusive start instant.
+       * @example "2026-07-13T00:00:00Z"
+       */
       from: string;
-      /** @example "2026-07-19T23:59:59Z" */
+      /**
+       * EXCLUSIVE end instant — the same half-open convention the busy
+       * query (`starts_at < :to`) and the calendar already use. To cover
+       * 13–19 July, pass the 20th at 00:00, not the 19th at 23:59:59.
+       * @example "2026-07-20T00:00:00Z"
+       */
       to: string;
     };
     export type RequestBody = never;
@@ -5710,9 +6919,18 @@ export namespace Api {
   export namespace PublicListResources {
     export type RequestParams = {};
     export type RequestQuery = {
-      /** @example "meeting_room" */
+      /**
+       * Resource-type slug, as returned by GET /public/resource-types.
+       * @example "meeting_room"
+       */
       resourceType?: string;
-      /** @example "DAY_PASS" */
+      /**
+       * Plan code, as returned by GET /public/plans — keeps spaces whose
+       * target plans include it. Code, not id: the code survives
+       * archive+clone, so a stored link never goes stale. Unknown code =
+       * empty list (filter semantics, like an unmatched resourceType).
+       * @example "DAY_PASS"
+       */
       planCode?: string;
     };
     export type RequestBody = never;
@@ -5754,7 +6972,7 @@ export namespace Api {
    * @request POST:/api/v1/public/booking-requests
    * @response `201` `(BookingRequestResultDto)` 201
    * @response `401` `(ResponseErrorDto)` Unauthorized
-   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
    */
@@ -5777,7 +6995,7 @@ export namespace Api {
    * @request POST:/api/v1/public/plan-requests
    * @response `201` `(PlanRequestResultDto)` 201
    * @response `401` `(ResponseErrorDto)` Unauthorized
-   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
    */
@@ -5800,7 +7018,7 @@ export namespace Api {
    * @request POST:/api/v1/public/contact-requests
    * @response `201` `(ContactRequestResultDto)` 201
    * @response `401` `(ResponseErrorDto)` Unauthorized
-   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
    */
@@ -6259,12 +7477,12 @@ export namespace Health {
 }
 
 /**
- * @title Platform Api
+ * @title Hyperspace OS API
  * @version 0.0.1
  * @baseUrl /
  * @contact
  *
- * Service for managing hyperspace operations
+ * Hyperspace OS backend API
  */
 export class HsService<SecurityDataType extends unknown> {
   http: HttpClient<SecurityDataType>;
@@ -6297,10 +7515,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List locations
  * @request GET:/api/v1/locations
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<LocationDto>,
+ * @response `200` `{
+    results: Array<LocationDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -6310,8 +7529,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listLocations: (query: ListLocationsParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<LocationDto>;
+        {
+          results: Array<LocationDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -6412,10 +7632,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List companies
  * @request GET:/api/v1/companies
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<CompanyDto>,
+ * @response `200` `{
+    results: Array<CompanyDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -6425,8 +7646,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listCompanies: (query: ListCompaniesParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<CompanyDto>;
+        {
+          results: Array<CompanyDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -6527,10 +7749,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List members
  * @request GET:/api/v1/members
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<MemberDto>,
+ * @response `200` `{
+    results: Array<MemberDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -6540,8 +7763,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listMembers: (query: ListMembersParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<MemberDto>;
+        {
+          results: Array<MemberDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -6617,7 +7841,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @secure
      * @response `200` `(MemberDto)` 200
      * @response `401` `(ResponseErrorDto)` Unauthorized
-     * @response `403` `(ResponseErrorDto)` Forbidden
+     * @response `403` `((ResponseErrorDto))` 403
      * @response `404` `(ResponseErrorDto)` Not Found
      * @response `422` `(ResponseErrorDto)` Unprocessable Entity
      * @response `429` `(ResponseErrorDto)` Too Many Requests
@@ -6699,10 +7923,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List resource types
  * @request GET:/api/v1/resource-types
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<ResourceTypeDto>,
+ * @response `200` `{
+    results: Array<ResourceTypeDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -6712,8 +7937,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listResourceTypes: (query: ListResourceTypesParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<ResourceTypeDto>;
+        {
+          results: Array<ResourceTypeDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -6815,10 +8041,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List resources
  * @request GET:/api/v1/resources
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<ResourceDto>,
+ * @response `200` `{
+    results: Array<ResourceDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -6828,8 +8055,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listResources: (query: ListResourcesParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<ResourceDto>;
+        {
+          results: Array<ResourceDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -7013,10 +8241,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List resource rates
  * @request GET:/api/v1/resource-rates
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<ResourceRateDto>,
+ * @response `200` `{
+    results: Array<ResourceRateDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -7026,8 +8255,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listResourceRates: (query: ListResourceRatesParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<ResourceRateDto>;
+        {
+          results: Array<ResourceRateDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -7131,10 +8361,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List plans
  * @request GET:/api/v1/plans
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<PlanDto>,
+ * @response `200` `{
+    results: Array<PlanDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -7144,8 +8375,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listPlans: (query: ListPlansParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<PlanDto>;
+        {
+          results: Array<PlanDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -7247,10 +8479,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List plan categories
  * @request GET:/api/v1/plan-categories
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<PlanCategoryDto>,
+ * @response `200` `{
+    results: Array<PlanCategoryDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -7260,8 +8493,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listPlanCategories: (query: ListPlanCategoriesParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<PlanCategoryDto>;
+        {
+          results: Array<PlanCategoryDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -7364,10 +8598,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List amenities
  * @request GET:/api/v1/amenities
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<AmenityDto>,
+ * @response `200` `{
+    results: Array<AmenityDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -7377,8 +8612,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listAmenities: (query: ListAmenitiesParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<AmenityDto>;
+        {
+          results: Array<AmenityDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -7480,10 +8716,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List extras
  * @request GET:/api/v1/extras
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<ExtraDto>,
+ * @response `200` `{
+    results: Array<ExtraDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -7493,8 +8730,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listExtras: (query: ListExtrasParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<ExtraDto>;
+        {
+          results: Array<ExtraDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -7595,10 +8833,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List charges
  * @request GET:/api/v1/charges
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<ChargeDto>,
+ * @response `200` `{
+    results: Array<ChargeDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -7608,8 +8847,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listCharges: (query: ListChargesParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<ChargeDto>;
+        {
+          results: Array<ChargeDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -7656,10 +8896,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List invoices
  * @request GET:/api/v1/invoices
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<InvoiceDto>,
+ * @response `200` `{
+    results: Array<InvoiceDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -7669,8 +8910,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listInvoices: (query: ListInvoicesParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<InvoiceDto>;
+        {
+          results: Array<InvoiceDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -7683,7 +8925,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Claims the given chargeIds — or ALL uninvoiced charges of the customer — race-safely, freezes HT/VAT/TTC totals (VAT rounded per line) and draws the next sequential HS-YYYY-NNNN number. A negative selection produces a credit note. Invoices are born issued (status sent).
+     * @description Claims the given chargeIds — or ALL uninvoiced charges of the customer — race-safely, freezes HT/VAT/TTC totals (VAT rounded per line) and draws the next sequential HS-YYYY-NNNN number. A negative selection produces a credit note. Invoices are born issued (status sent). Charges of cancelled/pending bookings are never billable: the sweep skips them silently, an explicit chargeIds selection naming one fails with 422.
      *
      * @tags Billing
      * @name CreateInvoice
@@ -7693,6 +8935,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `201` `(InvoiceDto)` 201
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
      * @response `409` `(ResponseErrorDto)` Conflict
      * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
@@ -7762,6 +9005,58 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
+     * @description Drafts only — the charges are released back to uninvoiced. An issued invoice is retired with void, never deleted.
+     *
+     * @tags Billing
+     * @name DeleteDraftInvoice
+     * @summary Drafts only — an issued invoice is retired with void (§4.14).
+     * @request DELETE:/api/v1/invoices/{id}
+     * @secure
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `409` `(ResponseErrorDto)` Conflict
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `void`
+     */
+    deleteDraftInvoice: (id: string, params: RequestParams = {}) =>
+      this.http.request<any, ResponseErrorDto | void>({
+        path: `/api/v1/invoices/${id}`,
+        method: "DELETE",
+        secure: true,
+        ...params,
+      }),
+
+    /**
+     * @description Draws the sequential number, stamps today as the issue date and re-freezes the totals from the charges as they stand now. The invoice becomes immutable.
+     *
+     * @tags Billing
+     * @name IssueInvoice
+     * @summary Issue a draft invoice
+     * @request POST:/api/v1/invoices/{id}/issue
+     * @secure
+     * @response `200` `(InvoiceDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `409` `(ResponseErrorDto)` Conflict
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `InvoiceDto`
+     */
+    issueInvoice: (id: string, params: RequestParams = {}) =>
+      this.http.request<InvoiceDto, ResponseErrorDto | InvoiceDto>({
+        path: `/api/v1/invoices/${id}/issue`,
+        method: "POST",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description Requires zero recorded payments. The invoice’s charges are released back to uninvoiced so they can be re-invoiced.
      *
      * @tags Billing
@@ -7773,7 +9068,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
      * @response `404` `(ResponseErrorDto)` Not Found
-     * @response `409` `(ResponseErrorDto)` Conflict
+     * @response `409` `((ResponseErrorDto))` 409
      * @response `422` `(ResponseErrorDto)` Unprocessable Entity
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
@@ -7789,7 +9084,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Payments accumulate; when Σ payments ≥ the TTC total the invoice flips to paid. recorded_by is the calling staff user, resolved server-side.
+     * @description Payments accumulate; when Σ payments reach the TTC total the invoice flips to paid. A payment exceeding the remaining balance is rejected (the recording locks the invoice row, so concurrent payments cannot double-settle). recorded_by is the calling staff user, resolved server-side.
      *
      * @tags Billing
      * @name RecordPayment
@@ -7801,7 +9096,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `403` `((ResponseErrorDto))` 403
      * @response `404` `(ResponseErrorDto)` Not Found
      * @response `409` `((ResponseErrorDto))` 409
-     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
      * @response `default` `RecordPaymentResultDto`
@@ -7825,10 +9120,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List credit ledger rows
  * @request GET:/api/v1/credits
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<CreditTransactionDto>,
+ * @response `200` `{
+    results: Array<CreditTransactionDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -7838,8 +9134,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listCredits: (query: ListCreditsParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<CreditTransactionDto>;
+        {
+          results: Array<CreditTransactionDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -7863,7 +9160,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
      * @response `404` `((ResponseErrorDto))` 404
-     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
      * @response `default` `CreditTransactionDto`
@@ -7995,10 +9292,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List memberships
  * @request GET:/api/v1/memberships
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<MembershipDto>,
+ * @response `200` `{
+    results: Array<MembershipDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -8008,8 +9306,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listMemberships: (query: ListMembershipsParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<MembershipDto>;
+        {
+          results: Array<MembershipDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -8130,6 +9429,90 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
+     * @description Pauses are history: resuming closes a row, it never deletes one.
+     *
+     * @tags Memberships
+     * @name ListMembershipPauses
+     * @summary List a membership’s pause history
+     * @request GET:/api/v1/memberships/{id}/pauses
+     * @secure
+     * @response `200` `Array<MembershipPauseDto>`
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `Array<MembershipPauseDto>`
+     */
+    listMembershipPauses: (id: string, params: RequestParams = {}) =>
+      this.http.request<Array<MembershipPauseDto>, ResponseErrorDto | Array<MembershipPauseDto>>({
+        path: `/api/v1/memberships/${id}/pauses`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Suspends the membership for a half-open date range (startsAt inclusive, endsAt exclusive; omit endsAt to pause indefinitely and close it later with resume). While paused the membership grants no credits, check-ins or bookings, and a cycle covered end to end by pauses is not billed — a partially paused cycle bills in full. The resource assignment is KEPT and credits already granted keep their original expiry.
+     *
+     * @tags Memberships
+     * @name PauseMembership
+     * @summary Pause a membership
+     * @request POST:/api/v1/memberships/{id}/pause
+     * @secure
+     * @response `201` `(MembershipPauseDto)` 201
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `409` `(ResponseErrorDto)` Conflict
+     * @response `422` `((ResponseErrorDto))` 422
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `MembershipPauseDto`
+     */
+    pauseMembership: (id: string, data: CreateMembershipPauseDto, params: RequestParams = {}) =>
+      this.http.request<MembershipPauseDto, ResponseErrorDto | MembershipPauseDto>({
+        path: `/api/v1/memberships/${id}/pause`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Closes the open pause. endsAt is the first ACTIVE day again and defaults to today.
+     *
+     * @tags Memberships
+     * @name ResumeMembership
+     * @summary Resume a paused membership
+     * @request POST:/api/v1/memberships/{id}/resume
+     * @secure
+     * @response `200` `(MembershipPauseDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `409` `(ResponseErrorDto)` Conflict
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `MembershipPauseDto`
+     */
+    resumeMembership: (id: string, data: ResumeMembershipDto, params: RequestParams = {}) =>
+      this.http.request<MembershipPauseDto, ResponseErrorDto | MembershipPauseDto>({
+        path: `/api/v1/memberships/${id}/resume`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description Cycles are anchored to starts_at. Grants the per-cycle credits (expiring at the cycle's end) and writes the cycle's plan_fee charge. Recurring plans only.
      *
      * @tags Memberships
@@ -8164,10 +9547,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List resource assignments
  * @request GET:/api/v1/assignments
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<AssignmentDto>,
+ * @response `200` `{
+    results: Array<AssignmentDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -8177,8 +9561,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listAssignments: (query: ListAssignmentsParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<AssignmentDto>;
+        {
+          results: Array<AssignmentDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -8229,6 +9614,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `200` `(AssignmentDto)` 200
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
      * @response `409` `(ResponseErrorDto)` Conflict
      * @response `422` `(ResponseErrorDto)` Unprocessable Entity
      * @response `429` `(ResponseErrorDto)` Too Many Requests
@@ -8257,7 +9643,8 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `201` `(AssignmentDto)` 201
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
-     * @response `409` `(ResponseErrorDto)` Conflict
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `409` `((ResponseErrorDto))` 409
      * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
@@ -8286,7 +9673,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
      * @response `409` `(ResponseErrorDto)` Conflict
-     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
      * @response `default` `CheckinDto`
@@ -8310,10 +9697,11 @@ export class HsService<SecurityDataType extends unknown> {
  * @summary List check-ins
  * @request GET:/api/v1/checkins
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<CheckinDto>,
+ * @response `200` `{
+    results: Array<CheckinDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -8323,8 +9711,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listCheckins: (query: ListCheckinsParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<CheckinDto>;
+        {
+          results: Array<CheckinDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -8374,7 +9763,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `200` `(OccupancyBucketDto)` 200
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
-     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
      * @response `default` `Array<OccupancyBucketDto>`
@@ -8390,17 +9779,18 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
- * @description Staff/admin see everything; member-role callers see their own and their employer company's bookings. Filters: resourceId, from, to (interval overlap).
+ * @description Staff/admin see everything; member-role callers see their own and their employer company's bookings. Filters: resourceId, status, source, memberId, companyId, and from/to (interval overlap — a booking matches when it touches the range). `q` searches title, notes and the customer name.
  *
  * @tags Bookings
  * @name ListBookings
  * @summary List bookings
  * @request GET:/api/v1/bookings
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<BookingDto>,
+ * @response `200` `{
+    results: Array<BookingDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -8410,8 +9800,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listBookings: (query: ListBookingsParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<BookingDto>;
+        {
+          results: Array<BookingDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -8452,6 +9843,59 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
+     * @description Staff/admin only — unlike the list, this is never scoped to a caller's own bookings, so it stays off the member role entirely. Counts for the list tabs and the summary cards, computed in the database. Takes the same filters as the list except `status` — the counts are the per-status breakdown, so filtering by it would collapse them. Every status is present, zero included. Because `status` is not accepted, `total` and `bookedValueHt` NEVER narrow by it: on a status tab they still describe every row the other filters match, not the visible ones, and `bookedValueHt` sums cancelled and no-show bookings along with the rest. Label them accordingly — they are range totals, not tab totals. Also returns `byResource` (busiest room first) and `byWeek` — the last eight weeks, oldest first, always all eight, so a chart drawn from it keeps its shape. There is no weekly cancellation series: bookings have no cancelled_at column, and updated_at moves on any title or notes edit.
+     *
+     * @tags Bookings
+     * @name GetBookingStats
+     * @summary Booking counts, values and weekly trend
+     * @request GET:/api/v1/bookings/stats
+     * @secure
+     * @response `200` `(BookingStatsDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `BookingStatsDto`
+     */
+    getBookingStats: (query: GetBookingStatsParams, params: RequestParams = {}) =>
+      this.http.request<BookingStatsDto, ResponseErrorDto | BookingStatsDto>({
+        path: `/api/v1/bookings/stats`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Everything one grid needs in a single read: per bookable room, its header summary, its bookable windows per local day, and its pending and confirmed bookings as blocks. `from` is inclusive and `to` is exclusive, so a one-day grid is midnight to midnight. Range ≤ 31 days. The grid covers one location — its timezone is on the envelope.
+     *
+     * @tags Bookings
+     * @name GetBookingCalendar
+     * @summary Calendar grid: rooms, windows and blocks
+     * @request GET:/api/v1/bookings/calendar
+     * @secure
+     * @response `200` `(BookingCalendarDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `422` `((ResponseErrorDto))` 422
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `BookingCalendarDto`
+     */
+    getBookingCalendar: (query: GetBookingCalendarParams, params: RequestParams = {}) =>
+      this.http.request<BookingCalendarDto, ResponseErrorDto | BookingCalendarDto>({
+        path: `/api/v1/bookings/calendar`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * No description
      *
      * @tags Bookings
@@ -8461,7 +9905,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @secure
      * @response `200` `(BookingDto)` 200
      * @response `401` `(ResponseErrorDto)` Unauthorized
-     * @response `403` `((ResponseErrorDto))` 403
+     * @response `403` `(ResponseErrorDto)` Forbidden
      * @response `404` `(ResponseErrorDto)` Not Found
      * @response `422` `(ResponseErrorDto)` Unprocessable Entity
      * @response `429` `(ResponseErrorDto)` Too Many Requests
@@ -8478,18 +9922,19 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Metadata only — rescheduling is cancel + rebook. Members may edit inside the cancellation window; staff may flag no_show after the start time.
+     * @description Title and notes anytime; staff may flag no_show after the start time. Passing startsAt AND endsAt reschedules: the slot is re-checked (ignoring this booking itself), the room is re-priced at the new duration and its credits and charges are reversed and re-applied. Extras keep the prices they were booked at. The resource cannot change — moving a booking between rooms is still cancel + rebook. Members may edit inside the cancellation window.
      *
      * @tags Bookings
      * @name UpdateBooking
-     * @summary Update booking metadata (title/notes; staff: no_show)
+     * @summary Update a booking (metadata, no_show, or reschedule)
      * @request PATCH:/api/v1/bookings/{id}
      * @secure
      * @response `200` `(BookingDto)` 200
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
-     * @response `404` `(ResponseErrorDto)` Not Found
-     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `404` `((ResponseErrorDto))` 404
+     * @response `409` `((ResponseErrorDto))` 409
+     * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
      * @response `default` `BookingDto`
@@ -8542,7 +9987,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @secure
      * @response `200` `(BookingDto)` 200
      * @response `401` `(ResponseErrorDto)` Unauthorized
-     * @response `403` `(ResponseErrorDto)` Forbidden
+     * @response `403` `((ResponseErrorDto))` 403
      * @response `409` `(ResponseErrorDto)` Conflict
      * @response `422` `(ResponseErrorDto)` Unprocessable Entity
      * @response `429` `(ResponseErrorDto)` Too Many Requests
@@ -8571,7 +10016,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `403` `((ResponseErrorDto))` 403
      * @response `404` `(ResponseErrorDto)` Not Found
      * @response `409` `(ResponseErrorDto)` Conflict
-     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
      * @response `default` `BookingDto`
@@ -8586,7 +10031,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Bookable windows per day (booking_times, falling back to the location opening hours, minus closed days) plus confirmed busy intervals clipped to the range (≤ 31 days). Clients render free slots; the server re-validates at create time.
+     * @description Bookable windows per day (booking_times, falling back to the location opening hours, minus closed days) plus confirmed busy intervals clipped to the range (≤ 31 days). `from` is inclusive and `to` is exclusive, so a week is midnight to midnight — the day `to` lands on is not part of the range. Clients render free slots; the server re-validates at create time. The response carries the resource location's IANA `timezone`; the `days[]` windows ("08:00") are wall-clock in that zone, not UTC. `excludeBookingId` drops one booking from the busy intervals — pass the booking being rescheduled so its own current slot reads as free.
      *
      * @tags Bookings
      * @name GetResourceAvailability
@@ -8595,7 +10040,8 @@ export class HsService<SecurityDataType extends unknown> {
      * @secure
      * @response `200` `(AvailabilityDto)` 200
      * @response `401` `(ResponseErrorDto)` Unauthorized
-     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
      * @response `default` `AvailabilityDto`
@@ -8611,17 +10057,18 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
- * @description Pipeline view. Filter by stage, interest, memberId.
+ * @description Pipeline view. Filter by stage, interest, source or memberId; `q` searches the member's name. Filter by creation time with createdFrom/createdTo (ISO instants, upper bound exclusive). They are instants rather than dates because an opportunity has no location and therefore no timezone in which to define a day — the client decides what day it means.
  *
  * @tags CRM
  * @name ListOpportunities
  * @summary List opportunities
  * @request GET:/api/v1/opportunities
  * @secure
- * @response `200` `(PageDto & {
-    results?: Array<OpportunityDto>,
+ * @response `200` `{
+    results: Array<OpportunityDto>,
+    meta: PageMetaDto,
 
-})` 200
+}` 200
  * @response `401` `(ResponseErrorDto)` Unauthorized
  * @response `403` `((ResponseErrorDto))` 403
  * @response `422` `(ResponseErrorDto)` Unprocessable Entity
@@ -8631,8 +10078,9 @@ export class HsService<SecurityDataType extends unknown> {
  */
     listOpportunities: (query: ListOpportunitiesParams, params: RequestParams = {}) =>
       this.http.request<
-        PageDto & {
-          results?: Array<OpportunityDto>;
+        {
+          results: Array<OpportunityDto>;
+          meta: PageMetaDto;
         },
         ResponseErrorDto | void
       >({
@@ -8672,6 +10120,32 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
+     * @description What the filters above the list need, in one request: per stage, how many leads and what they are worth, and every source present in the data with its count. Totals, the open/won/lost split and the pipeline all follow from the stage rows. Accepts the same q and interest filters as the list, so the numbers match the rows on screen. Every stage is present, zero included; sources are those that exist, busiest first; and byWeek carries the last eight weeks of leads opened, won and lost, always all eight so a quiet week reads as zero rather than going missing. Filter by creation time with createdFrom/createdTo (ISO instants, upper bound exclusive). They are instants rather than dates because an opportunity has no location and therefore no timezone in which to define a day — the client decides what day it means.
+     *
+     * @tags CRM
+     * @name OpportunityStats
+     * @summary Pipeline totals
+     * @request GET:/api/v1/opportunities/stats
+     * @secure
+     * @response `200` `(OpportunityStatsDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `OpportunityStatsDto`
+     */
+    opportunityStats: (query: OpportunityStatsParams, params: RequestParams = {}) =>
+      this.http.request<OpportunityStatsDto, ResponseErrorDto | OpportunityStatsDto>({
+        path: `/api/v1/opportunities/stats`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description Moving the stage to won/lost stamps closedAt; moving it back out clears it.
      *
      * @tags CRM
@@ -8700,6 +10174,35 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
+     * @description ONE transaction: creates the membership from the opportunity (requested plan, extras, quoted plan-fee figure), grants its initial credits and charges, and marks the opportunity won. When the opportunity names a space it is assigned from day one (assignable resources only, for now); when it names none the membership is created anyway and `assignment` comes back null, for staff to assign later. The request carries the dates and nothing else — to change what is sold, PATCH the opportunity first.
+     *
+     * @tags Onboarding
+     * @name OnboardLead
+     * @summary Onboard a lead (opportunity → membership + assignment)
+     * @request POST:/api/v1/onboarding
+     * @secure
+     * @response `201` `(OnboardingResultDto)` 201
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `409` `((ResponseErrorDto))` 409
+     * @response `422` `((ResponseErrorDto))` 422
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `OnboardingResultDto`
+     */
+    onboardLead: (data: OnboardLeadDto, params: RequestParams = {}) =>
+      this.http.request<OnboardingResultDto, ResponseErrorDto | OnboardingResultDto>({
+        path: `/api/v1/onboarding`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description Same engine as /attendance/occupancy, gated to the owner: concurrent check-ins vs hot-desk capacity per hour/day.
      *
      * @tags Analytics
@@ -8710,7 +10213,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `200` `(OccupancyBucketDto)` 200
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
-     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
      * @response `default` `Array<OccupancyBucketDto>`
@@ -8821,7 +10324,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Any bookable, visible resource. Bookable windows + busy intervals.
+     * @description Any bookable, visible resource. Bookable windows + busy intervals. The response carries the resource location's IANA `timezone`; the `days[]` windows ("08:00") are wall-clock in that zone, not UTC or the browser's zone — render them against `timezone`, not a compiled-in default.
      *
      * @tags Public (website)
      * @name PublicResourceAvailability
@@ -8894,7 +10397,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @request POST:/api/v1/public/booking-requests
      * @response `201` `(BookingRequestResultDto)` 201
      * @response `401` `(ResponseErrorDto)` Unauthorized
-     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
      */
@@ -8917,7 +10420,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @request POST:/api/v1/public/plan-requests
      * @response `201` `(PlanRequestResultDto)` 201
      * @response `401` `(ResponseErrorDto)` Unauthorized
-     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
      */
@@ -8940,7 +10443,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @request POST:/api/v1/public/contact-requests
      * @response `201` `(ContactRequestResultDto)` 201
      * @response `401` `(ResponseErrorDto)` Unauthorized
-     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
      */

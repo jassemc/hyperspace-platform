@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import * as TabsPrimitive from "@radix-ui/react-tabs"
+import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
 
@@ -18,17 +19,46 @@ function Tabs({
   )
 }
 
+/**
+ * `line` styles the triggers through the list, so a trigger stays a trigger and
+ * callers do not repeat the same overrides at every call site.
+ */
+const tabsListVariants = cva(
+  "text-muted-foreground inline-flex items-center",
+  {
+    variants: {
+      variant: {
+        default: "bg-muted h-9 w-fit justify-center rounded-lg p-[3px]",
+        line: cn(
+          "h-auto w-fit justify-start gap-5 rounded-none border-b bg-transparent p-0",
+          "[&_[data-slot=tabs-trigger]]:h-auto [&_[data-slot=tabs-trigger]]:flex-none",
+          "[&_[data-slot=tabs-trigger]]:rounded-none [&_[data-slot=tabs-trigger]]:border-0",
+          "[&_[data-slot=tabs-trigger]]:border-b-2 [&_[data-slot=tabs-trigger]]:border-transparent",
+          "[&_[data-slot=tabs-trigger]]:bg-transparent [&_[data-slot=tabs-trigger]]:px-0",
+          "[&_[data-slot=tabs-trigger]]:pt-2 [&_[data-slot=tabs-trigger]]:pb-2.5",
+          "[&_[data-slot=tabs-trigger]]:text-muted-foreground",
+          "[&_[data-slot=tabs-trigger][data-state=active]]:border-primary",
+          "[&_[data-slot=tabs-trigger][data-state=active]]:bg-transparent",
+          "[&_[data-slot=tabs-trigger][data-state=active]]:text-foreground",
+          "[&_[data-slot=tabs-trigger][data-state=active]]:shadow-none"
+        ),
+      },
+    },
+    defaultVariants: { variant: "default" },
+  }
+)
+
 function TabsList({
   className,
+  variant,
   ...props
-}: React.ComponentProps<typeof TabsPrimitive.List>) {
+}: React.ComponentProps<typeof TabsPrimitive.List> &
+  VariantProps<typeof tabsListVariants>) {
   return (
     <TabsPrimitive.List
       data-slot="tabs-list"
-      className={cn(
-        "bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]",
-        className
-      )}
+      data-variant={variant ?? "default"}
+      className={cn(tabsListVariants({ variant }), className)}
       {...props}
     />
   )

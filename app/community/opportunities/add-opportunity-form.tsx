@@ -15,27 +15,34 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer"
 import { X } from "lucide-react"
-import { getListMembers, getListPlans } from "@/lib/service"
-import type { MemberDto, OpportunityDto, PlanDto } from "@/lib/service/HsService"
+import type {
+  ExtraDto,
+  OpportunityDto,
+  RequestedExtraDto,
+} from "@/lib/service/HsService"
+import type { OpportunityOptions } from "./use-opportunity-options"
 import { apiNumber, apiString } from "@/lib/api-value"
 import { formatPriceHt } from "@/lib/format"
 import { createOpportunityAction, updateOpportunityAction } from "./actions"
 import {
+  benefitLabel,
   OPPORTUNITY_INTEREST_LABELS,
   OPPORTUNITY_INTEREST_VALUES,
+  OPPORTUNITY_STAGE_EDITABLE_VALUES,
   OPPORTUNITY_STAGE_LABELS,
-  OPPORTUNITY_STAGE_VALUES,
 } from "./opportunity-meta"
 import { toast } from "sonner"
 
 interface AddOpportunityFormProps {
   isOpen: boolean
   onClose: () => void
+  /** Loaded by the caller before opening, so no select starts out empty. */
+  options: OpportunityOptions
   editingOpportunity?: OpportunityDto | null
 }
 
 const selectClassName =
-  "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+  "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-60"
 
 function SubmitButton({ editingOpportunity }: Readonly<{ editingOpportunity?: OpportunityDto | null }>) {
   const { pending } = useFormStatus()
@@ -55,12 +62,25 @@ function SubmitButton({ editingOpportunity }: Readonly<{ editingOpportunity?: Op
 export function AddOpportunityForm({
   isOpen,
   onClose,
+  options,
   editingOpportunity,
 }: Readonly<AddOpportunityFormProps>) {
+  const { members, plans, resources } = options
   const [createState, createFormAction] = useActionState(createOpportunityAction, {})
   const [updateState, updateFormAction] = useActionState(updateOpportunityAction, {})
-  const [members, setMembers] = useState<MemberDto[]>([])
-  const [plans, setPlans] = useState<PlanDto[]>([])
+  // Controlled rather than defaultValue: the plan drives which add-ons are
+  // offered, and the selection has to survive that changing.
+  const [memberId, setMemberId] = useState(editingOpportunity?.memberId ?? "")
+  const [planId, setPlanId] = useState(apiString(editingOpportunity?.requestedPlanId) ?? "")
+  const [resourceId, setResourceId] = useState(
+    apiString(editingOpportunity?.requestedResourceId) ?? ""
+  )
+  const [extraIds, setExtraIds] = useState<string[]>(
+    editingOpportunity?.requestedExtras?.map((extra) => extra.extraId) ?? []
+  )
+  const [quotedPrice, setQuotedPrice] = useState(
+    apiNumber(editingOpportunity?.requestedPlanPriceHt)?.toString() ?? ""
+  )
 
   const createNotifiedRef = useRef(false)
   const updateNotifiedRef = useRef(false)
@@ -69,22 +89,6 @@ export function AddOpportunityForm({
     if (!isOpen) return
     createNotifiedRef.current = false
     updateNotifiedRef.current = false
-
-    let cancelled = false
-    Promise.all([
-      getListMembers({ limit: 100, offset: 0, sort: "ASC" }),
-      getListPlans({ limit: 100, offset: 0, sort: "ASC" }),
-    ])
-      .then(([memberPage, planPage]) => {
-        if (cancelled) return
-        setMembers((memberPage.results ?? []) as MemberDto[])
-        setPlans((planPage.results ?? []) as PlanDto[])
-      })
-      .catch((error) => console.error("Failed to load opportunity options", error))
-
-    return () => {
-      cancelled = true
-    }
   }, [isOpen])
 
   useEffect(() => {
@@ -112,9 +116,45 @@ export function AddOpportunityForm({
   const currentState = editingOpportunity ? updateState : createState
   const formAction = editingOpportunity ? updateFormAction : createFormAction
 
+  const selectedPlan = plans.find((plan) => plan.id === planId) ?? null
+  const planExtras: ExtraDto[] = selectedPlan?.extras ?? []
+  // Onboarding assigns desks and offices; bookable spaces are refused. Each
+  // resource carries its type, so knowing that costs nothing.
+  const assignableResources = resources.filter(
+    (resource) => resource.resourceType?.canAssign
+  )
+
+  // Stored by value, the way a website plan request stores them.
+  const selectedExtras: RequestedExtraDto[] = planExtras
+    .filter((extra) => extraIds.includes(extra.id))
+    .map((extra) => ({
+      extraId: extra.id,
+      name: extra.name,
+      priceHt: extra.priceHt,
+      vatRate: extra.vatRate,
+    }))
+
+  const extrasTotal = selectedExtras.reduce((sum, extra) => sum + extra.priceHt, 0)
+
+  // What the deal is worth: the plan fee actually quoted, plus the add-ons that
+  // bill alongside it. Typing a third number by hand only invited it to drift
+  // from the two it is made of.
+  const planFee = quotedPrice.trim()
+    ? Number(quotedPrice)
+    : (selectedPlan?.priceHt ?? null)
+  const expectedValue =
+    planFee === null || Number.isNaN(planFee) ? null : planFee + extrasTotal
+
+  const toggleExtra = (extraId: string) =>
+    setExtraIds((current) =>
+      current.includes(extraId)
+        ? current.filter((id) => id !== extraId)
+        : [...current, extraId]
+    )
+
   return (
     <Drawer open={isOpen} onOpenChange={onClose} direction="right">
-      <DrawerContent className="h-full w-[420px] ml-auto">
+      <DrawerContent className="h-full w-[460px] ml-auto">
         <div className="flex h-full flex-col">
           <div className="flex justify-end p-4 pb-0">
             <DrawerClose asChild>
@@ -143,6 +183,7 @@ export function AddOpportunityForm({
           >
             <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-4">
               {editingOpportunity && <input type="hidden" name="id" value={editingOpportunity.id} />}
+              <input type="hidden" name="requestedExtras" value={JSON.stringify(selectedExtras)} />
               <div className="space-y-6">
                 <div className="grid gap-2">
                   <Label htmlFor="memberId">Member</Label>
@@ -150,8 +191,10 @@ export function AddOpportunityForm({
                     id="memberId"
                     name="memberId"
                     className={selectClassName}
-                    defaultValue={editingOpportunity?.memberId || ""}
-                    required
+                    value={memberId}
+                    onChange={(event) => setMemberId(event.target.value)}
+                    disabled={Boolean(editingOpportunity)}
+                    required={!editingOpportunity}
                   >
                     <option value="">Select member</option>
                     {members.map((member) => (
@@ -160,6 +203,11 @@ export function AddOpportunityForm({
                       </option>
                     ))}
                   </select>
+                  {editingOpportunity && (
+                    <p className="text-xs text-muted-foreground">
+                      An opportunity stays with the member it was opened for.
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid gap-2">
@@ -185,26 +233,19 @@ export function AddOpportunityForm({
                     id="stage"
                     name="stage"
                     className={selectClassName}
-                    defaultValue={editingOpportunity?.stage || "new"}
+                    defaultValue={
+                      editingOpportunity?.stage === "won" ? "quote" : editingOpportunity?.stage || "new"
+                    }
                   >
-                    {OPPORTUNITY_STAGE_VALUES.map((value) => (
+                    {OPPORTUNITY_STAGE_EDITABLE_VALUES.map((value) => (
                       <option key={value} value={value}>
                         {OPPORTUNITY_STAGE_LABELS[value]}
                       </option>
                     ))}
                   </select>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="expectedValue">Expected value (TND)</Label>
-                  <Input
-                    id="expectedValue"
-                    name="expectedValue"
-                    type="number"
-                    min="0"
-                    step="0.001"
-                    defaultValue={apiNumber(editingOpportunity?.expectedValue) ?? ""}
-                  />
+                  <p className="text-xs text-muted-foreground">
+                    Won is set by converting the lead, not from here.
+                  </p>
                 </div>
 
                 <div className="grid gap-2">
@@ -213,7 +254,12 @@ export function AddOpportunityForm({
                     id="requestedPlanId"
                     name="requestedPlanId"
                     className={selectClassName}
-                    defaultValue={apiString(editingOpportunity?.requestedPlanId) ?? ""}
+                    value={planId}
+                    onChange={(event) => {
+                      setPlanId(event.target.value)
+                      // Add-ons belong to a plan; the old ones would be refused.
+                      setExtraIds([])
+                    }}
                   >
                     <option value="">None</option>
                     {plans.map((plan) => (
@@ -224,6 +270,72 @@ export function AddOpportunityForm({
                   </select>
                 </div>
 
+                {selectedPlan && selectedPlan.benefits.length > 0 && (
+                  <div className="rounded-md border bg-muted/40 p-3">
+                    <p className="text-xs font-medium">Included with this plan</p>
+                    <ul className="pt-2 space-y-1">
+                      {selectedPlan.benefits.map((benefit) => (
+                        <li key={benefit.id} className="text-xs text-muted-foreground">
+                          {benefitLabel(benefit)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {selectedPlan && (
+                  <div className="grid gap-2">
+                    <Label>Paid add-ons</Label>
+                    {planExtras.length === 0 ? (
+                      <p className="text-xs text-muted-foreground">
+                        This plan offers no add-ons.
+                      </p>
+                    ) : (
+                      planExtras.map((extra) => (
+                        <label
+                          key={extra.id}
+                          className="flex items-center gap-2 text-sm"
+                          htmlFor={`extra-${extra.id}`}
+                        >
+                          <input
+                            id={`extra-${extra.id}`}
+                            type="checkbox"
+                            className="h-4 w-4"
+                            checked={extraIds.includes(extra.id)}
+                            onChange={() => toggleExtra(extra.id)}
+                          />
+                          <span>{extra.name}</span>
+                          <span className="text-muted-foreground">
+                            +{formatPriceHt(extra.priceHt)}
+                          </span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                )}
+
+                <div className="grid gap-2">
+                  <Label htmlFor="requestedResourceId">Requested space</Label>
+                  <select
+                    id="requestedResourceId"
+                    name="requestedResourceId"
+                    className={selectClassName}
+                    value={resourceId}
+                    onChange={(event) => setResourceId(event.target.value)}
+                  >
+                    <option value="">None</option>
+                    {assignableResources.map((resource) => (
+                      <option key={resource.id} value={resource.id}>
+                        {resource.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground">
+                    Assignable desks and offices. Converting holds this space from
+                    day one; leave it unset and assign one later.
+                  </p>
+                </div>
+
                 <div className="grid gap-2">
                   <Label htmlFor="requestedPlanPriceHt">Quoted price (TND)</Label>
                   <Input
@@ -232,10 +344,44 @@ export function AddOpportunityForm({
                     type="number"
                     min="0"
                     step="0.001"
-                    defaultValue={apiNumber(editingOpportunity?.requestedPlanPriceHt) ?? ""}
+                    value={quotedPrice}
+                    onChange={(event) => setQuotedPrice(event.target.value)}
+                    placeholder={
+                      selectedPlan ? String(selectedPlan.priceHt) : "Plan price"
+                    }
                   />
                   <p className="text-xs text-muted-foreground">
-                    Overrides the plan price in the quote.
+                    The plan fee for this lead. Empty means the plan&apos;s own
+                    price. Add-ons bill on top of it.
+                  </p>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="expectedValue">Expected value (TND)</Label>
+                  <Input
+                    id="expectedValue"
+                    type="text"
+                    value={expectedValue === null ? "" : formatPriceHt(expectedValue)}
+                    placeholder="Pick a plan below"
+                    disabled
+                    readOnly
+                  />
+                  {/* Disabled inputs submit nothing, so the figure travels here. */}
+                  <input
+                    type="hidden"
+                    name="expectedValue"
+                    value={expectedValue ?? ""}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {expectedValue === null
+                      ? "Set by the requested plan and its add-ons."
+                      : `Quoted plan fee${
+                          selectedExtras.length > 0
+                            ? ` + ${selectedExtras.length} add-on${
+                                selectedExtras.length > 1 ? "s" : ""
+                              } (${formatPriceHt(extrasTotal)})`
+                            : ""
+                        }.`}
                   </p>
                 </div>
 

@@ -1,4 +1,4 @@
-import { AppSidebar } from "@/components/app-sidebar"
+import { AppSidebarNav } from "@/components/app-sidebar-nav"
 import { SidebarProvider } from "@/components/sidebar"
 import { getAuthenticatedUser } from "@/lib/auth/user"
 import { ReactNode } from "react"
@@ -10,7 +10,7 @@ export default async function BillingLayout({ children }: Readonly<{ children: R
 
   return (
     <SidebarProvider>
-      <AppSidebar />
+      <AppSidebarNav />
       <DashboardWrapper>
         <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 bg-sidebar">
           <AppNavbar user={user} />

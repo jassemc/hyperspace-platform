@@ -1,6 +1,6 @@
 import { getListResourceTypes } from "@/lib/service"
-import { PageDto } from "@/lib/service/HsService"
 import type { ListResourceTypesParams, ResourceTypeDto } from "@/lib/service/HsService"
+import { pageResult } from "@/lib/search-params"
 import { ResourceTypeTable } from "./resource-type-table"
 
 export async function ResourceTypeTableSection({ searchParams }: Readonly<{ searchParams?: Promise<Record<string, string | string[] | undefined>> | Record<string, string | string[] | undefined> }>) {
@@ -23,9 +23,8 @@ export async function ResourceTypeTableSection({ searchParams }: Readonly<{ sear
     let results: ResourceTypeDto[] = []
     let total = 0
     try {
-        const response: PageDto & { results?: Array<ResourceTypeDto>; } = await getListResourceTypes(query)
-        results = response.results ?? []
-        total = response.meta?.totalItems ?? results.length
+        const response = await getListResourceTypes(query)
+        ;({ results, total } = pageResult<ResourceTypeDto>(response))
     } catch (error) {
         console.warn("Failed to load resource types", error)
     }

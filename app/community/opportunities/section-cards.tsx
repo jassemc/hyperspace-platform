@@ -1,39 +1,70 @@
-import { getListOpportunities } from "@/lib/service"
-import type { OpportunityDto } from "@/lib/service/HsService"
-import { pageResult } from "@/lib/search-params"
-import { apiNumber } from "@/lib/api-value"
 import { StatCards } from "@/components/stat-cards"
+import { opportunityTotals } from "./opportunity-meta"
+import { opportunityStats } from "./stats"
 import { formatPriceHt } from "@/lib/format"
-import { TargetIcon, TrophyIcon, CoinsIcon, DoorClosedIcon } from "lucide-react"
+import { CoinsIcon, SparklesIcon, TrophyIcon, UsersIcon } from "lucide-react"
+import { OPPORTUNITY_STAGE_LABELS } from "./opportunity-meta"
 
 export async function SectionCards() {
-  let opportunities: OpportunityDto[] = []
-  let total = 0
+  // Counted by the database, and shared with the tab strip when neither is
+  // filtered — counting a page of rows here understated every figure past the
+  // hundredth lead. This card has no search params to read, so it always
+  // asks for the unfiltered pipeline; the four positional undefineds must
+  // still line up with table-section.tsx's call for the two to share a
+  // cache entry when the table itself is unfiltered.
+  const stats = await opportunityStats(undefined, undefined, undefined, undefined)
 
-  try {
-    const response = await getListOpportunities({ limit: 100, offset: 0, sort: "DESC" })
-    const page = pageResult<OpportunityDto>(response)
-    opportunities = page.results
-    total = page.total
-  } catch (error) {
-    console.warn("Failed to load opportunity stats", error)
-  }
+  const totals = opportunityTotals(stats)
 
-  const open = opportunities.filter(
-    (opportunity) => opportunity.stage !== "won" && opportunity.stage !== "lost"
-  )
-  const pipeline = open.reduce(
-    (sum, opportunity) => sum + (apiNumber(opportunity.expectedValue) ?? 0),
-    0
+  const weekLabels = totals.weeks.map((entry) =>
+    new Date(entry.week).toLocaleDateString(undefined, { day: "numeric", month: "short" })
   )
 
   return (
     <StatCards
       cards={[
-        { label: "Total opportunities", value: total, badge: "All", icon: TargetIcon, footer: "Every lead on record" },
-        { label: "Open", value: open.length, badge: "Active", icon: DoorClosedIcon, footer: "Not yet won or lost" },
-        { label: "Pipeline", value: formatPriceHt(pipeline), badge: "Expected", icon: CoinsIcon, footer: "Expected value still open" },
-        { label: "Won", value: opportunities.filter((o) => o.stage === "won").length, badge: "Closed", icon: TrophyIcon, footer: "Converted to members" },
+        {
+          // The snapshot: what is in play right now, wherever it came from.
+          label: "Open leads",
+          value: totals.open,
+          unit: "open",
+          badge: `${totals.total} all time`,
+          icon: UsersIcon,
+          footer: totals.busiestOpen
+            ? `Most sit in ${OPPORTUNITY_STAGE_LABELS[totals.busiestOpen.stage]} (${totals.busiestOpen.count})`
+            : "Nothing open right now",
+        },
+        {
+          // The series plots what the figure counts: leads opened, by week.
+          label: "New leads",
+          value: totals.weeks.at(-1)?.created ?? 0,
+          unit: "this week",
+          icon: SparklesIcon,
+          delta: totals.changeIn("created"),
+          series: totals.weeks.map((entry) => entry.created),
+          seriesLabels: weekLabels,
+          footer: "Opened over the last eight weeks",
+        },
+        {
+          label: "Won",
+          value: totals.weeks.at(-1)?.won ?? 0,
+          unit: "this week",
+          icon: TrophyIcon,
+          delta: totals.changeIn("won"),
+          series: totals.weeks.map((entry) => entry.won),
+          seriesLabels: weekLabels,
+          footer:
+            totals.winRate === null
+              ? "No lead closed yet"
+              : `${totals.winRate}% win rate — ${totals.won} won, ${totals.lost} lost`,
+        },
+        {
+          label: "Pipeline",
+          value: formatPriceHt(totals.pipelineHt),
+          badge: `${totals.engaged} in tour or quote`,
+          icon: CoinsIcon,
+          footer: `Expected value across ${totals.open} open lead${totals.open === 1 ? "" : "s"}`,
+        },
       ]}
     />
   )

@@ -40,3 +40,68 @@ export function formatDate(value: string | null | undefined): string {
     const date = new Date(value)
     return Number.isNaN(date.getTime()) ? "-" : date.toLocaleDateString()
 }
+
+/**
+ * Date and time in a given zone. `timeZone` is required, not defaulted:
+ * a default is how a single region creeps back into a multi-region
+ * product. Callers take it from the location the value belongs to.
+ */
+export function formatDateTime(
+    value: string | null | undefined,
+    timeZone: string
+): string {
+    if (!value) return "-"
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return "-"
+    return new Intl.DateTimeFormat("en-GB", {
+        timeZone,
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    }).format(date)
+}
+
+/** Weekday and calendar date in a zone, e.g. `Thu 27 Aug 2026`. */
+export function formatDayLabel(
+    value: string | null | undefined,
+    timeZone: string
+): string {
+    if (!value) return "-"
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return "-"
+    return new Intl.DateTimeFormat("en-GB", {
+        timeZone,
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+    }).format(date)
+}
+
+/** Calendar day key in a zone (`2026-08-27`), for same-day comparisons. */
+export function dayKey(value: string, timeZone: string): string {
+    return new Intl.DateTimeFormat("en-CA", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).format(new Date(value))
+}
+
+/** Just the clock time, for calendar axes and block labels. */
+export function formatTimeOfDay(
+    value: string | null | undefined,
+    timeZone: string
+): string {
+    if (!value) return "-"
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return "-"
+    return new Intl.DateTimeFormat("en-GB", {
+        timeZone,
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+    }).format(date)
+}

@@ -24,8 +24,13 @@ export function DashboardWrapper({ children }: Readonly<DashboardWrapperProps>) 
   }, [])
 
   return (
-    <SidebarInset 
-      className={`transition-all duration-300 ease-in-out ${
+    // min-w-0: SidebarInset is a flex item in the sidebar row, and a flex
+    // item's default min-width:auto refuses to shrink below its content's
+    // intrinsic width — a width:max-content child (the booking calendar's
+    // 24h track) therefore blew the whole layout out to ~2400px and made
+    // the BODY scroll horizontally instead of the grid's own container.
+    <SidebarInset
+      className={`min-w-0 transition-all duration-300 ease-in-out ${
         isSticky ? 'ml-60' : 'ml-0'
       }`}
     >
