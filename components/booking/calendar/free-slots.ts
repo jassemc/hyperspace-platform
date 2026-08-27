@@ -51,6 +51,17 @@ export interface FreeSlot {
  * duration fits before the window closes. Offering anything else would
  * be a click that only errors server-side.
  */
+/**
+ * Product rule (for now): a free gap shorter than this never reads as
+ * available on the calendars, whatever the resource's own minimum — a
+ * 30-minute sliver between two bookings, or before close, is noise
+ * rather than bookable time. The floor applies to the AVAILABILITY
+ * test only; the prefilled booking length stays the resource's own
+ * minimum. The dialog's slot picker is deliberately not floored: a
+ * resource that allows 30-minute bookings still offers them there.
+ */
+export const MIN_BOOKABLE_GAP_MIN = 60
+
 export function freeSlotsFor(
   windows: { startMs: number; endMs: number }[],
   blocks: CalendarBlockDto[],
@@ -58,6 +69,7 @@ export function freeSlotsFor(
   slotMin: number
 ): FreeSlot[] {
   const step = slotMin * 60_000
+  const requiredMin = Math.max(minDurationMin, MIN_BOOKABLE_GAP_MIN)
   const isBusy = (startMs: number, endMs: number) =>
     blocks.some(
       (b) => Date.parse(b.startsAt) < endMs && Date.parse(b.endsAt) > startMs
@@ -66,8 +78,8 @@ export function freeSlotsFor(
   const slots: FreeSlot[] = []
   for (const w of windows) {
     for (let t = w.startMs; t + step <= w.endMs; t += step) {
-      const prefillEnd = t + minDurationMin * 60_000
-      if (!isBusy(t, prefillEnd) && prefillEnd <= w.endMs) {
+      const requiredEnd = t + requiredMin * 60_000
+      if (!isBusy(t, requiredEnd) && requiredEnd <= w.endMs) {
         slots.push({ startMs: t, endMs: t + step })
       }
     }
