@@ -97,7 +97,25 @@ export function BookingCustomerFields({
   }, [seedResources, disabled])
 
   const selectedResource = resources.find((resource) => resource.id === resourceId)
-  const availableExtras = (selectedResource?.rates ?? []).flatMap((rate) => rate.extras ?? [])
+
+  /**
+   * The resource's extras, DEDUPED across its rates. Extras are many-to-many
+   * with rates (`resource_rate_extras`), and a room normally carries several
+   * rates — hourly, weekend, half-day, day, flat — with the same add-ons
+   * attached to each. Flat-mapping them without deduping therefore yields one
+   * row per rate: the seeded meeting room has five rates all offering
+   * catering, so the list rendered "Catering" five times under the same
+   * `key={extra.id}`, and checking two of them posted the same `extraIds`
+   * twice. Keyed by id, so the last rate to mention an extra wins — they are
+   * the same catalog row either way.
+   */
+  const availableExtras = [
+    ...new Map(
+      (selectedResource?.rates ?? [])
+        .flatMap((rate) => rate.extras ?? [])
+        .map((extra) => [extra.id, extra] as const)
+    ).values(),
+  ]
 
   return (
     <>
