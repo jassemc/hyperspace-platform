@@ -79,7 +79,10 @@ type CustomerKind = "member" | "company"
 const selectClassName =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
 
-function SubmitButton({ editingBooking }: Readonly<{ editingBooking?: BookingDto | null }>) {
+function SubmitButton({
+  editingBooking,
+  disabled = false,
+}: Readonly<{ editingBooking?: BookingDto | null; disabled?: boolean }>) {
   const { pending } = useFormStatus()
 
   const getButtonText = () => {
@@ -88,7 +91,7 @@ function SubmitButton({ editingBooking }: Readonly<{ editingBooking?: BookingDto
   }
 
   return (
-    <Button type="submit" disabled={pending} className="flex-1">
+    <Button type="submit" disabled={pending || disabled} className="flex-1">
       {getButtonText()}
     </Button>
   )
@@ -397,9 +400,16 @@ export function AddBookingForm({
                         value={startsAt}
                         onChange={(next) => {
                           setStartsAt(next)
+                          // A previously-picked end that the new start has
+                          // now passed is stale, not merely off the grid —
+                          // keeping it selected would look valid right up
+                          // until the server rejects it. Same-shape strings
+                          // compare correctly as-is.
+                          if (endsAt && endsAt < next) {
+                            setEndsAt("")
+                          }
                           invalidateQuote()
                         }}
-                        required
                       />
                     </div>
                     <div className="grid gap-2">
@@ -413,7 +423,6 @@ export function AddBookingForm({
                           invalidateQuote()
                         }}
                         min={startsAt}
-                        required
                       />
                     </div>
 
@@ -477,7 +486,12 @@ export function AddBookingForm({
 
             <DrawerFooter className="shrink-0 border-t pt-4 px-6 pb-6">
               <div className="flex gap-3">
-                <SubmitButton editingBooking={editingBooking} />
+                <SubmitButton
+                  editingBooking={editingBooking}
+                  // The edit branch has no time fields at all, so this only
+                  // ever applies to a create submission.
+                  disabled={!editingBooking && (!startsAt || !endsAt)}
+                />
                 <DrawerClose asChild>
                   <Button variant="outline" className="flex-1">
                     Cancel

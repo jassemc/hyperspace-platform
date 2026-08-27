@@ -37,7 +37,6 @@ interface DateTimeFieldProps {
   onChange: (value: string) => void
   /** Earliest selectable instant, same shape as `value`. */
   min?: string
-  required?: boolean
 }
 
 export function DateTimeField({
@@ -46,10 +45,21 @@ export function DateTimeField({
   value,
   onChange,
   min,
-  required = false,
 }: Readonly<DateTimeFieldProps>) {
-  const { date, time } = split(value)
+  const { date, time: valueTime } = split(value)
   const minParts = min ? split(min) : undefined
+
+  // A time picked before a date can't be committed into `value` yet — emit
+  // below has nowhere to put it — but discarding it outright would be
+  // asymmetric with the date-first path, which keeps a default time. Held
+  // here until a date makes the pair committable; reset once the field is
+  // cleared from outside (e.g. the drawer reopening on a fresh "create").
+  const [pendingTime, setPendingTime] = React.useState("")
+  React.useEffect(() => {
+    if (!value) setPendingTime("")
+  }, [value])
+
+  const time = valueTime || pendingTime
 
   // A time earlier than `min` is only invalid on `min`'s own day.
   const times =
@@ -64,16 +74,31 @@ export function DateTimeField({
   // fell off the grid, it wouldn't match any option and the select would
   // silently render blank — dropping the slot the user clicked. Keeping it
   // in the list preserves whatever was seeded until the user changes it.
+  // (A time excluded solely by `min` — a stale end time left behind when the
+  // start moves later — is handled by the caller clearing it, not by this
+  // list; see add-booking-form.tsx.)
   const options = time && !times.includes(time) ? [...times, time].sort() : times
 
   const emit = (nextDate: string, nextTime: string) => {
-    onChange(nextDate && nextTime ? `${nextDate}T${nextTime}` : "")
+    if (nextDate && nextTime) {
+      setPendingTime("")
+      onChange(`${nextDate}T${nextTime}`)
+    } else {
+      // Not yet committable — hold the time locally instead of the pair
+      // silently collapsing to nothing.
+      setPendingTime(nextTime)
+      onChange("")
+    }
   }
 
   return (
     <div className="flex items-center gap-2">
-      {/* The value travels in the form, not in either control. */}
-      <input type="hidden" name={name} value={value} required={required} />
+      {/* The value travels in the form, not in either control. Hidden
+          inputs are always excluded from constraint validation (the HTML
+          spec bars them outright), so `required` cannot live here — the
+          create form's submit button is disabled instead when either time
+          is empty; see add-booking-form.tsx. */}
+      <input type="hidden" name={name} value={value} />
       <div className="flex-1">
         <DateField
           id={id}
