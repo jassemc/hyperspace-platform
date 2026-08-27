@@ -50,6 +50,9 @@ interface DateTimeFieldProps {
   onChange: (value: string) => void
   /** Earliest selectable instant, same shape as `value`. */
   min?: string
+  /** Render the calendar in place — needed inside modal layers whose
+   *  body-portalled popovers go pointer-inert; see DateField. */
+  portalled?: boolean
 }
 
 export function DateTimeField({
@@ -58,6 +61,7 @@ export function DateTimeField({
   value,
   onChange,
   min,
+  portalled = true,
 }: Readonly<DateTimeFieldProps>) {
   const { date, time: valueTime } = split(value)
   const minParts = min ? split(min) : undefined
@@ -115,6 +119,7 @@ export function DateTimeField({
       <div className="flex-1">
         <DateField
           id={id}
+          portalled={portalled}
           name={`${name}__date`}
           value={date}
           onChange={(next) => emit(next, time || firstAllowedTime(next, minParts))}

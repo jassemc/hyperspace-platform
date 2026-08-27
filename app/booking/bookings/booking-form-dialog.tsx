@@ -408,7 +408,7 @@ export function BookingFormDialog({
               <>
                 <div className="grid gap-2">
                   <Label htmlFor="startsAt">Starts at</Label>
-                  <DateTimeField
+                  <DateTimeField portalled={false}
                     id="startsAt"
                     name="startsAt__manual"
                     value={slot?.startsAt ?? ""}
@@ -417,7 +417,7 @@ export function BookingFormDialog({
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="endsAt">Ends at</Label>
-                  <DateTimeField
+                  <DateTimeField portalled={false}
                     id="endsAt"
                     name="endsAt__manual"
                     value={slot?.endsAt ?? ""}
