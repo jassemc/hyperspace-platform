@@ -2,6 +2,7 @@
 
 import { useMemo } from "react"
 import type { BookingCalendarDto, CalendarBlockDto } from "@/lib/service/HsService"
+import { BOOKING_BLOCK_STYLES } from "@/app/booking/bookings/booking-status"
 import { formatTimeOfDay } from "@/lib/format"
 import { wallClockToUtcMs } from "@/lib/slots"
 import { cn } from "@/lib/utils"
@@ -286,9 +287,7 @@ export function WeekGrid({
                       key={item.block.bookingId}
                       className={cn(
                         "absolute overflow-hidden rounded border px-1.5 py-0.5 text-[11px]",
-                        item.block.status === "pending"
-                          ? "border-dashed border-amber-400 bg-amber-50 text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-100"
-                          : "border-transparent bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-100"
+                        BOOKING_BLOCK_STYLES[item.block.status]
                       )}
                       style={laneStyle(
                         item.lane,

@@ -6,6 +6,7 @@ import type {
   CalendarBlockDto,
   CalendarResourceDto,
 } from "@/lib/service/HsService"
+import { BOOKING_BLOCK_STYLES } from "@/app/booking/bookings/booking-status"
 import { formatTimeOfDay } from "@/lib/format"
 import { wallClockToUtcMs } from "@/lib/slots"
 import { cn } from "@/lib/utils"
@@ -359,9 +360,7 @@ function BlockChip({
     <div
       className={cn(
         "absolute overflow-hidden rounded-md border px-2 py-1 text-xs",
-        pending
-          ? "border-dashed border-amber-400 bg-amber-50 text-amber-900 dark:border-amber-600 dark:bg-amber-950 dark:text-amber-100"
-          : "border-transparent bg-emerald-100 text-emerald-900 dark:bg-emerald-900 dark:text-emerald-100"
+        BOOKING_BLOCK_STYLES[block.status]
       )}
       style={laneStyle(lane, lanes, top, height)}
       title={`${block.title ?? "Untitled"} — ${block.customerName ?? "No customer"}`}
