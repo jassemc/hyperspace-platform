@@ -10,7 +10,7 @@ import { BOOKING_BLOCK_STYLES } from "@/app/booking/bookings/booking-status"
 import { formatTimeOfDay } from "@/lib/format"
 import { wallClockToUtcMs } from "@/lib/slots"
 import { cn } from "@/lib/utils"
-import { FREE_SLOT_CLASS, freeSlotsFor } from "./free-slots"
+import { CLOSED_GROUND, FREE_SLOT_CLASS, freeSlotsFor } from "./free-slots"
 import { addDays } from "./types"
 
 const HOUR_PX = 48
@@ -252,7 +252,7 @@ export function WeekGrid({
   return (
     <div
       ref={scrollRef}
-      className="mx-4 max-h-[calc(100vh-16rem)] overflow-auto rounded-md border"
+      className="isolate mx-4 max-h-[calc(100vh-16rem)] overflow-auto rounded-md border"
     >
       {/* w-full + min-w-max: columns stretch to fill a wide viewport and
           fall back to their min width (scrolling) on a narrow one. */}
@@ -314,7 +314,24 @@ export function WeekGrid({
               <div className="sticky top-0 z-30 flex h-10 items-center justify-center border-b bg-background text-sm font-medium">
                 {labelFor(date)}
               </div>
-              <div className="relative bg-background" style={{ height }}>
+              <div className={cn("relative", CLOSED_GROUND)} style={{ height }}>
+                {/* Open windows read as available ground; the rest keeps
+                    the hatched closed treatment (CLOSED_GROUND). Union
+                    across the rooms in view: unfiltered, "open" means
+                    some room is open then. */}
+                {rooms.flatMap((entry) => {
+                  const day = entry.days.find((d) => d.date === date)
+                  return (day?.windows ?? []).map((w) => (
+                    <div
+                      key={`${entry.resource.id}-${w.open}-${w.close}`}
+                      className="absolute inset-x-0 bg-background"
+                      style={place(
+                        wallClockToUtcMs(date, w.open, tz),
+                        wallClockToUtcMs(date, w.close, tz)
+                      )}
+                    />
+                  ))
+                })}
                 {/* Free half-hours, but only with one room selected: an
                     unfiltered column stacks every room, so a click has no
                     single room to book. Without a room, the empty ground

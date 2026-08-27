@@ -10,7 +10,7 @@ import { BOOKING_BLOCK_STYLES } from "@/app/booking/bookings/booking-status"
 import { formatTimeOfDay } from "@/lib/format"
 import { wallClockToUtcMs } from "@/lib/slots"
 import { cn } from "@/lib/utils"
-import { FREE_SLOT_GROUND, freeSlotsFor } from "./free-slots"
+import { CLOSED_GROUND, FREE_SLOT_GROUND, freeSlotsFor } from "./free-slots"
 import { RoomHeaderCard } from "./room-header-card"
 import { addDays, todayIn } from "./types"
 import { useNow } from "./use-now"
@@ -152,8 +152,8 @@ export function ResourceDayGrid({
   // business hours and made an after-hours booking invisible. Both
   // bounds go through the zone rather than start + 24h: a DST fall-back
   // day is genuinely 25 hours wide here and a spring-forward day 23.
-  // Closed time needs no styling of its own — the row's muted ground
-  // already reads as closed, with open windows painted over it.
+  // Closed time renders as CLOSED_GROUND's hatch (free-slots.ts), with
+  // the open windows painted clean over it.
   const axis = useMemo(
     () => ({
       startMs: wallClockToUtcMs(date, "00:00", tz),
@@ -226,7 +226,7 @@ export function ResourceDayGrid({
   return (
     <div
       ref={scrollRef}
-      className="mx-4 max-h-[calc(100vh-16rem)] overflow-auto rounded-md border"
+      className="isolate mx-4 max-h-[calc(100vh-16rem)] overflow-auto rounded-md border"
     >
       <div className="w-max min-w-full">
         {/* Hour ruler. z-40 over the room headers' z-30, which sit over
@@ -315,7 +315,7 @@ function RoomRow({
       </div>
 
       <div
-        className="relative shrink-0 bg-muted/40"
+        className={cn("relative shrink-0", CLOSED_GROUND)}
         style={{ width: trackW, height: ROW_PX }}
       >
         {/* Open windows read as available ground. */}
