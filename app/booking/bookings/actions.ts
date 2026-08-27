@@ -54,14 +54,14 @@ function clearableText(formData: FormData, field: string): string | undefined {
 }
 
 /**
- * A `datetime-local` value ("2026-08-26T09:00") has no zone of its own.
- * `new Date(value)` therefore parses it in *this process's* zone — fine
- * for the plain Add-booking button, wrong for a cell clicked on a grid
- * whose location is elsewhere: the same wall-clock string means a
- * different instant depending on where the server happens to run.
- * When the form supplies the grid's zone (the calendar's click-to-book
- * path), convert through it instead; otherwise fall back to the
- * previous behaviour so the zone-less path is unchanged.
+ * A wall-clock value ("2026-08-26T09:00") has no zone of its own.
+ * `new Date(value)` therefore parses it in *this process's* zone, which
+ * makes the same string mean a different instant depending on where the
+ * server happens to run. The form now writes a hidden `timeZone` on
+ * every submission (booking-form-dialog.tsx emits it unconditionally),
+ * so the zone-less branch below is unreachable from this app; it stays
+ * as a guard for a hand-rolled or partial FormData rather than silently
+ * throwing, and costs nothing.
  */
 function toUtcIso(value: string, timeZone: string | undefined): string {
   if (timeZone) {
@@ -150,8 +150,8 @@ export async function createBookingAction(
 }
 
 /**
- * Only the label, notes and a no-show mark are patchable; times are fixed, and
- * confirming or cancelling goes through their own endpoints.
+ * Title, notes, a no-show mark, and — when both times are present — a
+ * reschedule. Confirming and cancelling keep their own endpoints.
  */
 export async function updateBookingAction(
   prevState: ActionState,
@@ -161,10 +161,32 @@ export async function updateBookingAction(
     const id = text(formData, "id")
     if (!id) return { success: false, error: "Booking ID is required" }
 
+    const startsAt = text(formData, "startsAt")
+    const endsAt = text(formData, "endsAt")
+    const timeZone = text(formData, "timeZone")
+
+    // Both or neither. The API refuses one alone with
+    // `reschedule_requires_both`, so failing here saves a round trip and
+    // says it in the form's own words.
+    if (Boolean(startsAt) !== Boolean(endsAt)) {
+      return { success: false, error: "Pick both a start and an end time" }
+    }
+    if (startsAt && endsAt) {
+      const startUtc = toUtcIso(startsAt, timeZone)
+      const endUtc = toUtcIso(endsAt, timeZone)
+      if (new Date(endUtc) <= new Date(startUtc)) {
+        return { success: false, error: "The end time must be after the start time" }
+      }
+    }
+
     const data: UpdateBookingDto = {
+      // `clearableText`, not `text`: an emptied note must reach the API
+      // as "" so it actually clears — see the helper above.
       title: clearableText(formData, "title"),
       notes: clearableText(formData, "notes"),
       status: formData.get("markNoShow") === "on" ? "no_show" : undefined,
+      startsAt: startsAt ? toUtcIso(startsAt, timeZone) : undefined,
+      endsAt: endsAt ? toUtcIso(endsAt, timeZone) : undefined,
     }
 
     await updateBooking(id, data)
