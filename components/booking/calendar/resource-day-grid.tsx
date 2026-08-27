@@ -17,9 +17,9 @@ import { useNow } from "./use-now"
 
 /** Pixels per hour, horizontally. A 30-minute slot is a 48px-wide target. */
 const HOUR_W = 96
-/** One room's row. Fits the header card, and three stacked lanes of
- *  overlapping bookings at a still-legible ~23px each. */
-const ROW_PX = 88
+/** One room's row. Fits the image-on-top header card, and three stacked
+ *  lanes of overlapping bookings at a still-legible ~40px each. */
+const ROW_PX = 140
 const SLOT_MIN = 30
 /** A block whose span clamps to nothing still has to be visible. */
 const MIN_BLOCK_W = 18
@@ -240,12 +240,23 @@ export function ResourceDayGrid({
             {hourTicks.map((t) => (
               <div
                 key={t}
-                className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 text-xs text-muted-foreground tabular-nums"
-                style={{ left: leftFor(t) }}
+                className="absolute top-1/2 -translate-y-1/2 text-xs text-muted-foreground tabular-nums"
+                style={{ left: leftFor(t) + 6 }}
               >
                 {formatTimeOfDay(new Date(t).toISOString(), tz)}
               </div>
             ))}
+            {/* The current time, where the now-line meets the ruler —
+                bold primary over a background patch that masks whatever
+                hour label it passes. Ticks on the minute via useNow. */}
+            {nowMs !== null && (
+              <div
+                className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 bg-background px-1 text-xs font-semibold tabular-nums text-primary"
+                style={{ left: leftFor(nowMs) }}
+              >
+                {formatTimeOfDay(new Date(nowMs).toISOString(), tz)}
+              </div>
+            )}
           </div>
         </div>
 
@@ -330,21 +341,30 @@ function RoomRow({
           />
         ))}
 
+        {/* Hour gridlines. 96px is HOUR_W — Tailwind arbitrary values
+            cannot interpolate the constant, so keep the two in step. The
+            ms-linear axis keeps hours a uniform 96px apart even on DST
+            days. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 bg-[repeating-linear-gradient(to_right,var(--color-border)_0,var(--color-border)_1px,transparent_1px,transparent_96px)] opacity-40"
+        />
+
         {/* Where "now" is. Deliberately drawn ON TOP of the blocks (z-20):
             a busy day is exactly when knowing where "now" is matters
             most, and a now-line painted underneath every booking would
             be invisible on that day. A hairline plus an 8px dot is a
             small enough footprint that sitting on top doesn't hide
-            anything worth protecting. Only drawn on the grid's own
-            today — see nowMs above. */}
+            anything worth protecting. Primary, not destructive — it pairs
+            with the bold time label in the ruler, and "now" is a fact,
+            not an alarm. Only drawn on the grid's own today — see nowMs
+            above. */}
         {nowMs !== null && nowMs >= axis.startMs && nowMs <= axis.endMs && (
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-y-0 z-20 border-l border-destructive"
+            className="pointer-events-none absolute inset-y-0 z-20 border-l border-primary"
             style={{ left: leftFor(nowMs) }}
-          >
-            <span className="absolute -left-1 -top-1 h-2 w-2 rounded-full bg-destructive" />
-          </div>
+          />
         )}
 
         {/* Free half-hours: clickable, and the only way to start a booking.
@@ -450,30 +470,43 @@ function BlockChip({
   onOpen: () => void
 }>) {
   const pending = block.status === "pending"
-  // A sole lane has the full 88px row: title plus times. Split lanes are
-  // ~23px each: one truncating line, and the title attribute carries the
-  // rest.
+  // A sole lane has the full row: the reference card's hierarchy — muted
+  // time range, bold title, customer as the subtitle. Split lanes are
+  // ~40px each: one truncating line, the title attribute carries the
+  // rest. Confirmed cards are borderless soft fills per the reference;
+  // pending keeps its dashed border, which is load-bearing (it does not
+  // hold the slot).
   const roomy = lanes === 1
   return (
     <button
       type="button"
       onClick={onOpen}
       className={cn(
-        "absolute overflow-hidden rounded-md border text-left",
-        roomy ? "px-2 py-1 text-xs" : "flex items-center px-1.5 text-[11px] leading-tight",
+        "absolute overflow-hidden border text-left",
+        roomy ? "rounded-xl px-3 py-2 text-xs" : "flex items-center rounded-md px-1.5 text-[11px] leading-tight",
         "hover:ring-1 hover:ring-ring focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-        BOOKING_BLOCK_STYLES[block.status]
+        BOOKING_BLOCK_STYLES[block.status],
+        block.status === "confirmed" && "border-transparent"
       )}
       style={laneBox(lane, lanes, left, width)}
       title={`${block.title ?? "Untitled"} — ${block.customerName ?? "No customer"}`}
     >
-      <p className="truncate font-medium">
-        {block.title || block.customerName || "Untitled"}
-      </p>
-      {roomy && (
-        <p className="truncate opacity-80 tabular-nums">
-          {formatTimeOfDay(block.startsAt, tz)}–{formatTimeOfDay(block.endsAt, tz)}
-          {pending ? " · pending" : ""}
+      {roomy ? (
+        <>
+          <p className="truncate text-[11px] tabular-nums opacity-70">
+            {formatTimeOfDay(block.startsAt, tz)}–{formatTimeOfDay(block.endsAt, tz)}
+            {pending ? " · pending" : ""}
+          </p>
+          <p className="truncate text-sm font-semibold">
+            {block.title || block.customerName || "Untitled"}
+          </p>
+          {block.title && block.customerName && (
+            <p className="truncate text-xs opacity-70">{block.customerName}</p>
+          )}
+        </>
+      ) : (
+        <p className="truncate font-medium">
+          {block.title || block.customerName || "Untitled"}
         </p>
       )}
     </button>
