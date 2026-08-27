@@ -255,8 +255,13 @@ function RoomColumn({
           />
         ))}
 
-        {/* Where "now" is. Drawn under the blocks so it never hides one,
-            and only on the grid's own today — see nowMs above. */}
+        {/* Where "now" is. Deliberately drawn ON TOP of the blocks (z-20):
+            a busy day is exactly when knowing where "now" is matters
+            most, and a now-line painted underneath every booking would
+            be invisible on that day. A hairline plus an 8px dot is a
+            small enough footprint that sitting on top doesn't hide
+            anything worth protecting. Only drawn on the grid's own
+            today — see nowMs above. */}
         {nowMs !== null && nowMs >= axis.startMs && nowMs <= axis.endMs && (
           <div
             aria-hidden="true"
