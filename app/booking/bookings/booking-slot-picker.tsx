@@ -516,7 +516,7 @@ export function BookingSlotPicker({
             with free starts, ‹ › paging, Monday-first. Hand-rolled — the
             react-day-picker this replaced fought every container it was
             put in. */}
-        <div className="w-[300px]">
+        <div>
           <div className="flex items-center justify-between">
             <h3 className="text-lg font-semibold capitalize">
               {new Intl.DateTimeFormat("en-US", {
