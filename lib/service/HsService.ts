@@ -2313,6 +2313,20 @@ export interface UpdateBookingDto {
   title?: string;
   notes?: string;
   status?: "no_show";
+  /**
+   * Reschedule. Both times or neither — one alone is refused with
+   * `reschedule_requires_both`, because "move the end" alone is far
+   * more often a dropped field than an intent.
+   *
+   * The resource deliberately cannot move: it would change the rate,
+   * invalidate the extras (they hang off the old resource's rates) and
+   * rescope the credits, which are scoped to a resource TYPE. Changing
+   * rooms stays cancel-and-rebook.
+   * @example "2026-08-26T09:00:00Z"
+   */
+  startsAt?: string;
+  /** @example "2026-08-26T11:00:00Z" */
+  endsAt?: string;
 }
 
 export interface BusyIntervalDto {
@@ -3573,6 +3587,13 @@ export interface GetResourceAvailabilityParams {
    * @example "2026-07-20T00:00:00Z"
    */
   to: string;
+  /**
+   * The booking currently being rescheduled. Its own busy interval is
+   * dropped from the response, so the slot it already holds reads as
+   * free — which is where "make it half an hour longer" starts.
+   * @format uuid
+   */
+  excludeBookingId?: string;
   id: string;
 }
 
@@ -6363,17 +6384,18 @@ export namespace Api {
   }
 
   /**
-   * @description Metadata only — rescheduling is cancel + rebook. Members may edit inside the cancellation window; staff may flag no_show after the start time.
+   * @description Title and notes anytime; staff may flag no_show after the start time. Passing startsAt AND endsAt reschedules: the slot is re-checked (ignoring this booking itself), the room is re-priced at the new duration and its credits and charges are reversed and re-applied. Extras keep the prices they were booked at. The resource cannot change — moving a booking between rooms is still cancel + rebook. Members may edit inside the cancellation window.
    * @tags Bookings
    * @name UpdateBooking
-   * @summary Update booking metadata (title/notes; staff: no_show)
+   * @summary Update a booking (metadata, no_show, or reschedule)
    * @request PATCH:/api/v1/bookings/{id}
    * @secure
    * @response `200` `(BookingDto)` 200
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
-   * @response `404` `(ResponseErrorDto)` Not Found
-   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `404` `((ResponseErrorDto))` 404
+   * @response `409` `((ResponseErrorDto))` 409
+   * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
    * @response `default` `BookingDto`
@@ -6465,7 +6487,7 @@ export namespace Api {
   }
 
   /**
-   * @description Bookable windows per day (booking_times, falling back to the location opening hours, minus closed days) plus confirmed busy intervals clipped to the range (≤ 31 days). `from` is inclusive and `to` is exclusive, so a week is midnight to midnight — the day `to` lands on is not part of the range. Clients render free slots; the server re-validates at create time.
+   * @description Bookable windows per day (booking_times, falling back to the location opening hours, minus closed days) plus confirmed busy intervals clipped to the range (≤ 31 days). `from` is inclusive and `to` is exclusive, so a week is midnight to midnight — the day `to` lands on is not part of the range. Clients render free slots; the server re-validates at create time. `excludeBookingId` drops one booking from the busy intervals — pass the booking being rescheduled so its own current slot reads as free.
    * @tags Bookings
    * @name GetResourceAvailability
    * @summary Resource availability (windows + busy intervals)
@@ -6496,6 +6518,13 @@ export namespace Api {
        * @example "2026-07-20T00:00:00Z"
        */
       to: string;
+      /**
+       * The booking currently being rescheduled. Its own busy interval is
+       * dropped from the response, so the slot it already holds reads as
+       * free — which is where "make it half an hour longer" starts.
+       * @format uuid
+       */
+      excludeBookingId?: string;
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
@@ -9885,18 +9914,19 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Metadata only — rescheduling is cancel + rebook. Members may edit inside the cancellation window; staff may flag no_show after the start time.
+     * @description Title and notes anytime; staff may flag no_show after the start time. Passing startsAt AND endsAt reschedules: the slot is re-checked (ignoring this booking itself), the room is re-priced at the new duration and its credits and charges are reversed and re-applied. Extras keep the prices they were booked at. The resource cannot change — moving a booking between rooms is still cancel + rebook. Members may edit inside the cancellation window.
      *
      * @tags Bookings
      * @name UpdateBooking
-     * @summary Update booking metadata (title/notes; staff: no_show)
+     * @summary Update a booking (metadata, no_show, or reschedule)
      * @request PATCH:/api/v1/bookings/{id}
      * @secure
      * @response `200` `(BookingDto)` 200
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
-     * @response `404` `(ResponseErrorDto)` Not Found
-     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `404` `((ResponseErrorDto))` 404
+     * @response `409` `((ResponseErrorDto))` 409
+     * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
      * @response `default` `BookingDto`
@@ -9993,7 +10023,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Bookable windows per day (booking_times, falling back to the location opening hours, minus closed days) plus confirmed busy intervals clipped to the range (≤ 31 days). `from` is inclusive and `to` is exclusive, so a week is midnight to midnight — the day `to` lands on is not part of the range. Clients render free slots; the server re-validates at create time.
+     * @description Bookable windows per day (booking_times, falling back to the location opening hours, minus closed days) plus confirmed busy intervals clipped to the range (≤ 31 days). `from` is inclusive and `to` is exclusive, so a week is midnight to midnight — the day `to` lands on is not part of the range. Clients render free slots; the server re-validates at create time. `excludeBookingId` drops one booking from the busy intervals — pass the booking being rescheduled so its own current slot reads as free.
      *
      * @tags Bookings
      * @name GetResourceAvailability
