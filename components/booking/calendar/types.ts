@@ -2,6 +2,22 @@ import { wallClockToUtcMs } from "@/lib/slots"
 
 export type CalendarView = "day" | "week" | "month"
 
+/** Minutes between offered start times, everywhere in the booking UI. */
+export const SLOT_STEP_MIN = 30
+
+/** Half-hours across a day, "HH:mm". Shared by the toolbar's time range,
+ *  the slot picker and the manual date-time field, so the three surfaces
+ *  cannot offer different times for the same booking. */
+export const HALF_HOURS: string[] = Array.from(
+  { length: (24 * 60) / SLOT_STEP_MIN },
+  (_, index) => {
+    const minutes = index * SLOT_STEP_MIN
+    return `${String(Math.floor(minutes / 60)).padStart(2, "0")}:${String(
+      minutes % 60
+    ).padStart(2, "0")}`
+  }
+)
+
 /** Today's date, YYYY-MM-DD, as it reads in `timeZone` — never the reader's. */
 export function todayIn(timeZone: string): string {
   return new Intl.DateTimeFormat("en-CA", {

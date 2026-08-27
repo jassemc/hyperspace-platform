@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { DateField } from "@/components/ui/date-field"
+import { HALF_HOURS } from "@/components/booking/calendar/types"
 
 /**
  * A wall-clock instant as the booking form means it: `YYYY-MM-DDTHH:mm`,
@@ -12,18 +13,7 @@ import { DateField } from "@/components/ui/date-field"
  * used, and three other call sites depend on that. This composes it rather
  * than widening it.
  */
-const STEP_MINUTES = 30
-
-/** Half-hours across the day, matching the calendar grid's bookable slots. */
-const TIMES: string[] = Array.from(
-  { length: (24 * 60) / STEP_MINUTES },
-  (_, index) => {
-    const minutes = index * STEP_MINUTES
-    const hh = `${Math.floor(minutes / 60)}`.padStart(2, "0")
-    const mm = `${minutes % 60}`.padStart(2, "0")
-    return `${hh}:${mm}`
-  }
-)
+const TIMES = HALF_HOURS
 
 function split(value: string): { date: string; time: string } {
   const [date = "", time = ""] = value.split("T")

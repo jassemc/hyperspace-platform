@@ -5,8 +5,10 @@ import { useTransition } from "react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { DateField } from "@/components/ui/date-field"
+import { NativeSelect } from "@/components/ui/native-select"
+import { Separator } from "@/components/ui/separator"
 import { cn } from "@/lib/utils"
-import { addDays, addMonths, todayIn, type CalendarView } from "./types"
+import { addDays, addMonths, todayIn, HALF_HOURS, type CalendarView } from "./types"
 
 export function CalendarToolbar({
   date,
@@ -49,9 +51,13 @@ export function CalendarToolbar({
   }
 
   return (
-    <div className="mx-4 mb-3 flex flex-wrap items-center gap-3">
-      <Button variant="outline" size="sm" disabled={isPending}
-        onClick={() => goTo(todayIn(timeZone))}>
+    <div className="mx-4 mb-3 flex flex-wrap items-center gap-x-2 gap-y-2">
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={isPending}
+        onClick={() => goTo(todayIn(timeZone))}
+      >
         Today
       </Button>
       <div className="flex items-center gap-1">
@@ -68,7 +74,9 @@ export function CalendarToolbar({
         <DateField name="date" value={date} onChange={goTo} />
       </div>
 
-      <div className="inline-flex items-center rounded-md border p-0.5">
+      <Separator orientation="vertical" className="mx-1 h-6" />
+
+      <div className="inline-flex items-center rounded-md border p-0.5" role="group" aria-label="Calendar view">
         {(["day", "week", "month"] as const).map((value) => (
           <Button
             key={value}
@@ -76,7 +84,10 @@ export function CalendarToolbar({
             size="sm"
             variant="ghost"
             aria-pressed={view === value}
-            className={cn("h-8 px-3 capitalize", view === value && "bg-accent")}
+            className={cn(
+              "h-8 px-3 capitalize",
+              view === value && "bg-accent text-accent-foreground"
+            )}
             onClick={() => {
               const params = new URLSearchParams(searchParams.toString())
               if (value === "day") {
@@ -92,22 +103,48 @@ export function CalendarToolbar({
         ))}
       </div>
 
-      {/* Client-side: the payload already holds the whole day. */}
-      <div className="flex items-center gap-2 text-sm">
-        <input type="time" value={timeRange.from} aria-label="From"
-          className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
-          onChange={(e) => onTimeRangeChange({ ...timeRange, from: e.target.value })} />
-        <span aria-hidden="true">→</span>
-        <input type="time" value={timeRange.to} aria-label="To"
-          className="h-9 rounded-md border border-input bg-transparent px-2 text-sm"
-          onChange={(e) => onTimeRangeChange({ ...timeRange, to: e.target.value })} />
+      <Separator orientation="vertical" className="mx-1 h-6" />
+
+      {/* Client-side narrowing: the payload already holds the whole day. */}
+      <div className="flex items-center gap-1.5">
+        <span className="text-xs text-muted-foreground">Between</span>
+        <div className="w-24">
+          <NativeSelect
+            aria-label="From"
+            className="h-8"
+            value={timeRange.from}
+            onChange={(e) => onTimeRangeChange({ ...timeRange, from: e.target.value })}
+          >
+            {HALF_HOURS.map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </NativeSelect>
+        </div>
+        <span aria-hidden="true" className="text-muted-foreground">–</span>
+        <div className="w-24">
+          <NativeSelect
+            aria-label="To"
+            className="h-8"
+            value={timeRange.to}
+            onChange={(e) => onTimeRangeChange({ ...timeRange, to: e.target.value })}
+          >
+            {HALF_HOURS.map((option) => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </NativeSelect>
+        </div>
       </div>
 
-      <label className="flex items-center gap-2 text-sm">
-        <input type="checkbox" checked={vacantOnly} className="h-4 w-4 rounded border-input"
-          onChange={(e) => onVacantOnlyChange(e.target.checked)} />
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        aria-pressed={vacantOnly}
+        className={cn("h-8 px-3", vacantOnly && "bg-accent text-accent-foreground")}
+        onClick={() => onVacantOnlyChange(!vacantOnly)}
+      >
         Vacant only
-      </label>
+      </Button>
     </div>
   )
 }
