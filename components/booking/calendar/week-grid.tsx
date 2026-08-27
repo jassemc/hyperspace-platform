@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import type {
   BookingCalendarDto,
   CalendarBlockDto,
@@ -200,36 +200,46 @@ export function WeekGrid({
     return out
   }, [weekStartDate])
 
-  const axis = useMemo(() => {
-    const opens: number[] = []
-    const closes: number[] = []
-    for (const entry of rooms) {
-      for (const day of entry.days) {
-        for (const w of day.windows) {
-          opens.push(wallClockToUtcMs(day.date, w.open, tz))
-          closes.push(wallClockToUtcMs(day.date, w.close, tz))
-        }
-      }
-    }
-    if (opens.length === 0) return null
-    // Reduce each instant to its wall-clock hour so all seven days share
-    // one vertical axis. An open truncates down and a close rounds *up*:
-    // truncating a 18:30 close to 18 puts the last half-hour of the day
-    // off the bottom of the axis, where the clamp below would flatten it
-    // to a sliver. Rounding up costs at most one empty hour band.
-    const minutesOf = (ms: number) => {
-      const [h, m] = formatTimeOfDay(new Date(ms).toISOString(), tz).split(":").map(Number)
-      return h * 60 + m
-    }
-    // A close lands on the *next* day's 00:00 when a room shuts at
-    // midnight, which reads back as minute 0 and would collapse the axis.
-    const closeMinutesOf = (ms: number) => minutesOf(ms) || 24 * 60
-    const startHour = Math.floor(Math.min(...opens.map(minutesOf)) / 60)
-    const endHour = Math.min(24, Math.ceil(Math.max(...closes.map(closeMinutesOf)) / 60))
-    return { startHour, endHour: Math.max(endHour, startHour + 1) }
-  }, [rooms, tz])
+  // The full local day, hour-based so all seven columns share one axis —
+  // see resource-day-grid.tsx for why the axis stopped tracking opening
+  // windows: closed time was hidden, and an after-hours booking with it.
+  // Per-column ms bounds below still go through the zone, so a DST day's
+  // blocks clamp into the column rather than drawing outside it.
+  const axis = { startHour: 0, endHour: 24 }
 
-  if (!axis) {
+  // The empty state the old windows-derived axis signalled by being null.
+  const anyOpen = rooms.some((entry) =>
+    entry.days.some((day) => day.windows.length > 0)
+  )
+
+  // Initial scroll target: the earliest opening minute anywhere this
+  // week. Windows are wall-clock strings, so no zone math is needed.
+  const earliestOpenMinutes = useMemo(() => {
+    const opens = rooms.flatMap((entry) =>
+      entry.days.flatMap((day) =>
+        day.windows.map((w) => {
+          const [h, m] = w.open.split(":").map(Number)
+          return h * 60 + m
+        })
+      )
+    )
+    return opens.length > 0 ? Math.min(...opens) : null
+  }, [rooms])
+
+  // Land the initial view on the working day rather than midnight, half
+  // an hour of headroom above the earliest opening. Once per week, so it
+  // never fights a manual scroll.
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const scrolledWeekRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (scrolledWeekRef.current === weekStartDate) return
+    const el = scrollRef.current
+    if (el === null || earliestOpenMinutes === null) return
+    scrolledWeekRef.current = weekStartDate
+    el.scrollTop = Math.max(0, ((earliestOpenMinutes - 30) / 60) * HOUR_PX)
+  })
+
+  if (!anyOpen) {
     return (
       <div className="mx-4 rounded-md border border-dashed p-8 text-center text-sm text-muted-foreground">
         No room is open this week.
@@ -240,12 +250,19 @@ export function WeekGrid({
   const height = (axis.endHour - axis.startHour) * HOUR_PX
 
   return (
-    <div className="mx-4 overflow-x-auto rounded-md border">
-      <div className="flex min-w-max">
-        <div className="sticky left-0 z-10 w-16 shrink-0 border-r bg-background">
-          <div className="h-10 border-b" />
+    <div
+      ref={scrollRef}
+      className="mx-4 max-h-[calc(100vh-16rem)] overflow-auto rounded-md border"
+    >
+      {/* w-full + min-w-max: columns stretch to fill a wide viewport and
+          fall back to their min width (scrolling) on a narrow one. */}
+      <div className="flex w-full min-w-max">
+        {/* z tiers: gutter 40 over the day headers' 30 over the blocks —
+            both scroll axes keep the sticky edges on top. */}
+        <div className="sticky left-0 z-40 w-16 shrink-0 border-r bg-background">
+          <div className="sticky top-0 z-10 h-10 border-b bg-background" />
           <div className="relative" style={{ height }}>
-            {Array.from({ length: axis.endHour - axis.startHour + 1 }, (_, i) => (
+            {Array.from({ length: axis.endHour - axis.startHour }, (_, i) => (
               <div
                 key={i}
                 className="absolute -translate-y-1/2 w-full pr-2 text-right text-xs text-muted-foreground tabular-nums"
@@ -293,8 +310,8 @@ export function WeekGrid({
           }
 
           return (
-            <div key={date} className="w-40 shrink-0 border-r last:border-r-0">
-              <div className="flex h-10 items-center justify-center border-b text-sm font-medium">
+            <div key={date} className="min-w-32 flex-1 shrink-0 border-r last:border-r-0">
+              <div className="sticky top-0 z-30 flex h-10 items-center justify-center border-b bg-background text-sm font-medium">
                 {labelFor(date)}
               </div>
               <div className="relative bg-background" style={{ height }}>
