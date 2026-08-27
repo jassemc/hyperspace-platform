@@ -102,7 +102,7 @@ export function MonthOverview({
   const today = todayIn(tz)
 
   return (
-    <div className="mx-4 overflow-hidden rounded-md border">
+    <div className="mx-4 max-h-full overflow-auto rounded-md border">
       <div className="grid grid-cols-7 border-b bg-muted/30">
         {WEEKDAYS.map((label) => (
           <div

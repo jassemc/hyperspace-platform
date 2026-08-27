@@ -226,7 +226,7 @@ export function ResourceDayGrid({
   return (
     <div
       ref={scrollRef}
-      className="isolate mx-4 max-h-[calc(100vh-16rem)] overflow-auto rounded-md border"
+      className="isolate mx-4 max-h-full overflow-auto rounded-md border"
     >
       <div className="w-max min-w-full">
         {/* Hour ruler. z-40 over the room headers' z-30, which sit over

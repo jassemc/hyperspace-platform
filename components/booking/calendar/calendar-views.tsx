@@ -85,7 +85,7 @@ export function CalendarViews({
         onVacantOnlyChange={setVacantOnly}
       />
       <CalendarLegend />
-      <div className="relative">
+      <div className="relative min-h-0 flex-1">
         {loadingBooking && (
           <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/60">
             <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />

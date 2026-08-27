@@ -252,7 +252,7 @@ export function WeekGrid({
   return (
     <div
       ref={scrollRef}
-      className="isolate mx-4 max-h-[calc(100vh-16rem)] overflow-auto rounded-md border"
+      className="isolate mx-4 max-h-full overflow-auto rounded-md border"
     >
       {/* w-full + min-w-max: columns stretch to fill a wide viewport and
           fall back to their min width (scrolling) on a narrow one. */}
