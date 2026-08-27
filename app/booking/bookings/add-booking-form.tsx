@@ -277,10 +277,10 @@ export function AddBookingForm({
                 {editingBooking ? (
                   <>
                     <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-                      {formatDateTime(editingBooking.startsAt, timeZone ?? "UTC")} —{" "}
-                      {formatDateTime(editingBooking.endsAt, timeZone ?? "UTC")}
+                      {formatDateTime(editingBooking.startsAt, timeZone ?? "UTC")}
                       <span className="block pt-1 text-xs">
-                        Resource and times cannot be changed after creation.
+                        Resource and times cannot be changed. Use the details
+                        action in the table to see the whole booking.
                       </span>
                     </div>
                     <div className="grid gap-2">

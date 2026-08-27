@@ -8,6 +8,7 @@ import { ArrowUpDown, Edit } from "lucide-react"
 import { formatDateTime, formatEnumLabel, formatPriceHt } from "@/lib/format"
 import { BOOKING_STATUS_CLASSES, BOOKING_STATUS_LABELS } from "./booking-status"
 import { BookingActionButtons } from "./booking-actions-buttons"
+import { BookingDetailsDialog } from "./booking-details-dialog"
 
 interface ColumnsProps {
   onEdit: (booking: BookingDto) => void
@@ -103,6 +104,7 @@ export const createColumns = ({ onEdit, timeZone }: ColumnsProps): ColumnDef<Boo
       const isClosed = booking.status === "cancelled" || booking.status === "no_show"
       return (
         <div className="flex items-center gap-2">
+          <BookingDetailsDialog booking={booking} timeZone={timeZone} />
           <Button
             variant="outline"
             size="sm"
