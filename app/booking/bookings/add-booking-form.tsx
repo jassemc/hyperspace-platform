@@ -73,7 +73,7 @@ function messageFor(state: ActionState, fallback: string): string {
   return state.error ?? fallback
 }
 
-type CustomerKind = "member" | "company" | "none"
+type CustomerKind = "member" | "company"
 
 const selectClassName =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
@@ -165,8 +165,8 @@ export function AddBookingForm({
       createNotifiedRef.current = true
       toast.success("Booking created")
       onClose()
-    } else if (createState.error && !createNotifiedRef.current) {
-      createNotifiedRef.current = true
+    } else if (createState.error) {
+      // Not latched: a second failed attempt is a second thing to say.
       toast.error(messageFor(createState, "Failed to create booking"))
     }
   }, [createState, onClose])
@@ -176,8 +176,8 @@ export function AddBookingForm({
       updateNotifiedRef.current = true
       toast.success("Booking updated")
       onClose()
-    } else if (updateState.error && !updateNotifiedRef.current) {
-      updateNotifiedRef.current = true
+    } else if (updateState.error) {
+      // Not latched: a second failed attempt is a second thing to say.
       toast.error(messageFor(updateState, "Failed to update booking"))
     }
   }, [updateState, onClose])
@@ -207,6 +207,13 @@ export function AddBookingForm({
       setChecking(false)
     }
   }
+
+  /**
+   * The quote describes one exact resource, slot and set of extras. Once
+   * any of them moves it is answering a question nobody asked any more,
+   * so it goes rather than sitting there looking green.
+   */
+  const invalidateQuote = () => setQuoteMessage(null)
 
   const selectedResource = resources.find((resource) => resource.id === resourceId)
   const availableExtras = (selectedResource?.rates ?? []).flatMap((rate) => rate.extras ?? [])
@@ -296,7 +303,10 @@ export function AddBookingForm({
                         name="resourceId"
                         className={selectClassName}
                         value={resourceId}
-                        onChange={(e) => setResourceId(e.target.value)}
+                        onChange={(e) => {
+                          setResourceId(e.target.value)
+                          invalidateQuote()
+                        }}
                         required
                       >
                         <option value="">Select resource</option>
@@ -325,14 +335,13 @@ export function AddBookingForm({
                       >
                         <option value="member">Member</option>
                         <option value="company">Company</option>
-                        <option value="none">None (walk-in)</option>
                       </select>
                     </div>
 
                     {customerKind === "member" && (
                       <div className="grid gap-2">
                         <Label htmlFor="memberId">Member</Label>
-                        <select id="memberId" name="memberId" className={selectClassName}>
+                        <select id="memberId" name="memberId" className={selectClassName} required>
                           <option value="">Select member</option>
                           {Object.entries(memberNames).map(([id, name]) => (
                             <option key={id} value={id}>
@@ -345,7 +354,7 @@ export function AddBookingForm({
                     {customerKind === "company" && (
                       <div className="grid gap-2">
                         <Label htmlFor="companyId">Company</Label>
-                        <select id="companyId" name="companyId" className={selectClassName}>
+                        <select id="companyId" name="companyId" className={selectClassName} required>
                           <option value="">Select company</option>
                           {Object.entries(companyNames).map(([id, name]) => (
                             <option key={id} value={id}>
@@ -371,6 +380,7 @@ export function AddBookingForm({
                         defaultValue={
                           prefill && timeZone ? toLocalInput(prefill.startsAt, timeZone) : undefined
                         }
+                        onChange={invalidateQuote}
                         required
                       />
                     </div>
@@ -383,6 +393,7 @@ export function AddBookingForm({
                         defaultValue={
                           prefill && timeZone ? toLocalInput(prefill.endsAt, timeZone) : undefined
                         }
+                        onChange={invalidateQuote}
                         required
                       />
                     </div>
@@ -397,6 +408,7 @@ export function AddBookingForm({
                                 type="checkbox"
                                 name="extraIds"
                                 value={extra.id}
+                                onChange={invalidateQuote}
                                 className="mt-0.5 h-4 w-4 rounded border-input"
                               />
                               <span>

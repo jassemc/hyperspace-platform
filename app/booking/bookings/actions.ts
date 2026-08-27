@@ -44,6 +44,16 @@ function text(formData: FormData, field: string): string | undefined {
 }
 
 /**
+ * Like `text`, but an emptied field stays an empty string instead of
+ * vanishing. PATCH /bookings assigns on `!== undefined`, so `undefined`
+ * means "leave it alone" — which made clearing a note a silent no-op.
+ */
+function clearableText(formData: FormData, field: string): string | undefined {
+  const value = formData.get(field)
+  return typeof value === "string" ? value.trim() : undefined
+}
+
+/**
  * A `datetime-local` value ("2026-08-26T09:00") has no zone of its own.
  * `new Date(value)` therefore parses it in *this process's* zone — fine
  * for the plain Add-booking button, wrong for a cell clicked on a grid
@@ -85,9 +95,14 @@ function bookingPayload(formData: FormData): CreateBookingDto | { error: string 
   if (new Date(endsAtUtc) <= new Date(startsAtUtc)) {
     return { error: "The end time must be after the start time" }
   }
-  // The customer is a member XOR a company.
+  // The customer is a member XOR a company — the API refuses both AND
+  // neither, so the form has to as well. Neither was reachable through
+  // the "walk-in" option, which always 422'd.
   if (memberId && companyId) {
     return { error: "A booking belongs to a member or a company, not both" }
+  }
+  if (!memberId && !companyId) {
+    return { error: "Select a member or a company" }
   }
 
   return {
@@ -147,8 +162,8 @@ export async function updateBookingAction(
     if (!id) return { success: false, error: "Booking ID is required" }
 
     const data: UpdateBookingDto = {
-      title: text(formData, "title"),
-      notes: text(formData, "notes"),
+      title: clearableText(formData, "title"),
+      notes: clearableText(formData, "notes"),
       status: formData.get("markNoShow") === "on" ? "no_show" : undefined,
     }
 
