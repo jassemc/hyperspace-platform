@@ -112,13 +112,15 @@ export function AddBookingForm({
   const [quoteMessage, setQuoteMessage] = useState<string | null>(null)
 
   const formRef = useRef<HTMLFormElement>(null)
-  const createNotifiedRef = useRef(false)
-  const updateNotifiedRef = useRef(false)
+  // The last state object each notify effect has already reacted to.
+  // `useActionState` hands back a fresh object on every dispatch, so
+  // identity — not `isOpen` — is what tells a real submission apart
+  // from an unrelated re-render; see the effects below.
+  const lastCreateStateRef = useRef<ActionState | null>(null)
+  const lastUpdateStateRef = useRef<ActionState | null>(null)
 
   useEffect(() => {
     if (isOpen) {
-      createNotifiedRef.current = false
-      updateNotifiedRef.current = false
       setQuoteMessage(null)
       setResourceId(editingBooking?.resourceId ?? prefill?.resourceId ?? "")
       setCustomerKind(editingBooking?.companyId ? "company" : "member")
@@ -161,23 +163,34 @@ export function AddBookingForm({
   }, [isOpen, seedResources])
 
   useEffect(() => {
-    if (createState.success && !createNotifiedRef.current) {
-      createNotifiedRef.current = true
+    // `onClose` is a plain closure in the real caller (booking-table.tsx),
+    // not a `useCallback`, and this form stays mounted regardless of drawer
+    // visibility there — so an unrelated re-render (e.g. another row's
+    // confirm/cancel revalidating the page) can hand this effect a new
+    // `onClose` while `createState` is untouched. React re-runs the effect
+    // on that alone; guard on the state object itself, since only a new
+    // dispatch produces a new one — a second identical failure still must
+    // toast, which an error-message comparison would miss.
+    if (createState === lastCreateStateRef.current) return
+    lastCreateStateRef.current = createState
+
+    if (createState.success) {
       toast.success("Booking created")
       onClose()
     } else if (createState.error) {
-      // Not latched: a second failed attempt is a second thing to say.
       toast.error(messageFor(createState, "Failed to create booking"))
     }
   }, [createState, onClose])
 
   useEffect(() => {
-    if (updateState.success && !updateNotifiedRef.current) {
-      updateNotifiedRef.current = true
+    // Same reasoning as the create effect above.
+    if (updateState === lastUpdateStateRef.current) return
+    lastUpdateStateRef.current = updateState
+
+    if (updateState.success) {
       toast.success("Booking updated")
       onClose()
     } else if (updateState.error) {
-      // Not latched: a second failed attempt is a second thing to say.
       toast.error(messageFor(updateState, "Failed to update booking"))
     }
   }, [updateState, onClose])
