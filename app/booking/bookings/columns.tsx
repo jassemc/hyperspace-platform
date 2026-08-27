@@ -116,6 +116,7 @@ export const createColumns = ({ onEdit, timeZone }: ColumnsProps): ColumnDef<Boo
             bookingLabel={label}
             canConfirm={booking.status === "pending"}
             canCancel={!isClosed}
+            status={booking.status}
           />
         </div>
       )

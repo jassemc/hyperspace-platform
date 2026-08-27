@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { Check, Ban } from "lucide-react"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
@@ -16,12 +17,38 @@ import {
   AlertDialogCancel,
 } from "@/components/ui/alert-dialog"
 import { cancelBookingAction, confirmBookingAction } from "./actions"
+import type { BookingStatus } from "@/lib/service/HsService"
 
 interface BookingActionButtonsProps {
   bookingId: string
   bookingLabel: string
   canConfirm: boolean
   canCancel: boolean
+  /** Drives the disabled tooltip's wording. */
+  status: BookingStatus
+}
+
+/**
+ * A disabled element fires no pointer events, so a bare `title` attribute
+ * never shows and a Radix trigger never opens. The button is therefore
+ * wrapped in a span, which is what the tooltip actually listens on.
+ */
+function DisabledAction({
+  reason,
+  children,
+}: Readonly<{ reason: string; children: React.ReactNode }>) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="inline-flex">
+          <Button variant="outline" size="sm" disabled>
+            {children}
+          </Button>
+        </span>
+      </TooltipTrigger>
+      <TooltipContent>{reason}</TooltipContent>
+    </Tooltip>
+  )
 }
 
 export function BookingActionButtons({
@@ -29,6 +56,7 @@ export function BookingActionButtons({
   bookingLabel,
   canConfirm,
   canCancel,
+  status,
 }: Readonly<BookingActionButtonsProps>) {
   const router = useRouter()
   const [pending, setPending] = useState<"confirm" | "cancel" | null>(null)
@@ -69,7 +97,7 @@ export function BookingActionButtons({
 
   return (
     <>
-      {canConfirm && (
+      {canConfirm ? (
         <Button
           variant="outline"
           size="sm"
@@ -81,10 +109,15 @@ export function BookingActionButtons({
           <Check className="h-4 w-4" />
           <span className="sr-only">Confirm</span>
         </Button>
+      ) : (
+        <DisabledAction reason="Only pending bookings can be confirmed">
+          <Check className="h-4 w-4" />
+          <span className="sr-only">Confirm</span>
+        </DisabledAction>
       )}
 
       {/* Cancelling frees the slot and cannot be undone here, so it asks first. */}
-      {canCancel && (
+      {canCancel ? (
         <AlertDialog>
           <AlertDialogTrigger asChild>
             <Button
@@ -113,6 +146,13 @@ export function BookingActionButtons({
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+      ) : (
+        <DisabledAction
+          reason={status === "no_show" ? "Marked as a no-show" : "Already cancelled"}
+        >
+          <Ban className="h-4 w-4" />
+          <span className="sr-only">Cancel</span>
+        </DisabledAction>
       )}
     </>
   )
