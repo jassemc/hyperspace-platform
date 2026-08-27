@@ -533,10 +533,16 @@ export function BookingSlotPicker({
             onSelect={(picked) => {
               if (!picked) return
               const key = toKey(picked)
-              if ((countByDay.get(key) ?? 0) === 0) return
+              // While the month is in flight there are no counts yet —
+              // allow the pick (the list shows "Loading…") instead of
+              // rendering a dead grid on every page-turn.
+              if (!loading && (countByDay.get(key) ?? 0) === 0) return
               pickDay(key)
             }}
-            disabled={(day) => (countByDay.get(toKey(day)) ?? 0) === 0}
+            disabled={(day) => {
+              const key = toKey(day)
+              return loading ? key < today : (countByDay.get(key) ?? 0) === 0
+            }}
             showOutsideDays
             components={dayPickerComponents}
             labels={{
@@ -587,7 +593,9 @@ export function BookingSlotPicker({
 
       <div className={cn("min-w-0", loading && "pointer-events-none opacity-50")}>
         <p className="text-sm font-medium">
-          {date ? date : "Pick a day"}
+          {/* A date from a previously viewed month is stale here, not
+              "full" — prompt for a day instead of naming it. */}
+          {date && date.startsWith(month) ? date : "Pick a day"}
         </p>
         <p className="mt-0.5 text-xs text-muted-foreground">
           {durationLabel(activeDuration)}
@@ -602,7 +610,7 @@ export function BookingSlotPicker({
             <p className="text-sm text-muted-foreground">
               {loading
                 ? "Loading…"
-                : date
+                : date && date.startsWith(month)
                   ? "Nothing free that day at this length."
                   : "Pick a day with free time."}
             </p>
