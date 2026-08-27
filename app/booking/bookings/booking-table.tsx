@@ -115,6 +115,7 @@ export function BookingTable({
         }))}
         statusAllCount={totals.total}
         serverSearch
+        inlineFilters
         searchPlaceholder="Search title, notes or customer..."
       />
       <BookingFormDialog

@@ -22,6 +22,7 @@ import {
 import React from "react"
 import { usePathname, useRouter, useSearchParams } from "next/navigation"
 import { Input } from "@/components/ui/input"
+import { NativeSelect } from "@/components/ui/native-select"
 import { cn } from "@/lib/utils"
 import {
     Pagination,
@@ -100,6 +101,13 @@ interface DataTableProps<TData, TValue> {
     /** Extra dropdown filters, each owning one query param. */
     filters?: TableFilter[]
     /**
+     * Render the filters inline in the toolbar row — the booking
+     * calendar's pattern (visible labelled selects, controls grouped
+     * right) — instead of folded into a "Filters" popover. Opt-in so
+     * the popover stays the default for every existing table.
+     */
+    inlineFilters?: boolean
+    /**
      * Zone in which a picked day is converted to instants. Pass the
      * location's when one is in scope; the reader's own is the right
      * answer when nothing is (an opportunity has no location).
@@ -144,6 +152,7 @@ export function DataTable<TData, TValue>({
     searchPlaceholder = "Filter names...",
     statusAllCount,
     filters = [],
+    inlineFilters = false,
     timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone,
 }: DataTableProps<TData, TValue>) {
     const searchParams = useSearchParams()
@@ -433,7 +442,74 @@ export function DataTable<TData, TValue>({
                     />
                 )}
 
-                {filters.length > 0 && (
+                {filters.length > 0 && inlineFilters && (
+                    <div className="ml-auto flex flex-wrap items-center gap-2">
+                        {filters.map((filter) =>
+                            filter.kind === "dateRange" ? (
+                                <Popover key={`${filter.fromKey}-${filter.toKey}`}>
+                                    <PopoverTrigger asChild>
+                                        <Button variant="outline" size="sm" className="h-8">
+                                            {filter.label}
+                                            {(filter.fromValue || filter.toValue) && (
+                                                <span className="ml-2 rounded bg-primary/10 px-1.5 py-0.5 text-xs tabular-nums text-primary">
+                                                    1
+                                                </span>
+                                            )}
+                                        </Button>
+                                    </PopoverTrigger>
+                                    <PopoverContent className="w-64">
+                                        <DateRangeFilter
+                                            label={filter.label}
+                                            fromValue={filter.fromValue}
+                                            toValue={filter.toValue}
+                                            timeZone={timeZone}
+                                            presets={filter.presets}
+                                            onChange={(value) => applyRange(filter, value)}
+                                        />
+                                    </PopoverContent>
+                                </Popover>
+                            ) : (
+                                <div key={filter.key} className="flex items-center gap-1.5">
+                                    <span className="text-xs text-muted-foreground">
+                                        {filter.label}
+                                    </span>
+                                    <div className="w-40">
+                                        <NativeSelect
+                                            aria-label={filter.label}
+                                            className="h-8"
+                                            value={filter.value ?? ""}
+                                            onChange={(event) =>
+                                                applyFilter(filter.key, event.target.value)
+                                            }
+                                        >
+                                            <option value="">Any</option>
+                                            {filter.options.map((option) => (
+                                                <option key={option.value} value={option.value}>
+                                                    {option.label}
+                                                    {typeof option.count === "number"
+                                                        ? ` (${option.count})`
+                                                        : ""}
+                                                </option>
+                                            ))}
+                                        </NativeSelect>
+                                    </div>
+                                </div>
+                            )
+                        )}
+                        {hasFilters && (
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={clearFilters}
+                                className="h-8 text-muted-foreground"
+                            >
+                                Clear
+                            </Button>
+                        )}
+                    </div>
+                )}
+
+                {filters.length > 0 && !inlineFilters && (
                     <Popover>
                         <PopoverTrigger asChild>
                             <Button variant="outline" className="ml-auto h-9">
