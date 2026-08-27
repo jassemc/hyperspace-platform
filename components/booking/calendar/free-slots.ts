@@ -1,14 +1,29 @@
 import type { CalendarBlockDto } from "@/lib/service/HsService"
 
 /**
- * Free-slot "hatched ground": a diagonal hatch so an open half-hour reads
- * as available without hovering, giving way to a flat accent fill on
- * hover/focus. Shared by every grid that draws free slots over the same
- * slot-generation rules below (`freeSlotsFor`), so the affordance never
- * has to be re-derived per grid.
+ * Free-slot "ground": appearance only — the diagonal hatch and the
+ * dashed bottom border that say "this is open," with no positioning or
+ * interaction baked in. Safe to drop onto anything that just needs the
+ * look, e.g. the legend swatch (calendar-legend.tsx), which sits in
+ * normal flow and must NOT pick up the hover/focus states below — a
+ * bare decorative swatch reacting to mouse-over previously recreated
+ * the exact "looks clickable when it isn't" defect this file exists to
+ * avoid on the real grid.
  */
-export const FREE_SLOT_CLASS =
-  "group absolute inset-x-0 border-b border-dashed border-border/60 bg-[repeating-linear-gradient(45deg,transparent,transparent_6px,var(--color-muted)_6px,var(--color-muted)_7px)] transition-colors hover:bg-accent hover:bg-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+export const FREE_SLOT_GROUND =
+  "border-b border-dashed border-border/60 bg-[repeating-linear-gradient(45deg,transparent,transparent_6px,var(--color-muted)_6px,var(--color-muted)_7px)]"
+
+/**
+ * The full interactive class for a real clickable free slot: FREE_SLOT_GROUND
+ * above, plus the positioning that places it inside a relatively-positioned
+ * grid column (`absolute inset-x-0`) and the interaction that makes it
+ * behave like a slot — a hover state that swaps the hatch for a flat
+ * accent fill, and a focus ring. Built FROM the ground rather than
+ * repeating it, so the two can never drift apart; anything that only
+ * wants the look (not the behaviour) should reach for FREE_SLOT_GROUND
+ * instead of this.
+ */
+export const FREE_SLOT_CLASS = `group absolute inset-x-0 ${FREE_SLOT_GROUND} transition-colors hover:bg-accent hover:bg-none focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring`
 
 export interface FreeSlot {
   startMs: number
