@@ -1,15 +1,6 @@
 "use client"
 
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react"
-import { DayPicker, type DayButtonProps } from "react-day-picker"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { getResourceAvailability } from "@/lib/service"
 import type { AvailabilityDayDto, AvailabilityDto } from "@/lib/service/HsService"
 import {
@@ -24,7 +15,7 @@ import {
 // "today, in the location's zone" helper is how one of them drifts. The
 // range cap comes from the same module for the same reason — the month
 // grid clamps to it too, and one of the two would drift.
-import { MAX_RANGE_MS, todayIn } from "@/components/booking/calendar/types"
+import { addMonths, MAX_RANGE_MS, todayIn } from "@/components/booking/calendar/types"
 import { formatTimeOfDay } from "@/lib/format"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -108,10 +99,6 @@ function durationLabel(minutes: number): string {
   return rest === 0 ? `${hours}h` : `${hours}h ${rest}m`
 }
 
-/** "YYYY-MM-DD" of a `Date`, read with the same local getters the day grid uses. */
-const toKey = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
-
 /** A local calendar date (midnight, no timezone conversion) from "YYYY-MM-DD". */
 function toLocalDate(value: string): Date {
   const [year, month, day] = value.split("-").map(Number)
@@ -140,49 +127,13 @@ const LONG_DAY_LABEL = new Intl.DateTimeFormat("en-GB", {
   weekday: "long", day: "numeric", month: "long", year: "numeric",
 })
 
-/**
- * Per-day free counts and status, read by the day cell and by its
- * `aria-label`. Passed through context rather than closed over so
- * `DayCountButton` stays a stable module-level component — one defined
- * inside `BookingSlotPicker`'s render would be a new type on every render,
- * remounting every cell and losing the focus state react-day-picker keeps
- * in one. Mirrors `components/booking/calendar/month-overview.tsx`'s
- * `DayLoadContext`/`DayLoadButton` for the same reason.
- */
-const DayStatusContext = createContext<Map<string, { count: number; label: string }>>(
-  new Map()
-)
-
-/**
- * Mirrors the library's own DayButton (see
- * node_modules/react-day-picker/dist/esm/components/DayButton.js): `day`
- * and `modifiers` are destructured out so they never reach the DOM, and
- * the focused-modifier effect is what moves real keyboard focus as the
- * grid is arrowed through.
- */
-function DayCountButton({ day, modifiers, className, ...buttonProps }: DayButtonProps) {
-  const statusByKey = useContext(DayStatusContext)
-  const ref = useRef<HTMLButtonElement>(null)
-
-  useEffect(() => {
-    if (modifiers.focused) ref.current?.focus()
-  }, [modifiers.focused])
-
-  const entry = statusByKey.get(toKey(day.date))
-
-  return (
-    <button ref={ref} {...buttonProps} className={className}>
-      <span>{day.date.getDate()}</span>
-      {entry && entry.count > 0 && (
-        <span className="text-[9px] leading-none tabular-nums text-muted-foreground">
-          {entry.count}
-        </span>
-      )}
-    </button>
+/** Mon–Sun column headers (2024-01-01 is a Monday) — the public
+ *  wizard's derivation, verbatim. */
+const WEEKDAY_LABELS = Array.from({ length: 7 }, (_, i) =>
+  new Intl.DateTimeFormat("en-GB", { weekday: "short", timeZone: "UTC" }).format(
+    new Date(Date.UTC(2024, 0, 1 + i))
   )
-}
-
-const dayPickerComponents = { DayButton: DayCountButton }
+)
 
 /**
  * The day's shape at a glance: open windows as ground, busy blocks
@@ -320,10 +271,9 @@ export function BookingSlotPicker({
   // reschedule already in the past) starts before it — fixed at mount, not
   // re-tracked as the user pages, or paging itself would keep dragging the
   // floor backwards with them and never actually bound anything.
-  const [startMonth] = useState(() => {
-    const todayFirst = toLocalDate(`${today.slice(0, 7)}-01`)
-    const monthFirst = toLocalDate(`${monthOf(value?.startsAt ?? today)}-01`)
-    return monthFirst < todayFirst ? monthFirst : todayFirst
+  const [minMonth] = useState(() => {
+    const valueMonth = monthOf(value?.startsAt ?? today)
+    return valueMonth < today.slice(0, 7) ? valueMonth : today.slice(0, 7)
   })
 
   useEffect(() => {
@@ -461,6 +411,28 @@ export function BookingSlotPicker({
     return statuses
   }, [availability, countByDay, nowMs, timeZone])
 
+  // The month grid's cells: leading blanks align the 1st under its
+  // weekday (Monday-first), then one cell per day with its free-start
+  // count and status label — the public wizard's monthGrid, minus the
+  // slot maths it inlined (countByDay/dayStatusByKey already hold it).
+  const monthCells = useMemo(() => {
+    const [year, m] = month.split("-").map(Number)
+    const lead = (new Date(Date.UTC(year, m - 1, 1)).getUTCDay() + 6) % 7
+    const daysInMonth = new Date(Date.UTC(year, m, 0)).getUTCDate()
+    const cells: ({ date: string; count: number; label: string } | null)[] =
+      Array.from({ length: lead }, () => null)
+    for (let i = 1; i <= daysInMonth; i += 1) {
+      const key = `${month}-${String(i).padStart(2, "0")}`
+      const entry = dayStatusByKey.get(key)
+      cells.push({
+        date: key,
+        count: entry?.count ?? 0,
+        label: entry?.label ?? "Closed",
+      })
+    }
+    return cells
+  }, [month, dayStatusByKey])
+
   const selectedSlot: Slot | null = useMemo(() => {
     if (!value) return null
     const [d, t] = value.startsAt.split("T")
@@ -525,62 +497,80 @@ export function BookingSlotPicker({
           </div>
         </div>
 
-        <DayStatusContext.Provider value={dayStatusByKey}>
-          <DayPicker
-            mode="single"
-            month={toLocalDate(`${month}-01`)}
-            onMonthChange={(next) => setMonth(monthOf(toKey(next)))}
-            selected={date ? toLocalDate(date) : undefined}
-            today={toLocalDate(today)}
-            startMonth={startMonth}
-            onSelect={(picked) => {
-              if (!picked) return
-              const key = toKey(picked)
-              // While the month is in flight there are no counts yet —
-              // allow the pick (the list shows "Loading…") instead of
-              // rendering a dead grid on every page-turn.
-              if (!loading && (countByDay.get(key) ?? 0) === 0) return
-              pickDay(key)
-            }}
-            disabled={(day) => {
-              const key = toKey(day)
-              return loading ? key < today : (countByDay.get(key) ?? 0) === 0
-            }}
-            showOutsideDays
-            components={dayPickerComponents}
-            labels={{
-              labelDayButton: (labelDate, modifiers) => {
-                const entry = dayStatusByKey.get(toKey(labelDate))
-                let label = entry
-                  ? `${LONG_DAY_LABEL.format(labelDate)}, ${entry.label}`
-                  : LONG_DAY_LABEL.format(labelDate)
-                if (modifiers.today) label = `Today, ${label}`
-                if (modifiers.selected) label = `${label}, selected`
-                return label
-              },
-            }}
-            // Monday-first, like every other grid in the product.
-            weekStartsOn={1}
-            classNames={{
-              months: "flex flex-col",
-              month_caption: "flex items-center justify-center h-9 font-medium text-sm",
-              nav: "flex items-center justify-between absolute w-full px-1 h-9",
-              button_previous: "h-7 w-7 rounded-md hover:bg-accent inline-flex items-center justify-center",
-              button_next: "h-7 w-7 rounded-md hover:bg-accent inline-flex items-center justify-center",
-              month_grid: "w-full border-collapse",
-              weekdays: "flex",
-              weekday: "text-muted-foreground w-10 text-xs font-normal",
-              week: "flex w-full",
-              day: "h-11 w-10 p-0 text-sm",
-              day_button: "h-11 w-10 rounded-md hover:bg-accent inline-flex flex-col items-center justify-center gap-0",
-              today: "font-semibold text-primary",
-              selected: "[&>button]:bg-primary [&>button]:text-primary-foreground [&>button]:hover:bg-primary",
-              outside: "text-muted-foreground/50",
-              disabled: "text-muted-foreground/40 pointer-events-none",
-              root: "relative w-[280px]",
-            }}
-          />
-        </DayStatusContext.Provider>
+        {/* The public wizard's month grid, verbatim in structure and
+            translated onto this app's tokens: round tinted cells for days
+            with free starts, ‹ › paging, Monday-first. Hand-rolled — the
+            react-day-picker this replaced fought every container it was
+            put in. */}
+        <div className="w-[300px]">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-medium capitalize">
+              {new Intl.DateTimeFormat("en-US", {
+                timeZone: "UTC",
+                month: "long",
+                year: "numeric",
+              }).format(new Date(`${month}-01T12:00:00Z`))}
+            </h3>
+            <div className="flex gap-1">
+              <button
+                type="button"
+                disabled={month <= minMonth}
+                onClick={() => setMonth(addMonths(`${month}-01`, -1).slice(0, 7))}
+                aria-label="Previous month"
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-input transition-colors hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:border-border/50 disabled:text-muted-foreground/40"
+              >
+                ‹
+              </button>
+              <button
+                type="button"
+                onClick={() => setMonth(addMonths(`${month}-01`, 1).slice(0, 7))}
+                aria-label="Next month"
+                className="flex h-8 w-8 items-center justify-center rounded-full border border-input transition-colors hover:border-primary hover:text-primary"
+              >
+                ›
+              </button>
+            </div>
+          </div>
+          <div className="mt-2 grid grid-cols-7 gap-y-1 text-center">
+            {WEEKDAY_LABELS.map((label) => (
+              <span
+                key={label}
+                className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground"
+              >
+                {label}
+              </span>
+            ))}
+            {monthCells.map((cell, index) =>
+              cell === null ? (
+                <span key={`blank-${index}`} />
+              ) : (
+                <button
+                  key={cell.date}
+                  type="button"
+                  // While the month is in flight there are no counts yet —
+                  // allow the pick (the list shows "Loading…") instead of
+                  // rendering a dead grid on every page-turn.
+                  disabled={loading ? cell.date < today : cell.count === 0}
+                  onClick={() => pickDay(cell.date)}
+                  aria-label={`${LONG_DAY_LABEL.format(toLocalDate(cell.date))} — ${
+                    cell.label
+                  }${date === cell.date ? ", selected" : ""}`}
+                  className={cn(
+                    "mx-auto flex h-10 w-10 items-center justify-center rounded-full text-sm font-semibold tabular-nums transition-colors",
+                    date === cell.date
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : cell.count > 0 || (loading && cell.date >= today)
+                        ? "bg-primary/10 text-primary hover:bg-primary/20"
+                        : "cursor-not-allowed text-muted-foreground/40",
+                    cell.date === today && date !== cell.date && "ring-1 ring-foreground/25"
+                  )}
+                >
+                  {Number(cell.date.slice(8, 10))}
+                </button>
+              )
+            )}
+          </div>
+        </div>
 
         {availability && date && (
           <DayTimeline
