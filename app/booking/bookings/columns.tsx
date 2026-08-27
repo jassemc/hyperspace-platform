@@ -4,11 +4,10 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { ColumnDef } from "@tanstack/react-table"
 import type { BookingDto, BookingStatus } from "@/lib/service/HsService"
-import { ArrowUpDown, Edit } from "lucide-react"
+import { ArrowUpDown } from "lucide-react"
 import { formatDateTime, formatEnumLabel, formatPriceHt } from "@/lib/format"
 import { BOOKING_STATUS_CLASSES, BOOKING_STATUS_LABELS } from "./booking-status"
-import { BookingActionButtons } from "./booking-actions-buttons"
-import { BookingDetailsDialog } from "./booking-details-dialog"
+import { BookingRowActions } from "./booking-row-actions"
 
 interface ColumnsProps {
   onEdit: (booking: BookingDto) => void
@@ -98,30 +97,8 @@ export const createColumns = ({ onEdit, timeZone }: ColumnsProps): ColumnDef<Boo
   {
     id: "actions",
     header: "Actions",
-    cell: ({ row }) => {
-      const booking = row.original
-      const label = booking.title || "This booking"
-      const isClosed = booking.status === "cancelled" || booking.status === "no_show"
-      return (
-        <div className="flex items-center gap-2">
-          <BookingDetailsDialog booking={booking} timeZone={timeZone} />
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onEdit(booking)}
-            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-950 dark:border-blue-800"
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <BookingActionButtons
-            bookingId={booking.id}
-            bookingLabel={label}
-            canConfirm={booking.status === "pending"}
-            canCancel={!isClosed}
-            status={booking.status}
-          />
-        </div>
-      )
-    },
+    cell: ({ row }) => (
+      <BookingRowActions booking={row.original} timeZone={timeZone} onEdit={onEdit} />
+    ),
   },
 ]

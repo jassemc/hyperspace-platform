@@ -63,6 +63,33 @@ export function formatDateTime(
     }).format(date)
 }
 
+/** Weekday and calendar date in a zone, e.g. `Thu 27 Aug 2026`. */
+export function formatDayLabel(
+    value: string | null | undefined,
+    timeZone: string
+): string {
+    if (!value) return "-"
+    const date = new Date(value)
+    if (Number.isNaN(date.getTime())) return "-"
+    return new Intl.DateTimeFormat("en-GB", {
+        timeZone,
+        weekday: "short",
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+    }).format(date)
+}
+
+/** Calendar day key in a zone (`2026-08-27`), for same-day comparisons. */
+export function dayKey(value: string, timeZone: string): string {
+    return new Intl.DateTimeFormat("en-CA", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+    }).format(new Date(value))
+}
+
 /** Just the clock time, for calendar axes and block labels. */
 export function formatTimeOfDay(
     value: string | null | undefined,

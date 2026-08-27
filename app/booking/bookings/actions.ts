@@ -7,9 +7,17 @@ import {
   cancelBooking,
   confirmBooking,
   validateBooking,
+  getResource,
+  getListCredits,
 } from "@/lib/service"
-import type { CreateBookingDto, UpdateBookingDto } from "@/lib/service/HsService"
+import type {
+  CreateBookingDto,
+  CreditTransactionDto,
+  ResourceDto,
+  UpdateBookingDto,
+} from "@/lib/service/HsService"
 import { wallClockToUtcMs } from "@/lib/slots"
+import { pageResult } from "@/lib/search-params"
 
 export type ActionState = {
   success?: boolean
@@ -226,5 +234,36 @@ export async function cancelBookingAction(
     return { success: true }
   } catch (error) {
     return problem(error, "Failed to cancel booking")
+  }
+}
+
+export type BookingDetails = {
+  /** Null when the room could not be loaded (deleted, or the request failed). */
+  resource: ResourceDto | null
+  /** Consumption rows linked to the booking; empty when it was paid in money. */
+  credits: CreditTransactionDto[]
+  /** Set when either read failed, so the dialog can say so instead of showing blanks. */
+  error?: string
+}
+
+/**
+ * The booking row only carries `resource: { id, name }` and nothing
+ * about credits, so the details dialog fetches both on open. The two
+ * reads are independent and fail independently — a missing photo must
+ * not hide the credit ledger and vice versa.
+ */
+export async function getBookingDetailsAction(
+  bookingId: string,
+  resourceId: string
+): Promise<BookingDetails> {
+  const [resource, credits] = await Promise.allSettled([
+    getResource(resourceId),
+    getListCredits({ bookingId, kind: "consumption", offset: 0, limit: 100, sort: "ASC" }),
+  ])
+  const failed = [resource, credits].filter((r) => r.status === "rejected")
+  return {
+    resource: resource.status === "fulfilled" ? resource.value : null,
+    credits: credits.status === "fulfilled" ? pageResult<CreditTransactionDto>(credits.value).results : [],
+    error: failed.length ? "Some details could not be loaded" : undefined,
   }
 }
