@@ -16,12 +16,15 @@ import {
   durationChoices,
   freeRangesForDay,
   startOptionsForDuration,
+  toWallClock,
   wallClockToUtcMs,
   type Slot,
 } from "@/lib/slots"
 // Not redefined here: this is the third caller, and three copies of a
-// "today, in the location's zone" helper is how one of them drifts.
-import { todayIn } from "@/components/booking/calendar/types"
+// "today, in the location's zone" helper is how one of them drifts. The
+// range cap comes from the same module for the same reason — the month
+// grid clamps to it too, and one of the two would drift.
+import { MAX_RANGE_MS, todayIn } from "@/components/booking/calendar/types"
 import { formatTimeOfDay } from "@/lib/format"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -33,33 +36,7 @@ export interface SlotValue {
   endsAt: string
 }
 
-/**
- * A UTC instant as "YYYY-MM-DDTHH:mm" in `timeZone`.
- *
- * Assembled from `formatToParts` rather than a formatted string glued
- * together: the previous version relied on `sv-SE` emitting a plain space
- * between date and time and replaced it with "T" — a locale's separator is
- * an ICU implementation detail, not a contract (`en-US`'s AM/PM separator
- * changed under us once already). If it silently changed here, `.replace`
- * would no-op, the value would come out without a "T", and
- * `value.startsAt.split("T")` would hand `undefined` to `wallClockToUtcMs`,
- * which throws on `.split(":")`.
- */
-function toWallClock(iso: string, timeZone: string): string {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-  }).formatToParts(new Date(iso))
-  const get = (type: string) => parts.find((p) => p.type === type)?.value ?? ""
-  return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`
-}
-
 const monthOf = (date: string) => date.slice(0, 7)
-
-const DAY_MS = 86_400_000
-/** The endpoint's own ceiling — see availability.service.ts's `date_range_too_wide`. */
-const MAX_RANGE_MS = 31 * DAY_MS
 
 /**
  * "YYYY-MM" as its first instant, and the first instant of the month

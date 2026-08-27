@@ -75,6 +75,38 @@ export function wallClockToUtcMs(date: string, hhmm: string, timeZone: string): 
     return naive - tzOffsetMs(guess, timeZone)
 }
 
+/**
+ * The inverse: a UTC instant as "YYYY-MM-DDTHH:mm" in `timeZone`.
+ *
+ * Assembled from `formatToParts` rather than a formatted string glued
+ * together: an earlier version relied on `sv-SE` emitting a plain space
+ * between date and time and replaced it with "T" — a locale's separator
+ * is an ICU implementation detail, not a contract (`en-US`'s AM/PM
+ * separator changed under us once already). If it silently changed here,
+ * `.replace` would no-op, the value would come out without a "T", and
+ * `value.startsAt.split("T")` would hand `undefined` to
+ * `wallClockToUtcMs`, which throws on `.split(":")`.
+ *
+ * One definition, deliberately: the booking dialog and the slot picker
+ * both produce these strings and then COMPARE them, to decide whether a
+ * window actually moved. Two implementations that disagree by a single
+ * character would make every metadata edit post a window and re-price
+ * the booking.
+ */
+export function toWallClock(iso: string, timeZone: string): string {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+        timeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hourCycle: "h23",
+    }).formatToParts(new Date(iso))
+    const get = (type: string) => parts.find((p) => p.type === type)?.value ?? ""
+    return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}`
+}
+
 /** A day's open windows, minus busy intervals and minus the past. */
 export function freeRangesForDay(
     day: DayWindows,

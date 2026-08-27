@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog"
 import type { BookingDto, ResourceDto } from "@/lib/service/HsService"
 import { formatPriceHt } from "@/lib/format"
+import { toWallClock } from "@/lib/slots"
 import {
   createBookingAction,
   updateBookingAction,
@@ -46,26 +47,18 @@ interface BookingFormDialogProps {
 }
 
 /**
- * The form's time fields take a local wall-clock string with no zone of
- * their own, so an instant is converted into the grid's zone here rather
- * than the browser's — otherwise the field would silently show a
- * different time than the cell the user clicked.
- */
-function toLocalInput(iso: string, timeZone: string): string {
-  const parts = new Intl.DateTimeFormat("sv-SE", {
-    timeZone,
-    year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", hourCycle: "h23",
-  }).format(new Date(iso))
-  return parts.replace(" ", "T")
-}
-
-/**
  * What the times start out as: the booking being edited, else the cell
  * that was clicked, else nothing. Shared by the initial state and the
  * reopen reset so the two cannot drift — the picker reads `value` once at
  * mount to choose its month and day, so seeding this only in the effect
  * would land it a render too late and lose the clicked column.
+ *
+ * Converted into the GRID's zone, not the browser's: the time fields
+ * carry no zone of their own, so a browser-local reading would show a
+ * different time than the cell that was clicked. `toWallClock` is the
+ * same helper the slot picker writes its values with — `timesChanged`
+ * compares the two, and a second implementation that disagreed by one
+ * character would make every metadata edit post a window.
  */
 function seedSlot(
   editingBooking: BookingDto | null | undefined,
@@ -74,14 +67,14 @@ function seedSlot(
 ): SlotValue | null {
   if (editingBooking) {
     return {
-      startsAt: toLocalInput(editingBooking.startsAt, timeZone),
-      endsAt: toLocalInput(editingBooking.endsAt, timeZone),
+      startsAt: toWallClock(editingBooking.startsAt, timeZone),
+      endsAt: toWallClock(editingBooking.endsAt, timeZone),
     }
   }
   if (prefill) {
     return {
-      startsAt: toLocalInput(prefill.startsAt, timeZone),
-      endsAt: toLocalInput(prefill.endsAt, timeZone),
+      startsAt: toWallClock(prefill.startsAt, timeZone),
+      endsAt: toWallClock(prefill.endsAt, timeZone),
     }
   }
   return null
@@ -361,6 +354,17 @@ export function BookingFormDialog({
                 {manualTimes ? "Back to available slots" : "Set times manually"}
               </Button>
             </div>
+
+            {/* An edit that moves the window is a reschedule, and a
+                reschedule re-quotes the room at TODAY's rate card (only
+                the extras stay frozen), so the customer can end up owing
+                a different amount. The dry run cannot say so here — it is
+                gated off on the edit branch below — so the form does. */}
+            {editingBooking && (
+              <p className="text-sm text-muted-foreground">
+                Changing the times re-prices the booking at current rates.
+              </p>
+            )}
 
             {/* The ONLY emitters of these two names in this form. They sit
                 outside the manual/picker branch so there is exactly one of
