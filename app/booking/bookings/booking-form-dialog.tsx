@@ -289,8 +289,8 @@ export function BookingFormDialog({
         if (!open) onClose()
       }}
     >
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="flex max-h-[90vh] max-w-4xl flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
           <DialogTitle>{editingBooking ? "Edit Booking" : "Add New Booking"}</DialogTitle>
           <DialogDescription>
             {editingBooking
@@ -303,8 +303,11 @@ export function BookingFormDialog({
           ref={formRef}
           key={editingBooking?.id || "create"}
           action={formAction}
-          className="space-y-6"
+          className="flex min-h-0 flex-1 flex-col"
         >
+          {/* Only this body scrolls; the header above and the footer's
+              submit below stay pinned. */}
+          <div className="min-h-0 flex-1 space-y-6 overflow-y-auto py-1 pr-2">
           {editingBooking && <input type="hidden" name="id" value={editingBooking.id} />}
           {/* The time fields carry no zone of their own, so the server
               action needs to know which zone these wall-clock strings were
@@ -481,7 +484,9 @@ export function BookingFormDialog({
             </div>
           )}
 
-          <DialogFooter className="border-t pt-4">
+          </div>
+
+          <DialogFooter className="mt-4 shrink-0 border-t pt-4">
             <div className="flex w-full gap-3">
               <SubmitButton
                 editingBooking={editingBooking}
