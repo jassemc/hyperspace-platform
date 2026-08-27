@@ -1,14 +1,20 @@
 "use client"
 
 import { useMemo } from "react"
-import type { BookingCalendarDto, CalendarBlockDto } from "@/lib/service/HsService"
+import type {
+  BookingCalendarDto,
+  CalendarBlockDto,
+  CalendarResourceDto,
+} from "@/lib/service/HsService"
 import { BOOKING_BLOCK_STYLES } from "@/app/booking/bookings/booking-status"
 import { formatTimeOfDay } from "@/lib/format"
 import { wallClockToUtcMs } from "@/lib/slots"
 import { cn } from "@/lib/utils"
+import { FREE_SLOT_CLASS, freeSlotsFor } from "./free-slots"
 import { addDays } from "./types"
 
 const HOUR_PX = 48
+const SLOT_MIN = 30
 
 /**
  * The "+N" chip's height. Fixed, and anchored at the cluster's start,
@@ -153,16 +159,38 @@ export function WeekGrid({
   weekStartDate,
   resourceId,
   onOpenBooking,
+  onPickSlot,
+  onPickDay,
 }: Readonly<{
   calendar: BookingCalendarDto
   weekStartDate: string
   resourceId?: string
   onOpenBooking: (bookingId: string) => void
+  onPickSlot: (resourceId: string, startUtc: string, endUtc: string) => void
+  onPickDay: (date: string) => void
 }>) {
   const tz = calendar.timezone
   const rooms = resourceId
     ? calendar.resources.filter((r) => r.resource.id === resourceId)
     : calendar.resources
+
+  // Free slots only make sense with exactly one room in view: unfiltered,
+  // a day column stacks every room, and a click would have no single room
+  // to book. See the ground/hatch branch below.
+  const soleRoom = rooms.length === 1 ? rooms[0] : null
+
+  /** Free half-hour slots for `room` on `date`, via the shared walker in
+   *  free-slots.ts — the same one resource-day-grid.tsx uses, so a slot is
+   *  offered here under exactly the rules it is offered there. */
+  const freeSlotsForRoom = (room: CalendarResourceDto, date: string) => {
+    const day = room.days.find((d) => d.date === date)
+    const windows = (day?.windows ?? []).map((w) => ({
+      startMs: wallClockToUtcMs(date, w.open, tz),
+      endMs: wallClockToUtcMs(date, w.close, tz),
+    }))
+    const minDuration = room.resource.minDurationMin ?? SLOT_MIN
+    return freeSlotsFor(windows, room.blocks, minDuration, SLOT_MIN)
+  }
 
   const days = useMemo(() => {
     const out: string[] = []
@@ -270,6 +298,53 @@ export function WeekGrid({
                 {labelFor(date)}
               </div>
               <div className="relative bg-background" style={{ height }}>
+                {/* Free half-hours, but only with one room selected: an
+                    unfiltered column stacks every room, so a click has no
+                    single room to book. Without a room, the empty ground
+                    navigates to this day's grid instead. Drawn BEFORE the
+                    lane items below so blocks always sit on top and stay
+                    clickable (see resource-day-grid.tsx / BlockChip). */}
+                {soleRoom
+                  ? freeSlotsForRoom(soleRoom, date).map((slot) => {
+                      // Visually the clickable cell is one 30-minute
+                      // sliver — matching the day grid's granularity — but
+                      // the booking it starts must run the resource's own
+                      // minimum duration, same as resource-day-grid.tsx:
+                      // freeSlotsFor already only offers this slot when
+                      // that duration both clears the next booking and
+                      // fits before the window closes.
+                      const minDuration = soleRoom.resource.minDurationMin ?? SLOT_MIN
+                      return (
+                        <button
+                          key={slot.startMs}
+                          type="button"
+                          className={FREE_SLOT_CLASS}
+                          style={place(slot.startMs, slot.endMs)}
+                          onClick={() =>
+                            onPickSlot(
+                              soleRoom.resource.id,
+                              new Date(slot.startMs).toISOString(),
+                              new Date(slot.startMs + minDuration * 60_000).toISOString()
+                            )
+                          }
+                        >
+                          <span className="sr-only">
+                            Book {soleRoom.resource.name} at{" "}
+                            {formatTimeOfDay(new Date(slot.startMs).toISOString(), tz)}
+                          </span>
+                        </button>
+                      )
+                    })
+                  : (
+                      <button
+                        type="button"
+                        className="absolute inset-0 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        onClick={() => onPickDay(date)}
+                      >
+                        <span className="sr-only">Open {date} in the day view</span>
+                      </button>
+                    )}
+
                 {laneItems.map((item) =>
                   isOverflowItem(item) ? (
                     <div

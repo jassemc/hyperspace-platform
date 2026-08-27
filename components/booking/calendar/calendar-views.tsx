@@ -62,6 +62,16 @@ export function CalendarViews({
       .finally(() => setLoadingBooking(false))
   }
 
+  // Shared by the month grid's day cells and the week grid's unfiltered
+  // ground (which has no single room to book, so a click there goes to
+  // the day view instead) — both land on the same day-grid navigation.
+  const goToDay = (date: string) => {
+    const params = new URLSearchParams(searchParams.toString())
+    params.set("date", date)
+    params.delete("calendarView")   // day is the default, so absent
+    router.replace(`?${params.toString()}`)
+  }
+
   return (
     <>
       <ResourceTypeTabs types={bookableTypes} activeTypeId={state.resourceTypeId} />
@@ -97,18 +107,15 @@ export function CalendarViews({
             weekStartDate={weekStartOf(state.date)}
             resourceId={state.resourceId}
             onOpenBooking={openBookingById}
+            onPickSlot={pick}
+            onPickDay={goToDay}
           />
         )}
         {state.view === "month" && (
           <MonthOverview
             calendar={calendar}
             month={state.date.slice(0, 7)}
-            onPickDay={(date) => {
-              const params = new URLSearchParams(searchParams.toString())
-              params.set("date", date)
-              params.delete("calendarView")   // day is the default, so absent
-              router.replace(`?${params.toString()}`)
-            }}
+            onPickDay={goToDay}
             // The picker's own arrows land here too, so paging the month
             // moves the URL and refetches instead of silently redrawing an
             // unfetched month with every count at zero.
