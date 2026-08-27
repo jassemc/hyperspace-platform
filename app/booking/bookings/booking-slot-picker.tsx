@@ -212,7 +212,7 @@ function DayTimeline({
         ))}
         {selected && (
           <div
-            className="absolute inset-y-1 rounded-sm bg-primary"
+            className="absolute inset-y-0 bg-primary"
             style={{
               left: pct(Date.parse(selected.startUtc)),
               width: `calc(${pct(Date.parse(selected.endUtc))} - ${pct(Date.parse(selected.startUtc))})`,
