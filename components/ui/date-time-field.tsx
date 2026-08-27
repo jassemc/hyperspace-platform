@@ -25,7 +25,7 @@ function split(value: string): { date: string; time: string } {
  * yet. On `min`'s own day that must respect `min`'s time — defaulting to
  * `TIMES[18]` ("09:00") regardless, as this used to, can land before `min`
  * and produce an out-of-range pair the native `datetime-local` input this
- * replaced could never have offered (see add-booking-form.tsx's `startsAt`
+ * replaced could never have offered (see booking-form-dialog.tsx's `startsAt`
  * handler for the symmetric case, where a stale end is cleared instead).
  *
  * If `min`'s time falls after every option on that day (i.e. past 23:30),
@@ -66,7 +66,7 @@ export function DateTimeField({
   // below has nowhere to put it — but discarding it outright would be
   // asymmetric with the date-first path, which keeps a default time. Held
   // here until a date makes the pair committable; reset once the field is
-  // cleared from outside (e.g. the drawer reopening on a fresh "create").
+  // cleared from outside (e.g. the dialog reopening on a fresh "create").
   const [pendingTime, setPendingTime] = React.useState("")
   React.useEffect(() => {
     if (!value) setPendingTime("")
@@ -89,7 +89,7 @@ export function DateTimeField({
   // in the list preserves whatever was seeded until the user changes it.
   // (A time excluded solely by `min` — a stale end time left behind when the
   // start moves later — is handled by the caller clearing it, not by this
-  // list; see add-booking-form.tsx.)
+  // list; see booking-form-dialog.tsx.)
   const options = time && !times.includes(time) ? [...times, time].sort() : times
 
   const emit = (nextDate: string, nextTime: string) => {
@@ -110,7 +110,7 @@ export function DateTimeField({
           inputs are always excluded from constraint validation (the HTML
           spec bars them outright), so `required` cannot live here — the
           create form's submit button is disabled instead when either time
-          is empty; see add-booking-form.tsx. */}
+          is empty; see booking-form-dialog.tsx. */}
       <input type="hidden" name={name} value={value} />
       <div className="flex-1">
         <DateField

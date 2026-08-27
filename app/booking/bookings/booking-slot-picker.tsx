@@ -309,7 +309,7 @@ export function BookingSlotPicker({
   if (failed) {
     return (
       <p className="rounded-md border border-dashed p-6 text-center text-sm text-muted-foreground">
-        Availability could not be loaded. Use “Set times manually” below.
+        Availability could not be loaded. Use “Set times manually” above.
       </p>
     )
   }

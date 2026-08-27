@@ -22,7 +22,7 @@ export default async function BookingsPage({
                 <h1 className="text-4xl font-semibold">Bookings</h1>
                 <div className="flex items-center gap-3">
                     <ViewToggle />
-                    <AddBookingButton />
+                    <AddBookingButton timeZone={timeZone} />
                 </div>
             </div>
             {/* The cards read the table's filters; the calendar's date

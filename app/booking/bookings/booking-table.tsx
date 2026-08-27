@@ -10,7 +10,7 @@ import type {
   ResourceDto,
 } from "@/lib/service/HsService"
 import { createColumns } from "./columns"
-import { AddBookingForm } from "./add-booking-form"
+import { BookingFormDialog } from "./booking-form-dialog"
 import { BOOKING_STATUS_TABS } from "./booking-status"
 import { bookingTotals } from "./stats"
 import { formatEnumLabel } from "@/lib/format"
@@ -117,7 +117,7 @@ export function BookingTable({
         serverSearch
         searchPlaceholder="Search title, notes or customer..."
       />
-      <AddBookingForm
+      <BookingFormDialog
         key={editingBooking?.id || "create"}
         isOpen={isDrawerOpen}
         onClose={handleClose}

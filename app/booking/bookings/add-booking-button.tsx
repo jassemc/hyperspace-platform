@@ -3,19 +3,29 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
-import { AddBookingForm } from "./add-booking-form"
+import { BookingFormDialog } from "./booking-form-dialog"
 
-export function AddBookingButton() {
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+export function AddBookingButton({
+  timeZone,
+}: Readonly<{
+  /** The location's zone, from the page — every time in the form is
+   *  written and read in it, so there is nothing sane to default to. */
+  timeZone: string
+}>) {
+  const [isOpen, setIsOpen] = useState(false)
 
   return (
     <>
-      <Button onClick={() => setIsDrawerOpen(true)}>
+      <Button onClick={() => setIsOpen(true)}>
         <Plus className="mr-2 h-4 w-4" />
         Add Booking
       </Button>
-      {isDrawerOpen && (
-        <AddBookingForm isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
+      {isOpen && (
+        <BookingFormDialog
+          isOpen={isOpen}
+          onClose={() => setIsOpen(false)}
+          timeZone={timeZone}
+        />
       )}
     </>
   )

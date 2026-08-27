@@ -83,7 +83,7 @@ function bookingPayload(formData: FormData): CreateBookingDto | { error: string 
   const endsAt = text(formData, "endsAt")
   const memberId = text(formData, "memberId")
   const companyId = text(formData, "companyId")
-  // Set only by the calendar's click-to-book path — see add-booking-form.tsx.
+  // Written unconditionally by the form — see booking-form-dialog.tsx.
   const timeZone = text(formData, "timeZone")
 
   if (!resourceId) return { error: "Select a resource" }

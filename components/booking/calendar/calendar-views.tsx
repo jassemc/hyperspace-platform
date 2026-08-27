@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import type { BookingCalendarDto, ResourceTypeDto } from "@/lib/service/HsService"
-import { AddBookingForm } from "@/app/booking/bookings/add-booking-form"
+import { BookingFormDialog } from "@/app/booking/bookings/booking-form-dialog"
 import { CalendarLegend } from "./calendar-legend"
 import { CalendarToolbar } from "./calendar-toolbar"
 import { ResourceTypeTabs } from "./resource-type-tabs"
@@ -94,7 +94,7 @@ export function CalendarViews({
         />
       )}
       {prefill && (
-        <AddBookingForm
+        <BookingFormDialog
           key={`${prefill.resourceId}-${prefill.startsAt}`}
           isOpen
           onClose={() => setPrefill(null)}
