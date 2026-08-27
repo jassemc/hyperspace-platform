@@ -129,6 +129,7 @@ export function OpportunityTable({
         }))}
         statusAllCount={totals.total}
         serverSearch
+        inlineFilters
         searchPlaceholder="Search by member..."
       />
       {isDrawerOpen && (

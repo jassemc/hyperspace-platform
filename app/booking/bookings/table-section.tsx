@@ -69,7 +69,12 @@ export async function BookingTableSection({
 
   try {
     const [resourcePage, zone] = await Promise.all([
-      getListResources({ limit: 100, offset: 0, sort: "ASC" }),
+      // canBook: the filter offers only bookable resources (user call,
+      // 2026-08-27, overriding the CRUD-parity spec's keep-everything
+      // stance) — bookings on a since-retired resource stay visible in
+      // the table, they are just no longer filterable by that resource.
+      // The same list seeds the create dialog, which wants exactly this.
+      getListResources({ limit: 100, offset: 0, sort: "ASC", canBook: true }),
       primaryTimeZone(),
     ])
     resources = (resourcePage?.results ?? []) as ResourceDto[]
