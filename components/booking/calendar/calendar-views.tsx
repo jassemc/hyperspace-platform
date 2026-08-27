@@ -116,14 +116,7 @@ export function CalendarViews({
             calendar={calendar}
             month={state.date.slice(0, 7)}
             onPickDay={goToDay}
-            // The picker's own arrows land here too, so paging the month
-            // moves the URL and refetches instead of silently redrawing an
-            // unfetched month with every count at zero.
-            onPickMonth={(month) => {
-              const params = new URLSearchParams(searchParams.toString())
-              params.set("date", `${month}-01`)
-              router.replace(`?${params.toString()}`)
-            }}
+            onOpenBooking={openBookingById}
           />
         )}
       </div>

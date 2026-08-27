@@ -1,89 +1,48 @@
 "use client"
 
-import { createContext, useContext, useEffect, useMemo, useRef } from "react"
-import { DayPicker, type DayButtonProps } from "react-day-picker"
-import type { BookingCalendarDto } from "@/lib/service/HsService"
+import { useMemo } from "react"
+import type { BookingCalendarDto, CalendarBlockDto } from "@/lib/service/HsService"
+import { BOOKING_BLOCK_STYLES } from "@/app/booking/bookings/booking-status"
+import { formatTimeOfDay } from "@/lib/format"
 import { cn } from "@/lib/utils"
+import { addDays, todayIn } from "./types"
 
-const toKey = (date: Date) =>
-  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+/** Chips shown per day before the rest folds into "+N more". */
+const MAX_CHIPS = 3
 
-/**
- * The per-day counts the cells shade themselves by. Passed through
- * context rather than closed over, so `DayButton` can be a stable
- * module-level component: a component defined inside the render is a new
- * type on every render, which remounts every cell (and throws away the
- * focus state the library keeps in one).
- */
-const DayLoadContext = createContext<{ counts: Map<string, number>; busiest: number }>({
-  counts: new Map(),
-  busiest: 1,
-})
+/** Monday-first, matching every other grid here. The admin UI is
+ *  hardcoded-English throughout, so no Intl derivation. */
+const WEEKDAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
-/**
- * Mirrors the library's own DayButton (see
- * node_modules/react-day-picker/dist/esm/components/DayButton.js): `day`
- * and `modifiers` are destructured out so they never reach the DOM — a
- * blanket `{...props}` spread would forward them as
- * `day="[object Object]"` attributes — and the focused-modifier effect is
- * what moves real keyboard focus as the grid is arrowed through.
- */
-function DayLoadButton({ day, modifiers, className, ...buttonProps }: DayButtonProps) {
-  const { counts, busiest } = useContext(DayLoadContext)
-  const ref = useRef<HTMLButtonElement>(null)
-
-  useEffect(() => {
-    if (modifiers.focused) ref.current?.focus()
-  }, [modifiers.focused])
-
-  const count = counts.get(toKey(day.date)) ?? 0
-  // Four steps rather than a continuous ramp: a reader comparing two days
-  // wants "busier", not a precise value.
-  const step = count === 0 ? 0 : Math.ceil((count / busiest) * 3)
-
-  return (
-    <button
-      ref={ref}
-      {...buttonProps}
-      className={cn(
-        "relative flex h-12 w-12 flex-col items-center justify-center rounded-md text-sm hover:bg-accent focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
-        step === 1 && "bg-emerald-50 dark:bg-emerald-950",
-        step === 2 && "bg-emerald-100 dark:bg-emerald-900",
-        step === 3 && "bg-emerald-200 dark:bg-emerald-800",
-        className
-      )}
-    >
-      <span>{day.date.getDate()}</span>
-      {count > 0 && (
-        <span className="text-[10px] tabular-nums text-muted-foreground">{count}</span>
-      )}
-    </button>
-  )
+interface DayBlock extends CalendarBlockDto {
+  roomName: string
 }
 
-const dayPickerComponents = { DayButton: DayLoadButton }
-
 /**
- * A month of hour-blocks is unreadable, so this view answers a different
- * question: which days are busy. Picking a day switches to the day grid,
- * where the actual booking happens.
+ * A Teams-style month: a full-width grid whose cells carry the day's
+ * bookings as clickable chips — not the count heat-map this used to be,
+ * which said how busy a day was but never what with. A chip opens its
+ * booking; the day number, the "+N more" line and the cell's empty
+ * ground all land on that day's grid, where the actual booking happens.
  */
 export function MonthOverview({
   calendar,
   month,
   onPickDay,
-  onPickMonth,
+  onOpenBooking,
 }: Readonly<{
   calendar: BookingCalendarDto
+  /** YYYY-MM. */
   month: string
   onPickDay: (date: string) => void
-  /** YYYY-MM. Wired to the same URL navigation the toolbar's arrows use. */
-  onPickMonth: (month: string) => void
+  onOpenBooking: (bookingId: string) => void
 }>) {
   const tz = calendar.timezone
 
-  const loadByDay = useMemo(() => {
-    const counts = new Map<string, number>()
+  const blocksByDay = useMemo(() => {
+    const map = new Map<string, DayBlock[]>()
+    // Bucketed in the location's zone, not the browser's — a booking
+    // near local midnight must land under the day it falls on there.
     const dayOf = (iso: string) =>
       new Intl.DateTimeFormat("en-CA", {
         timeZone: tz,
@@ -94,47 +53,131 @@ export function MonthOverview({
       for (const block of entry.blocks) {
         const key = dayOf(block.startsAt)
         // rangeFor's month span is a fixed 31 days — the API's own
-        // ceiling — so a shorter month over-fetches 1-3 days into the
-        // next one (April 1 + 31 = May 2). Only count days that actually
-        // belong to the displayed month, or those early-next-month
-        // bookings show up as extra shaded outside-day cells carrying a
-        // count the fetch never captured in full for that month.
+        // ceiling — so a shorter month over-fetches a few days into the
+        // next one. Only days of the displayed month get chips, or those
+        // early-next-month bookings would render in cells whose data the
+        // fetch never captured in full.
         if (!key.startsWith(month)) continue
-        counts.set(key, (counts.get(key) ?? 0) + 1)
+        const list = map.get(key) ?? []
+        list.push({ ...block, roomName: entry.resource.name })
+        map.set(key, list)
       }
     }
-    return counts
+    for (const list of map.values()) {
+      list.sort((a, b) => Date.parse(a.startsAt) - Date.parse(b.startsAt))
+    }
+    return map
   }, [calendar, tz, month])
 
-  const load = useMemo(
-    () => ({ counts: loadByDay, busiest: Math.max(1, ...loadByDay.values()) }),
-    [loadByDay]
-  )
+  // The month's calendar matrix, Monday-first: lead days from the
+  // previous month and trailing days from the next complete the first
+  // and last weeks — dimmed and chipless, since their data was never
+  // fetched and a chip drawn from partial data would lie.
+  const cells = useMemo(() => {
+    const [year, m] = month.split("-").map(Number)
+    const lead = (new Date(Date.UTC(year, m - 1, 1)).getUTCDay() + 6) % 7
+    const daysInMonth = new Date(Date.UTC(year, m, 0)).getUTCDate()
+    const total = Math.ceil((lead + daysInMonth) / 7) * 7
+    const start = addDays(`${month}-01`, -lead)
+    return Array.from({ length: total }, (_, i) => {
+      const date = addDays(start, i)
+      return { date, inMonth: date.startsWith(month) }
+    })
+  }, [month])
 
-  // Controlled, not `defaultMonth`. With no `month` prop the picker keeps
-  // its own state (useCalendar.js:28-30), so it would ignore every later
-  // `month` and drift out of step with the data fetched for the URL's
-  // date — and its own arrows would move the grid without refetching.
-  // Noon UTC keeps the 1st on the 1st for every offset from -12 to +14.
-  const displayMonth = new Date(`${month}-01T12:00:00Z`)
+  const today = todayIn(tz)
 
   return (
-    <div className="mx-4 rounded-md border p-4">
-      <DayLoadContext.Provider value={load}>
-        <DayPicker
-          mode="single"
-          month={displayMonth}
-          onMonthChange={(next) =>
-            onPickMonth(`${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, "0")}`)
-          }
-          showOutsideDays
-          onSelect={(date) => date && onPickDay(toKey(date))}
-          components={dayPickerComponents}
-        />
-      </DayLoadContext.Provider>
-      <p className="pt-3 text-xs text-muted-foreground">
-        Bookings per day. Pick a day to open its grid.
-      </p>
+    <div className="mx-4 overflow-hidden rounded-md border">
+      <div className="grid grid-cols-7 border-b bg-muted/30">
+        {WEEKDAYS.map((label) => (
+          <div
+            key={label}
+            className="py-1.5 text-center text-xs font-medium text-muted-foreground"
+          >
+            {label}
+          </div>
+        ))}
+      </div>
+      {/* nth-child trims the borders the container already draws: no
+          right border on the 7th column, no bottom border on the last
+          row. */}
+      <div className="grid grid-cols-7 [&>*:nth-child(7n)]:border-r-0 [&>*:nth-last-child(-n+7)]:border-b-0">
+        {cells.map(({ date, inMonth }) => {
+          const blocks = inMonth ? (blocksByDay.get(date) ?? []) : []
+          const shown = blocks.slice(0, MAX_CHIPS)
+          const overflow = blocks.length - shown.length
+          const isToday = date === today
+          return (
+            // The cell-level onClick is a convenience duplicate of the
+            // day-number button below, which carries the keyboard path —
+            // chip clicks stop propagation so a booking click never also
+            // navigates.
+            <div
+              key={date}
+              className={cn(
+                "min-h-[6.5rem] cursor-pointer border-b border-r p-1 transition-colors hover:bg-accent/40",
+                !inMonth && "bg-muted/30"
+              )}
+              onClick={() => onPickDay(date)}
+            >
+              <button
+                type="button"
+                onClick={(event) => {
+                  event.stopPropagation()
+                  onPickDay(date)
+                }}
+                className={cn(
+                  "mb-0.5 flex h-6 w-6 items-center justify-center rounded-full text-xs tabular-nums",
+                  isToday
+                    ? "bg-primary font-semibold text-primary-foreground"
+                    : "hover:bg-accent",
+                  !inMonth && "text-muted-foreground/50"
+                )}
+              >
+                {Number(date.slice(8, 10))}
+              </button>
+              <div className="space-y-0.5">
+                {shown.map((block) => (
+                  <button
+                    key={block.bookingId}
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onOpenBooking(block.bookingId)
+                    }}
+                    className={cn(
+                      "flex w-full items-center gap-1 rounded border px-1 py-0.5 text-left text-[11px] leading-tight",
+                      "hover:ring-1 hover:ring-ring focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+                      BOOKING_BLOCK_STYLES[block.status]
+                    )}
+                    title={`${block.roomName} — ${block.title ?? "Untitled"}`}
+                  >
+                    <span className="shrink-0 tabular-nums">
+                      {formatTimeOfDay(block.startsAt, tz)}
+                    </span>
+                    <span className="truncate">
+                      {block.title || block.customerName || block.roomName}
+                    </span>
+                  </button>
+                ))}
+                {overflow > 0 && (
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation()
+                      onPickDay(date)
+                    }}
+                    className="w-full px-1 text-left text-[11px] text-muted-foreground hover:underline"
+                  >
+                    +{overflow} more
+                  </button>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }
