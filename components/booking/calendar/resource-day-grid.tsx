@@ -10,7 +10,10 @@ import { BOOKING_BLOCK_STYLES } from "@/app/booking/bookings/booking-status"
 import { formatTimeOfDay } from "@/lib/format"
 import { wallClockToUtcMs } from "@/lib/slots"
 import { cn } from "@/lib/utils"
+import { FREE_SLOT_CLASS, freeSlotsFor } from "./free-slots"
 import { RoomHeaderCard, ROOM_HEADER_PX } from "./room-header-card"
+import { todayIn } from "./types"
+import { useNow } from "./use-now"
 
 /** Pixels per hour. Tall enough that a 30-minute block is still legible. */
 const HOUR_PX = 56
@@ -138,6 +141,11 @@ export function ResourceDayGrid({
     return { startMs: Math.min(...opens), endMs: Math.max(...closes) }
   }, [calendar, date, tz])
 
+  const now = useNow()
+  // Only on the grid's own today, read in the grid's zone — not the
+  // reader's, which can be a different date entirely.
+  const nowMs = date === todayIn(tz) && now > 0 ? now : null
+
   const visible = useMemo(() => {
     if (!vacantOnly || !timeRange || !axis) return calendar.resources
     const fromMs = wallClockToUtcMs(date, timeRange.from, tz)
@@ -193,6 +201,7 @@ export function ResourceDayGrid({
             axis={axis}
             height={height}
             topFor={topFor}
+            nowMs={nowMs}
             onPickSlot={onPickSlot}
           />
         ))}
@@ -208,6 +217,7 @@ function RoomColumn({
   axis,
   height,
   topFor,
+  nowMs,
   onPickSlot,
 }: Readonly<{
   entry: CalendarResourceDto
@@ -216,6 +226,7 @@ function RoomColumn({
   axis: { startMs: number; endMs: number }
   height: number
   topFor: (ms: number) => number
+  nowMs: number | null
   onPickSlot: (resourceId: string, startUtc: string, endUtc: string) => void
 }>) {
   const day = entry.days.find((d) => d.date === date)
@@ -224,23 +235,8 @@ function RoomColumn({
     endMs: wallClockToUtcMs(date, w.close, tz),
   }))
 
-  // Clickable half-hour slots inside the open windows. Each carries its
-  // window's close, so a slot can be dropped when the resource's own
-  // minimum duration would run past it (or into the next booking).
-  const slots: { startMs: number; endMs: number; windowEndMs: number }[] = []
-  const step = SLOT_MIN * 60_000
-  for (const w of windows) {
-    for (let t = w.startMs; t + step <= w.endMs; t += step) {
-      slots.push({ startMs: t, endMs: t + step, windowEndMs: w.endMs })
-    }
-  }
-
-  const isBusy = (startMs: number, endMs: number) =>
-    entry.blocks.some(
-      (b) => Date.parse(b.startsAt) < endMs && Date.parse(b.endsAt) > startMs
-    )
-
   const minDuration = entry.resource.minDurationMin ?? SLOT_MIN
+  const slots = freeSlotsFor(windows, entry.blocks, minDuration, SLOT_MIN)
   const laneItems = layoutBlocks(entry.blocks)
 
   return (
@@ -259,34 +255,47 @@ function RoomColumn({
           />
         ))}
 
+        {/* Where "now" is. Drawn under the blocks so it never hides one,
+            and only on the grid's own today — see nowMs above. */}
+        {nowMs !== null && nowMs >= axis.startMs && nowMs <= axis.endMs && (
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 z-20 border-t border-destructive"
+            style={{ top: topFor(nowMs) }}
+          >
+            <span className="absolute -left-1 -top-1 h-2 w-2 rounded-full bg-destructive" />
+          </div>
+        )}
+
         {/* Free half-hours: clickable, and the only way to start a booking.
             A slot is only offered if the resource's own minimum duration
             both stays clear of the next booking and fits before close —
             otherwise it is a click that only errors server-side. */}
-        {slots
-          .filter((s) => {
-            const prefillEnd = s.startMs + minDuration * 60_000
-            return !isBusy(s.startMs, prefillEnd) && prefillEnd <= s.windowEndMs
-          })
-          .map((s) => (
-            <button
-              key={s.startMs}
-              type="button"
-              className="absolute inset-x-0 border-b border-dashed border-border/60 hover:bg-accent/60 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              style={{ top: topFor(s.startMs), height: topFor(s.endMs) - topFor(s.startMs) }}
-              onClick={() =>
-                onPickSlot(
-                  entry.resource.id,
-                  new Date(s.startMs).toISOString(),
-                  new Date(s.startMs + minDuration * 60_000).toISOString()
-                )
-              }
+        {slots.map((s) => (
+          <button
+            key={s.startMs}
+            type="button"
+            className={FREE_SLOT_CLASS}
+            style={{ top: topFor(s.startMs), height: topFor(s.endMs) - topFor(s.startMs) }}
+            onClick={() =>
+              onPickSlot(
+                entry.resource.id,
+                new Date(s.startMs).toISOString(),
+                new Date(s.startMs + minDuration * 60_000).toISOString()
+              )
+            }
+          >
+            <span className="sr-only">
+              Book {entry.resource.name} at {formatTimeOfDay(new Date(s.startMs).toISOString(), tz)}
+            </span>
+            <span
+              aria-hidden="true"
+              className="pointer-events-none flex h-full items-center justify-center text-[11px] font-medium text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100"
             >
-              <span className="sr-only">
-                Book {entry.resource.name} at {formatTimeOfDay(new Date(s.startMs).toISOString(), tz)}
-              </span>
-            </button>
-          ))}
+              + Book
+            </span>
+          </button>
+        ))}
 
         {/* Bookings, laid out in side-by-side lanes. Pending is drawn
             differently because it does NOT hold the slot — several may

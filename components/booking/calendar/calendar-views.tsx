@@ -4,6 +4,7 @@ import { useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import type { BookingCalendarDto, ResourceTypeDto } from "@/lib/service/HsService"
 import { AddBookingForm } from "@/app/booking/bookings/add-booking-form"
+import { CalendarLegend } from "./calendar-legend"
 import { CalendarToolbar } from "./calendar-toolbar"
 import { ResourceTypeTabs } from "./resource-type-tabs"
 import { ResourceDayGrid } from "./resource-day-grid"
@@ -55,6 +56,7 @@ export function CalendarViews({
         onTimeRangeChange={setTimeRange}
         onVacantOnlyChange={setVacantOnly}
       />
+      <CalendarLegend />
       {state.view === "day" && (
         <ResourceDayGrid
           calendar={calendar}
