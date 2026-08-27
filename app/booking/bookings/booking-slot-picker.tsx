@@ -17,7 +17,6 @@ import {
 // grid clamps to it too, and one of the two would drift.
 import { addMonths, MAX_RANGE_MS, todayIn } from "@/components/booking/calendar/types"
 import { formatTimeOfDay } from "@/lib/format"
-import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 export interface SlotValue {
@@ -433,6 +432,18 @@ export function BookingSlotPicker({
     return cells
   }, [month, dayStatusByKey])
 
+  // Where to send the user when the selected day has nothing left —
+  // the month's next day with bookable time (public wizard's rule).
+  const nextOpenDay = useMemo(() => {
+    const open = monthCells.filter(
+      (cell): cell is { date: string; count: number; label: string } =>
+        cell !== null && cell.count > 0
+    )
+    return (
+      open.find((cell) => !date || cell.date > date)?.date ?? open[0]?.date ?? null
+    )
+  }, [monthCells, date])
+
   const selectedSlot: Slot | null = useMemo(() => {
     if (!value) return null
     const [d, t] = value.startsAt.split("T")
@@ -476,23 +487,26 @@ export function BookingSlotPicker({
   }
 
   return (
-    <div className="grid gap-6 md:grid-cols-[minmax(0,1fr)_15rem]">
-      <div className={cn("space-y-4", loading && "opacity-50")}>
+    <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_19rem]">
+      <div className={cn("space-y-5", loading && "opacity-50")}>
         <div role="group" aria-label="Duration">
-          <p className="mb-2 text-sm font-medium">Duration</p>
-          <div className="flex flex-wrap gap-1.5">
+          <h3 className="text-lg font-semibold">Choose duration</h3>
+          <div className="mt-3 flex flex-wrap gap-2">
             {durations.map((option) => (
-              <Button
+              <button
                 key={option}
                 type="button"
-                size="sm"
-                variant={option === activeDuration ? "default" : "outline"}
                 aria-pressed={option === activeDuration}
-                className="h-8"
                 onClick={() => pickDuration(option)}
+                className={cn(
+                  "rounded-full border px-4 py-1.5 text-sm font-semibold transition-colors",
+                  option === activeDuration
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-input hover:border-primary/50"
+                )}
               >
                 {durationLabel(option)}
-              </Button>
+              </button>
             ))}
           </div>
         </div>
@@ -504,7 +518,7 @@ export function BookingSlotPicker({
             put in. */}
         <div className="w-[300px]">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-medium capitalize">
+            <h3 className="text-lg font-semibold capitalize">
               {new Intl.DateTimeFormat("en-US", {
                 timeZone: "UTC",
                 month: "long",
@@ -587,7 +601,7 @@ export function BookingSlotPicker({
       </div>
 
       <div className={cn("min-w-0", loading && "pointer-events-none opacity-50")}>
-        <p className="text-sm font-medium">
+        <h3 className="text-lg font-semibold capitalize">
           {/* A date from a previously viewed month is stale here, not
               "full" — prompt for a day instead of naming it. Formatted
               in UTC from the string's own calendar day (it is already
@@ -599,25 +613,44 @@ export function BookingSlotPicker({
                 month: "long",
                 day: "numeric",
               }).format(new Date(`${date}T12:00:00Z`))
-            : "Pick a day"}
-        </p>
-        <p className="mt-0.5 text-xs text-muted-foreground">
+            : "Choose a day"}
+        </h3>
+        <p className="mt-1 text-xs text-muted-foreground">
           {durationLabel(activeDuration)}
         </p>
 
         <div
           role="group"
           aria-label={date ? `Available start times for ${date}` : "Available start times"}
-          className="mt-3 max-h-80 space-y-3 overflow-y-auto pr-1"
+          className="mt-4 max-h-[26rem] space-y-4 overflow-y-auto pr-1"
         >
           {startOptions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              {loading
-                ? "Loading…"
-                : date && date.startsWith(month)
-                  ? "Nothing free that day at this length."
-                  : "Pick a day with free time."}
-            </p>
+            <div>
+              <p className="text-sm text-muted-foreground">
+                {loading
+                  ? "Loading…"
+                  : date && date.startsWith(month)
+                    ? "Nothing free that day at this length."
+                    : "Pick a day with free time."}
+              </p>
+              {/* The public wizard's escape hatch: send the user to the
+                  month's next day that still has bookable time. */}
+              {!loading && nextOpenDay && (
+                <button
+                  type="button"
+                  onClick={() => pickDay(nextOpenDay)}
+                  className="mt-2 rounded-full border border-primary/40 px-4 py-1.5 text-sm font-semibold text-primary transition-colors hover:border-primary hover:bg-primary/10"
+                >
+                  Next available{" "}
+                  {new Intl.DateTimeFormat("en-US", {
+                    timeZone: "UTC",
+                    month: "short",
+                    day: "numeric",
+                  }).format(new Date(`${nextOpenDay}T12:00:00Z`))}{" "}
+                  →
+                </button>
+              )}
+            </div>
           ) : (
             PERIODS.map((period) => {
               const slots = startOptions.filter(
@@ -626,25 +659,29 @@ export function BookingSlotPicker({
               if (slots.length === 0) return null
               return (
                 <div key={period}>
-                  <h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <h4 className="text-[0.7rem] font-semibold uppercase tracking-wide text-muted-foreground">
                     {period}
-                  </h3>
+                  </h4>
                   <div className="mt-1.5 space-y-1.5">
-                    {slots.map((slot) => (
-                      <Button
-                        key={slot.startUtc}
-                        type="button"
-                        variant={
-                          selectedSlot?.startUtc === slot.startUtc ? "default" : "outline"
-                        }
-                        aria-pressed={selectedSlot?.startUtc === slot.startUtc}
-                        className="h-9 w-full justify-center tabular-nums"
-                        onClick={() => pickSlot(slot)}
-                      >
-                        {formatTimeOfDay(slot.startUtc, timeZone)}–
-                        {formatTimeOfDay(slot.endUtc, timeZone)}
-                      </Button>
-                    ))}
+                    {slots.map((slot) => {
+                      const active = selectedSlot?.startUtc === slot.startUtc
+                      return (
+                        <button
+                          key={slot.startUtc}
+                          type="button"
+                          aria-pressed={active}
+                          onClick={() => pickSlot(slot)}
+                          className={cn(
+                            "w-full rounded-xl py-2.5 text-sm font-semibold tabular-nums transition-colors",
+                            active
+                              ? "bg-primary text-primary-foreground shadow-sm"
+                              : "border border-primary/40 text-primary hover:border-primary hover:bg-primary/10"
+                          )}
+                        >
+                          {formatTimeOfDay(slot.startUtc, timeZone)}
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
               )
