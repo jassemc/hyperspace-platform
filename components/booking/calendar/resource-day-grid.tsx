@@ -237,15 +237,23 @@ export function ResourceDayGrid({
         <div className="sticky top-0 z-40 flex border-b bg-background">
           <div className="sticky left-0 z-10 h-10 w-40 shrink-0 border-r bg-background" />
           <div className="relative h-10 shrink-0" style={{ width: trackW }}>
-            {hourTicks.map((t) => (
-              <div
-                key={t}
-                className="absolute top-1/2 -translate-y-1/2 text-xs text-muted-foreground tabular-nums"
-                style={{ left: leftFor(t) + 6 }}
-              >
-                {formatTimeOfDay(new Date(t).toISOString(), tz)}
-              </div>
-            ))}
+            {hourTicks.map((t) => {
+              // A tick under or beside the current-time label reads as
+              // "19:58 :00" — the label's background patch can only mask
+              // what it covers, so nearby ticks yield entirely.
+              if (nowMs !== null && Math.abs(leftFor(t) - leftFor(nowMs)) < 48) {
+                return null
+              }
+              return (
+                <div
+                  key={t}
+                  className="absolute top-1/2 -translate-y-1/2 text-xs text-muted-foreground tabular-nums"
+                  style={{ left: leftFor(t) + 6 }}
+                >
+                  {formatTimeOfDay(new Date(t).toISOString(), tz)}
+                </div>
+              )
+            })}
             {/* The current time, where the now-line meets the ruler —
                 bold primary over a background patch that masks whatever
                 hour label it passes. Ticks on the minute via useNow. */}
