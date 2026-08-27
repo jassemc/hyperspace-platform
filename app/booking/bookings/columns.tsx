@@ -12,18 +12,9 @@ import { BookingActionButtons } from "./booking-actions-buttons"
 interface ColumnsProps {
   onEdit: (booking: BookingDto) => void
   timeZone: string
-  resourceNames?: Record<string, string>
-  memberNames?: Record<string, string>
-  companyNames?: Record<string, string>
 }
 
-export const createColumns = ({
-  onEdit,
-  timeZone,
-  resourceNames = {},
-  memberNames = {},
-  companyNames = {},
-}: ColumnsProps): ColumnDef<BookingDto>[] => [
+export const createColumns = ({ onEdit, timeZone }: ColumnsProps): ColumnDef<BookingDto>[] => [
   {
     id: "title",
     accessorFn: (booking) => booking.title ?? "",
@@ -39,7 +30,7 @@ export const createColumns = ({
         <div className="flex flex-col">
           <span>{booking.title || "Untitled booking"}</span>
           <span className="text-xs text-muted-foreground">
-            {resourceNames[booking.resourceId] ?? "Unknown resource"}
+            {booking.resource.name || "Unknown resource"}
           </span>
         </div>
       )
@@ -47,12 +38,9 @@ export const createColumns = ({
   },
   {
     id: "customer",
-    accessorFn: (booking) =>
-      booking.memberId
-        ? memberNames[booking.memberId] ?? ""
-        : booking.companyId
-          ? companyNames[booking.companyId] ?? ""
-          : "",
+    // The API names the customer on the row, so a page past the hundredth
+    // member no longer renders blank.
+    accessorFn: (booking) => booking.member?.fullName ?? booking.company?.name ?? "",
     header: "Customer",
     cell: ({ row }) => {
       const value = row.getValue<string>("customer")

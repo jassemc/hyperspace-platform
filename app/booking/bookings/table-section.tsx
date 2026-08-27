@@ -1,15 +1,8 @@
-import {
-  getListBookings,
-  getListResources,
-  getListMembers,
-  getListCompanies,
-} from "@/lib/service"
+import { getListBookings, getListResources } from "@/lib/service"
 import type {
   BookingDto,
   BookingSource,
   BookingStatus,
-  CompanyDto,
-  MemberDto,
   ResourceDto,
 } from "@/lib/service/HsService"
 import {
@@ -66,33 +59,20 @@ export async function BookingTableSection({
     ;({ results, total } = pageResult<BookingDto>(response))
   }
 
-  // Bookings reference resource and customer by id only.
+  // The rows name their own resource and customer; this list is for the
+  // resource filter's options, which need every resource, bookable or not.
   let resources: ResourceDto[] = []
-  const resourceNames: Record<string, string> = {}
-  const memberNames: Record<string, string> = {}
-  const companyNames: Record<string, string> = {}
   // Table rows may span locations; the column formatter needs one zone, so
   // the first location wins — the single rule, and the single request, that
   // primaryTimeZone() holds for the whole page.
   let timeZone = "UTC"
 
   try {
-    const [resourcePage, members, companies, zone] = await Promise.all([
+    const [resourcePage, zone] = await Promise.all([
       getListResources({ limit: 100, offset: 0, sort: "ASC" }),
-      getListMembers({ limit: 100, offset: 0, sort: "ASC" }),
-      getListCompanies({ limit: 100, offset: 0, sort: "ASC" }),
       primaryTimeZone(),
     ])
     resources = (resourcePage?.results ?? []) as ResourceDto[]
-    for (const resource of resources) {
-      resourceNames[resource.id] = resource.name
-    }
-    for (const member of (members?.results ?? []) as MemberDto[]) {
-      memberNames[member.id] = member.fullName
-    }
-    for (const company of (companies?.results ?? []) as CompanyDto[]) {
-      companyNames[company.id] = company.name
-    }
     // The calendar, which is per-location, uses the zone the API puts on
     // its envelope instead.
     timeZone = zone
@@ -105,9 +85,6 @@ export async function BookingTableSection({
       data={results}
       totalCount={total}
       resources={resources}
-      resourceNames={resourceNames}
-      memberNames={memberNames}
-      companyNames={companyNames}
       timeZone={timeZone}
       stats={stats}
       activeStatus={status}

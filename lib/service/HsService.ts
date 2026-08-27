@@ -1998,6 +1998,29 @@ export interface OccupancyBucketDto {
   totalCheckins?: number;
 }
 
+export interface BookingResourceDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Alpha Room" */
+  name: string;
+}
+
+export interface BookingMemberDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Dali May" */
+  fullName: string;
+  /** @example "dali@example.tn" */
+  email?: string | null;
+}
+
+export interface BookingCompanyDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Hyperspace SARL" */
+  name: string;
+}
+
 export type BookingStatus = "pending" | "confirmed" | "cancelled" | "no_show";
 
 export type BookingSource = "portal" | "staff" | "public";
@@ -2024,10 +2047,13 @@ export interface BookingDto {
   id: string;
   /** @format uuid */
   resourceId: string;
+  resource: BookingResourceDto;
   /** @format uuid */
   memberId?: string | null;
+  member?: BookingMemberDto | null;
   /** @format uuid */
   companyId?: string | null;
+  company?: BookingCompanyDto | null;
   /** @format date-time */
   startsAt: string;
   /** @format date-time */
@@ -2061,12 +2087,50 @@ export interface BookingStatusCountDto {
   status: BookingStatus;
   /** @example 12 */
   count: number;
+  /**
+   * Their priceHt summed. Which statuses count as money is the caller's
+   * call — cancelled is money released, no_show is money kept.
+   * @example 480
+   */
+  valueHt: number;
 }
 
 export interface BookingSourceCountDto {
   source: BookingSource;
   /** @example 4 */
   count: number;
+}
+
+export interface BookingResourceCountDto {
+  /** @format uuid */
+  resourceId: string;
+  /** @example "Alpha Room" */
+  name: string;
+  /** @example 9 */
+  count: number;
+}
+
+export interface BookingWeekStatsDto {
+  /**
+   * Monday of the week, as a business date in Africa/Tunis.
+   * @example "2026-08-24"
+   */
+  week: string;
+  /**
+   * Bookings taken that week, by when they were created.
+   * @example 6
+   */
+  created: number;
+  /**
+   * Bookings whose slot starts that week, by startsAt.
+   * @example 4
+   */
+  starting: number;
+  /**
+   * Their priceHt summed; credit-covered bookings contribute 0.
+   * @example 320
+   */
+  bookedValueHt: number;
 }
 
 export interface BookingStatsDto {
@@ -2080,6 +2144,13 @@ export interface BookingStatsDto {
    * @example 1240.5
    */
   bookedValueHt: number;
+  byResource: Array<BookingResourceCountDto>;
+  /**
+   * The last eight weeks, oldest first, always all eight — a week nothing
+   * happened in reads as zero rather than going missing and bending the shape
+   * of a chart drawn from it.
+   */
+  byWeek: Array<BookingWeekStatsDto>;
 }
 
 export interface AmenitySummaryDto {
@@ -3090,6 +3161,13 @@ export interface ListResourcesParams {
   resourceTypeId?: string;
   /** Keep only resources whose derived status matches. */
   status?: ResourceStatus;
+  /**
+   * Keep only resources whose type allows booking. A resource on a
+   * `canBook: false` type cannot be booked at all, so offering it in a
+   * booking form is a trap.
+   * @example true
+   */
+  canBook?: boolean;
   /** The search term to filter results. */
   q?: string;
 }
@@ -3461,13 +3539,19 @@ export interface GetBookingStatsParams {
 }
 
 export interface GetBookingCalendarParams {
-  /** @example "2026-08-24T00:00:00Z" */
+  /**
+   * Inclusive start instant.
+   * @example "2026-08-24T00:00:00Z"
+   */
   from: string;
-  /** @example "2026-08-25T00:00:00Z" */
+  /**
+   * EXCLUSIVE end instant — a one-day grid is midnight to midnight.
+   * @example "2026-08-25T00:00:00Z"
+   */
   to: string;
   /**
    * Comma-separated; omit for every bookable room in scope.
-   * @example "uuid,uuid"
+   * @example "6f9619ff-8b86-4d11-b42d-00c04fc964ff,c6a2f0de-9a2c-4a1e-9b7a-2f1d3c4b5a60"
    */
   resourceIds?: string;
   /** @format uuid */
@@ -3477,9 +3561,17 @@ export interface GetBookingCalendarParams {
 }
 
 export interface GetResourceAvailabilityParams {
-  /** @example "2026-07-13T00:00:00Z" */
+  /**
+   * Inclusive start instant.
+   * @example "2026-07-13T00:00:00Z"
+   */
   from: string;
-  /** @example "2026-07-19T23:59:59Z" */
+  /**
+   * EXCLUSIVE end instant — the same half-open convention the busy
+   * query (`starts_at < :to`) and the calendar already use. To cover
+   * 13–19 July, pass the 20th at 00:00, not the 19th at 23:59:59.
+   * @example "2026-07-20T00:00:00Z"
+   */
   to: string;
   id: string;
 }
@@ -3582,9 +3674,17 @@ export interface PublicListPlansParams {
 }
 
 export interface PublicResourceAvailabilityParams {
-  /** @example "2026-07-13T00:00:00Z" */
+  /**
+   * Inclusive start instant.
+   * @example "2026-07-13T00:00:00Z"
+   */
   from: string;
-  /** @example "2026-07-19T23:59:59Z" */
+  /**
+   * EXCLUSIVE end instant — the same half-open convention the busy
+   * query (`starts_at < :to`) and the calendar already use. To cover
+   * 13–19 July, pass the 20th at 00:00, not the 19th at 23:59:59.
+   * @example "2026-07-20T00:00:00Z"
+   */
   to: string;
   id: string;
 }
@@ -4197,6 +4297,13 @@ export namespace Api {
       resourceTypeId?: string;
       /** Keep only resources whose derived status matches. */
       status?: ResourceStatus;
+      /**
+       * Keep only resources whose type allows booking. A resource on a
+       * `canBook: false` type cannot be booked at all, so offering it in a
+       * booking form is a trap.
+       * @example true
+       */
+      canBook?: boolean;
       /** The search term to filter results. */
       q?: string;
     };
@@ -6150,10 +6257,10 @@ export namespace Api {
   }
 
   /**
-   * @description Staff/admin only — unlike the list, this is never scoped to a caller's own bookings, so it stays off the member role entirely. Counts for the list tabs and the summary cards, computed in the database. Takes the same filters as the list except `status` — the counts are the per-status breakdown, so filtering by it would collapse them. Every status is present, zero included.
+   * @description Staff/admin only — unlike the list, this is never scoped to a caller's own bookings, so it stays off the member role entirely. Counts for the list tabs and the summary cards, computed in the database. Takes the same filters as the list except `status` — the counts are the per-status breakdown, so filtering by it would collapse them. Every status is present, zero included. Because `status` is not accepted, `total` and `bookedValueHt` NEVER narrow by it: on a status tab they still describe every row the other filters match, not the visible ones, and `bookedValueHt` sums cancelled and no-show bookings along with the rest. Label them accordingly — they are range totals, not tab totals. Also returns `byResource` (busiest room first) and `byWeek` — the last eight weeks, oldest first, always all eight, so a chart drawn from it keeps its shape. There is no weekly cancellation series: bookings have no cancelled_at column, and updated_at moves on any title or notes edit.
    * @tags Bookings
    * @name GetBookingStats
-   * @summary Booking counts by status and source
+   * @summary Booking counts, values and weekly trend
    * @request GET:/api/v1/bookings/stats
    * @secure
    * @response `200` `(BookingStatsDto)` 200
@@ -6186,7 +6293,7 @@ export namespace Api {
   }
 
   /**
-   * @description Everything one grid needs in a single read: per bookable room, its header summary, its bookable windows per local day, and its pending and confirmed bookings as blocks. Range ≤ 31 days. The grid covers one location — its timezone is on the envelope.
+   * @description Everything one grid needs in a single read: per bookable room, its header summary, its bookable windows per local day, and its pending and confirmed bookings as blocks. `from` is inclusive and `to` is exclusive, so a one-day grid is midnight to midnight. Range ≤ 31 days. The grid covers one location — its timezone is on the envelope.
    * @tags Bookings
    * @name GetBookingCalendar
    * @summary Calendar grid: rooms, windows and blocks
@@ -6195,6 +6302,7 @@ export namespace Api {
    * @response `200` `(BookingCalendarDto)` 200
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
    * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
@@ -6203,13 +6311,19 @@ export namespace Api {
   export namespace GetBookingCalendar {
     export type RequestParams = {};
     export type RequestQuery = {
-      /** @example "2026-08-24T00:00:00Z" */
+      /**
+       * Inclusive start instant.
+       * @example "2026-08-24T00:00:00Z"
+       */
       from: string;
-      /** @example "2026-08-25T00:00:00Z" */
+      /**
+       * EXCLUSIVE end instant — a one-day grid is midnight to midnight.
+       * @example "2026-08-25T00:00:00Z"
+       */
       to: string;
       /**
        * Comma-separated; omit for every bookable room in scope.
-       * @example "uuid,uuid"
+       * @example "6f9619ff-8b86-4d11-b42d-00c04fc964ff,c6a2f0de-9a2c-4a1e-9b7a-2f1d3c4b5a60"
        */
       resourceIds?: string;
       /** @format uuid */
@@ -6351,7 +6465,7 @@ export namespace Api {
   }
 
   /**
-   * @description Bookable windows per day (booking_times, falling back to the location opening hours, minus closed days) plus confirmed busy intervals clipped to the range (≤ 31 days). Clients render free slots; the server re-validates at create time.
+   * @description Bookable windows per day (booking_times, falling back to the location opening hours, minus closed days) plus confirmed busy intervals clipped to the range (≤ 31 days). `from` is inclusive and `to` is exclusive, so a week is midnight to midnight — the day `to` lands on is not part of the range. Clients render free slots; the server re-validates at create time.
    * @tags Bookings
    * @name GetResourceAvailability
    * @summary Resource availability (windows + busy intervals)
@@ -6370,9 +6484,17 @@ export namespace Api {
       id: string;
     };
     export type RequestQuery = {
-      /** @example "2026-07-13T00:00:00Z" */
+      /**
+       * Inclusive start instant.
+       * @example "2026-07-13T00:00:00Z"
+       */
       from: string;
-      /** @example "2026-07-19T23:59:59Z" */
+      /**
+       * EXCLUSIVE end instant — the same half-open convention the busy
+       * query (`starts_at < :to`) and the calendar already use. To cover
+       * 13–19 July, pass the 20th at 00:00, not the 19th at 23:59:59.
+       * @example "2026-07-20T00:00:00Z"
+       */
       to: string;
     };
     export type RequestBody = never;
@@ -6724,9 +6846,17 @@ export namespace Api {
       id: string;
     };
     export type RequestQuery = {
-      /** @example "2026-07-13T00:00:00Z" */
+      /**
+       * Inclusive start instant.
+       * @example "2026-07-13T00:00:00Z"
+       */
       from: string;
-      /** @example "2026-07-19T23:59:59Z" */
+      /**
+       * EXCLUSIVE end instant — the same half-open convention the busy
+       * query (`starts_at < :to`) and the calendar already use. To cover
+       * 13–19 July, pass the 20th at 00:00, not the 19th at 23:59:59.
+       * @example "2026-07-20T00:00:00Z"
+       */
       to: string;
     };
     export type RequestBody = never;
@@ -7310,12 +7440,12 @@ export namespace Health {
 }
 
 /**
- * @title Hyperspace OS API
+ * @title Platform Api
  * @version 0.0.1
  * @baseUrl /
  * @contact
  *
- * Hyperspace OS backend API
+ * Service for managing hyperspace operations
  */
 export class HsService<SecurityDataType extends unknown> {
   http: HttpClient<SecurityDataType>;
@@ -9676,11 +9806,11 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Staff/admin only — unlike the list, this is never scoped to a caller's own bookings, so it stays off the member role entirely. Counts for the list tabs and the summary cards, computed in the database. Takes the same filters as the list except `status` — the counts are the per-status breakdown, so filtering by it would collapse them. Every status is present, zero included.
+     * @description Staff/admin only — unlike the list, this is never scoped to a caller's own bookings, so it stays off the member role entirely. Counts for the list tabs and the summary cards, computed in the database. Takes the same filters as the list except `status` — the counts are the per-status breakdown, so filtering by it would collapse them. Every status is present, zero included. Because `status` is not accepted, `total` and `bookedValueHt` NEVER narrow by it: on a status tab they still describe every row the other filters match, not the visible ones, and `bookedValueHt` sums cancelled and no-show bookings along with the rest. Label them accordingly — they are range totals, not tab totals. Also returns `byResource` (busiest room first) and `byWeek` — the last eight weeks, oldest first, always all eight, so a chart drawn from it keeps its shape. There is no weekly cancellation series: bookings have no cancelled_at column, and updated_at moves on any title or notes edit.
      *
      * @tags Bookings
      * @name GetBookingStats
-     * @summary Booking counts by status and source
+     * @summary Booking counts, values and weekly trend
      * @request GET:/api/v1/bookings/stats
      * @secure
      * @response `200` `(BookingStatsDto)` 200
@@ -9702,7 +9832,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Everything one grid needs in a single read: per bookable room, its header summary, its bookable windows per local day, and its pending and confirmed bookings as blocks. Range ≤ 31 days. The grid covers one location — its timezone is on the envelope.
+     * @description Everything one grid needs in a single read: per bookable room, its header summary, its bookable windows per local day, and its pending and confirmed bookings as blocks. `from` is inclusive and `to` is exclusive, so a one-day grid is midnight to midnight. Range ≤ 31 days. The grid covers one location — its timezone is on the envelope.
      *
      * @tags Bookings
      * @name GetBookingCalendar
@@ -9712,6 +9842,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `200` `(BookingCalendarDto)` 200
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
      * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
@@ -9862,7 +9993,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Bookable windows per day (booking_times, falling back to the location opening hours, minus closed days) plus confirmed busy intervals clipped to the range (≤ 31 days). Clients render free slots; the server re-validates at create time.
+     * @description Bookable windows per day (booking_times, falling back to the location opening hours, minus closed days) plus confirmed busy intervals clipped to the range (≤ 31 days). `from` is inclusive and `to` is exclusive, so a week is midnight to midnight — the day `to` lands on is not part of the range. Clients render free slots; the server re-validates at create time.
      *
      * @tags Bookings
      * @name GetResourceAvailability

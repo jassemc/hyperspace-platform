@@ -19,9 +19,6 @@ interface BookingTableProps {
   data: BookingDto[]
   totalCount?: number
   resources?: ResourceDto[]
-  resourceNames?: Record<string, string>
-  memberNames?: Record<string, string>
-  companyNames?: Record<string, string>
   timeZone: string
   stats?: BookingStatsDto | null
   activeStatus?: BookingStatus
@@ -35,9 +32,6 @@ export function BookingTable({
   data,
   totalCount,
   resources = [],
-  resourceNames = {},
-  memberNames = {},
-  companyNames = {},
   timeZone,
   stats,
   activeStatus,
@@ -62,9 +56,6 @@ export function BookingTable({
   const columns = createColumns({
     onEdit: handleEdit,
     timeZone,
-    resourceNames,
-    memberNames,
-    companyNames,
   })
 
   const totals = bookingTotals(stats ?? null)
@@ -129,8 +120,6 @@ export function BookingTable({
         onClose={handleClose}
         editingBooking={editingBooking}
         resources={resources}
-        memberNames={memberNames}
-        companyNames={companyNames}
         timeZone={timeZone}
       />
     </>

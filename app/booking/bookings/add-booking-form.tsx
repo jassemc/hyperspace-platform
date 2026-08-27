@@ -32,8 +32,6 @@ interface AddBookingFormProps {
   onClose: () => void
   editingBooking?: BookingDto | null
   resources?: ResourceDto[]
-  memberNames?: Record<string, string>
-  companyNames?: Record<string, string>
   /** Set when opened from a calendar cell. */
   prefill?: {
     resourceId: string
@@ -100,14 +98,12 @@ export function AddBookingForm({
   onClose,
   editingBooking,
   resources: seedResources,
-  memberNames: seedMemberNames,
-  companyNames: seedCompanyNames,
   prefill,
   timeZone,
 }: Readonly<AddBookingFormProps>) {
   const [resources, setResources] = useState<ResourceDto[]>(seedResources ?? [])
-  const [memberNames, setMemberNames] = useState<Record<string, string>>(seedMemberNames ?? {})
-  const [companyNames, setCompanyNames] = useState<Record<string, string>>(seedCompanyNames ?? {})
+  const [memberNames, setMemberNames] = useState<Record<string, string>>({})
+  const [companyNames, setCompanyNames] = useState<Record<string, string>>({})
   const [createState, createFormAction] = useActionState(createBookingAction, {})
   const [updateState, updateFormAction] = useActionState(updateBookingAction, {})
   const [customerKind, setCustomerKind] = useState<CustomerKind>("member")
@@ -137,7 +133,9 @@ export function AddBookingForm({
 
     let cancelled = false
     Promise.all([
-      getListResources({ limit: 100, offset: 0, sort: "ASC" }),
+      // A resource whose type cannot be booked would be refused by the
+      // API, so it is never offered.
+      getListResources({ limit: 100, offset: 0, sort: "ASC", canBook: true }),
       getListMembers({ limit: 100, offset: 0, sort: "ASC" }),
       getListCompanies({ limit: 100, offset: 0, sort: "ASC" }),
     ])
