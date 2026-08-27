@@ -103,6 +103,27 @@ function periodOf(slot: Slot, timeZone: string): (typeof PERIODS)[number] {
   return hour < 12 ? "Morning" : hour < 17 ? "Afternoon" : "Evening"
 }
 
+/**
+ * Whether a UTC instant survives being shown as a wall clock and read back:
+ * "YYYY-MM-DDTHH:mm" is not injective across a DST fall-back — two
+ * instants an hour apart can format to the same wall-clock string, and
+ * wallClockToUtcMs's correction always resolves the ambiguous string to
+ * the later of the two. An instant that fails this either books an hour
+ * later than the button says (if it's the start) or an hour longer than
+ * the duration chip says (if it's the end) — both are the same defect,
+ * the button lying about what it books, just on different edges of the
+ * slot.
+ */
+function roundTripsCleanly(iso: string, timeZone: string): boolean {
+  const wallClock = toWallClock(iso, timeZone)
+  const roundTripMs = wallClockToUtcMs(
+    wallClock.slice(0, 10),
+    wallClock.slice(11),
+    timeZone
+  )
+  return roundTripMs === Date.parse(iso)
+}
+
 function durationLabel(minutes: number): string {
   const hours = Math.floor(minutes / 60)
   const rest = minutes % 60
@@ -421,22 +442,16 @@ export function BookingSlotPicker({
       return startOptionsForDuration(
         freeRangesForDay(dayWindows, availability.busy, nowMs, timeZone),
         activeDuration
-      ).filter((slot) => {
-        // "YYYY-MM-DDTHH:mm" is not injective across a DST fall-back: two
-        // instants an hour apart can format to the same wall-clock
-        // string, and wallClockToUtcMs's correction always resolves to
-        // the later one. A start that doesn't round-trip back to itself
-        // would book an hour later than the button the user actually
-        // clicked (and paint as a visually duplicate button) — drop it
-        // rather than offer a slot that lies about what it books.
-        const wallClock = toWallClock(slot.startUtc, timeZone)
-        const roundTripMs = wallClockToUtcMs(
-          wallClock.slice(0, 10),
-          wallClock.slice(11),
-          timeZone
-        )
-        return roundTripMs === Date.parse(slot.startUtc)
-      })
+      ).filter(
+        // Both edges, not just the start: a slot whose start lands
+        // outside the fall-back's repeated hour but whose end lands
+        // inside it would pass a start-only check, then book an hour
+        // longer than the duration chip says (the button would say "1h"
+        // and book 2h). Drop the whole option if either edge is ambiguous.
+        (slot) =>
+          roundTripsCleanly(slot.startUtc, timeZone) &&
+          roundTripsCleanly(slot.endUtc, timeZone)
+      )
     },
     [availability, activeDuration, nowMs, timeZone]
   )
