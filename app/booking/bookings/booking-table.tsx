@@ -68,6 +68,9 @@ export function BookingTable({
       options: resources.map((resource) => ({
         value: resource.id,
         label: resource.name,
+        count: (stats?.byResource ?? []).find(
+          (row) => row.resourceId === resource.id
+        )?.count,
       })),
     },
     {

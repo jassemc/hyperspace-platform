@@ -40,11 +40,30 @@ export const bookingStats = cache(
 
 /** Tab counts, with `undefined` meaning "unknown" rather than "zero". */
 export function bookingTotals(stats: BookingStatsDto | null) {
-  const byStatus = new Map<string, number>(
-    (stats?.byStatus ?? []).map((row) => [row.status, row.count])
-  )
+  const rows = stats?.byStatus ?? []
+  const byStatus = new Map<string, number>(rows.map((row) => [row.status, row.count]))
+  const valueByStatus = new Map<string, number>(rows.map((row) => [row.status, row.valueHt]))
+  const weeks = stats?.byWeek ?? []
+  const busiest = (stats?.byResource ?? [])[0]
+
+  /**
+   * Two complete weeks, compared. From nothing to something has no
+   * percentage to report, so it goes unsaid rather than being called 100%.
+   */
+  const changeIn = (key: "created" | "starting") => {
+    if (weeks.length < 2) return undefined
+    const previous = weeks[weeks.length - 2][key]
+    const latest = weeks[weeks.length - 1][key]
+    if (previous === 0) return undefined
+    return Math.round(((latest - previous) / previous) * 1000) / 10
+  }
+
   return {
+    weeks,
+    changeIn,
     countFor: (status: string) => (stats ? (byStatus.get(status) ?? 0) : undefined),
+    valueFor: (status: string) => valueByStatus.get(status) ?? 0,
     total: stats?.total,
+    busiestResource: busiest ? { name: busiest.name, count: busiest.count } : null,
   }
 }

@@ -47,13 +47,58 @@ export async function SectionCards({
   const totals = bookingTotals(stats)
   const count = (status: string) => totals.countFor(status) ?? 0
 
+  const weekLabels = totals.weeks.map((entry) =>
+    new Date(entry.week).toLocaleDateString(undefined, { day: "numeric", month: "short" })
+  )
+
   return (
     <StatCards
       cards={[
-        { label: "Total bookings", value: stats?.total ?? 0, badge: "All", icon: CalendarCheckIcon, footer: view === "calendar" ? "All bookings, not just the days shown" : "Matching the current filters" },
-        { label: "Pending", value: count("pending"), badge: "To confirm", icon: ClockIcon, footer: "Awaiting confirmation" },
-        { label: "Cancelled", value: count("cancelled"), badge: "Released", icon: XCircleIcon, footer: "Slots freed again" },
-        { label: "Booked value", value: formatPriceHt(stats?.bookedValueHt ?? 0), badge: "HT", icon: CoinsIcon, footer: "Credit-covered bookings count as zero" },
+        {
+          label: "Bookings taken",
+          value: totals.weeks.at(-1)?.created ?? 0,
+          unit: "this week",
+          icon: CalendarCheckIcon,
+          delta: totals.changeIn("created"),
+          series: totals.weeks.map((entry) => entry.created),
+          seriesLabels: weekLabels,
+          // The calendar scopes itself by date/calendarView, which this
+          // total does not read — so in calendar view it must not claim
+          // to match the filters shown, only give the true, wider count.
+          footer:
+            view === "calendar"
+              ? `${stats?.total ?? 0} bookings in total, not just the days shown`
+              : `${stats?.total ?? 0} matching the current filters`,
+        },
+        {
+          label: "Starting",
+          value: totals.weeks.at(-1)?.starting ?? 0,
+          unit: "this week",
+          icon: ClockIcon,
+          delta: totals.changeIn("starting"),
+          series: totals.weeks.map((entry) => entry.starting),
+          seriesLabels: weekLabels,
+          footer: totals.busiestResource
+            ? `Busiest room: ${totals.busiestResource.name} (${totals.busiestResource.count})`
+            : "No room booked yet",
+        },
+        {
+          label: "Cancelled",
+          value: count("cancelled"),
+          badge: "Released",
+          icon: XCircleIcon,
+          // The figure that makes a cancellation card mean anything.
+          footer: `${formatPriceHt(totals.valueFor("cancelled"))} released`,
+        },
+        {
+          label: "Booked value",
+          value: formatPriceHt(stats?.bookedValueHt ?? 0),
+          badge: "HT",
+          icon: CoinsIcon,
+          series: totals.weeks.map((entry) => entry.bookedValueHt),
+          seriesLabels: weekLabels,
+          footer: "Credit-covered bookings count as zero",
+        },
       ]}
     />
   )
