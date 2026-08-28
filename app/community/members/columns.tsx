@@ -27,6 +27,23 @@ export const createColumns = ({ onEdit, companyNames = {} }: ColumnsProps): Colu
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
+    cell: ({ row }) => {
+      const member = row.original
+      // Employers are referenced by id only. One outside the looked-up page
+      // still reads as employed rather than silently as solo.
+      const company = member.companyId
+        ? companyNames[member.companyId] ?? "Unknown company"
+        : null
+
+      return (
+        <div className="flex flex-col">
+          <span>{member.fullName}</span>
+          {company && (
+            <span className="text-xs text-muted-foreground">{company}</span>
+          )}
+        </div>
+      )
+    },
   },
   {
     accessorKey: "email",
