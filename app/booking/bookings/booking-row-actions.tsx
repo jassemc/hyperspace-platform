@@ -122,19 +122,26 @@ export function BookingRowActions({ booking, timeZone, onEdit }: Readonly<Bookin
         }}
       />
 
-      <ConfirmBookingDialog
-        open={confirmOpen}
-        onOpenChange={setConfirmOpen}
-        booking={booking}
-        pending={pending === "confirm"}
-        // BookingCompanyDto on the row only carries id/name — no `tags` —
-        // so there is no partner hint to pre-tick from here. A `tags`
-        // field on that summary DTO would enable it; out of scope here.
-        partnerTagged={false}
-        onConfirm={async (opts) => {
-          if (await confirm(opts)) setConfirmOpen(false)
-        }}
-      />
+      {/* Mounted only while open: ConfirmBookingDialog seeds its checkbox
+          state from `partnerTagged` once, on mount, and the data table
+          reuses this component instance for whichever row sits at this
+          position — without the gate, a previous booking's free choice
+          would survive into the next row's dialog. */}
+      {confirmOpen && (
+        <ConfirmBookingDialog
+          open={confirmOpen}
+          onOpenChange={setConfirmOpen}
+          booking={booking}
+          pending={pending === "confirm"}
+          // BookingCompanyDto on the row only carries id/name — no `tags` —
+          // so there is no partner hint to pre-tick from here. A `tags`
+          // field on that summary DTO would enable it; out of scope here.
+          partnerTagged={false}
+          onConfirm={async (opts) => {
+            if (await confirm(opts)) setConfirmOpen(false)
+          }}
+        />
+      )}
 
       <MarkNoShowAlert
         open={noShowOpen}

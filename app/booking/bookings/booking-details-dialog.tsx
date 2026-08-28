@@ -33,6 +33,7 @@ import {
 import { getIconFromFontAwesome } from "@/lib/icon-utils"
 import { getBookingDetailsAction, type BookingDetails } from "./actions"
 import { CancelBookingAlert } from "./cancel-booking-alert"
+import { ConfirmBookingDialog } from "./confirm-booking-dialog"
 import { FREE_REASON_LABELS } from "./free-reason"
 import { MarkNoShowAlert } from "./mark-no-show-alert"
 import { useBookingMutations } from "./use-booking-mutations"
@@ -202,13 +203,14 @@ export function BookingDetailsDialog({
     useBookingMutations(booking)
   const [cancelOpen, setCancelOpen] = useState(false)
   const [noShowOpen, setNoShowOpen] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const customer = booking.member?.fullName ?? booking.company?.name
   const email = booking.member?.email
   const CustomerIcon = booking.member ? User : Building2
   const sameDay = dayKey(booking.startsAt, timeZone) === dayKey(booking.endsAt, timeZone)
   const extras = booking.extras ?? []
-  const creditCovered = booking.priceHt === null || booking.priceHt === undefined
+  const creditCovered = !booking.isFree && (booking.priceHt === null || booking.priceHt === undefined)
   const extrasHt = extras.reduce((s, e) => s + e.priceHt, 0)
   const extrasTtc = extras.reduce((s, e) => s + e.totalTtc, 0)
   const totalHt = (booking.priceHt ?? 0) + extrasHt
@@ -379,7 +381,9 @@ export function BookingDetailsDialog({
                 <div className="flex justify-between px-3 py-2">
                   <dt className="text-muted-foreground">Complimentary</dt>
                   <dd className="tabular-nums">
-                    {FREE_REASON_LABELS[booking.freeReason ?? "goodwill"]} — nothing charged
+                    {booking.freeReason
+                      ? `${FREE_REASON_LABELS[booking.freeReason]} — nothing charged`
+                      : "Nothing charged"}
                   </dd>
                 </div>
               ) : (
@@ -425,11 +429,8 @@ export function BookingDetailsDialog({
               Edit
             </Button>
           )}
-          {/* No free option here — that lives in the row menu's
-              ConfirmBookingDialog; this footer button is the plain,
-              non-free confirm. */}
           {canConfirm && (
-            <Button size="sm" onClick={() => confirm()} disabled={pending !== null}>
+            <Button size="sm" onClick={() => setConfirmOpen(true)} disabled={pending !== null}>
               <Check className="mr-1.5 h-4 w-4" />
               {pending === "confirm" ? "Confirming..." : "Confirm"}
             </Button>
@@ -475,6 +476,19 @@ export function BookingDetailsDialog({
             if (await cancel()) setCancelOpen(false)
           }}
         />
+        {/* Mounted only while open — see booking-row-actions.tsx for why. */}
+        {confirmOpen && (
+          <ConfirmBookingDialog
+            open={confirmOpen}
+            onOpenChange={setConfirmOpen}
+            booking={booking}
+            pending={pending === "confirm"}
+            partnerTagged={false}
+            onConfirm={async (opts) => {
+              if (await confirm(opts)) setConfirmOpen(false)
+            }}
+          />
+        )}
       </DialogContent>
     </Dialog>
   )

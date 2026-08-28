@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import type { BookingDto } from "@/lib/service/HsService"
+import type { BookingDto, BookingFreeReason } from "@/lib/service/HsService"
 import { cancelBookingAction, confirmBookingAction, markNoShowAction } from "./actions"
 
 export type BookingMutationKind = "confirm" | "cancel" | "no_show"
@@ -80,9 +80,9 @@ export function useBookingMutations(booking: BookingDto) {
     canMarkNoShow: noShowHint === null,
     /** Set only when `canMarkNoShow` is false; suitable as a tooltip. */
     noShowHint: noShowHint ?? undefined,
-    confirm: (opts: { isFree: boolean; freeReason?: string } = { isFree: false }) =>
+    confirm: (opts: { isFree: boolean; freeReason?: BookingFreeReason } = { isFree: false }) =>
       run("confirm", confirmBookingAction, opts.isFree ? "confirmed as free" : "confirmed", "Failed to confirm",
-        opts.isFree ? { isFree: "on", freeReason: opts.freeReason ?? "partnership" } : {}),
+        opts.isFree ? { isFree: "on", freeReason: opts.freeReason ?? "" } : {}),
     cancel: () => run("cancel", cancelBookingAction, "cancelled", "Failed to cancel"),
     markNoShow: () =>
       run("no_show", markNoShowAction, "marked as a no-show", "Failed to mark as no-show"),

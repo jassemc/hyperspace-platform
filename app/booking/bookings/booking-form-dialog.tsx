@@ -476,14 +476,6 @@ export function BookingFormDialog({
             </div>
           )}
 
-          {/* Create only, deliberately. POST /bookings/validate takes a
-              CreateBookingDto and has no `excludeBookingId` (only
-              GET /resources/{id}/availability does), so a dry run on an
-              edit would be checked against a grid that still contains the
-              booking's own row — and the commonest reschedule, nudging a
-              window by half an hour, overlaps itself. It would report a
-              conflict that does not exist. Left gated until the endpoint
-              can exclude the booking being moved. */}
           {!editingBooking && (
             <div className="grid gap-2">
               <label className="flex items-center gap-2 text-sm">
@@ -509,6 +501,19 @@ export function BookingFormDialog({
                   </NativeSelect>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* Create only, deliberately. POST /bookings/validate takes a
+              CreateBookingDto and has no `excludeBookingId` (only
+              GET /resources/{id}/availability does), so a dry run on an
+              edit would be checked against a grid that still contains the
+              booking's own row — and the commonest reschedule, nudging a
+              window by half an hour, overlaps itself. It would report a
+              conflict that does not exist. Left gated until the endpoint
+              can exclude the booking being moved. */}
+          {!editingBooking && (
+            <div className="grid gap-2">
               {checking && (
                 <p className="text-xs text-muted-foreground">Checking availability…</p>
               )}

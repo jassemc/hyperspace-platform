@@ -67,9 +67,10 @@ export const createColumns = ({ onEdit, timeZone }: ColumnsProps): ColumnDef<Boo
     cell: ({ row }) => {
       const booking = row.original
       if (booking.isFree) {
+        const reasonLabel = booking.freeReason ? FREE_REASON_LABELS[booking.freeReason] : undefined
         return (
-          <Badge variant="secondary" className="font-normal" title={FREE_REASON_LABELS[booking.freeReason ?? "goodwill"]}>
-            Free · {FREE_REASON_LABELS[booking.freeReason ?? "goodwill"]}
+          <Badge variant="secondary" className="font-normal" title={reasonLabel}>
+            {reasonLabel ? `Free · ${reasonLabel}` : "Free"}
           </Badge>
         )
       }
