@@ -1129,7 +1129,7 @@ const meta = {
       pathParams: [{ name: "id", type: "string", optional: false }],
       requestParams: [],
       combinedPathAndRequestParams: [],
-      payload: null,
+      payload: { name: "data", optional: false, type: "ConfirmBookingDto" },
       responseType: "(BookingDto)",
     },
 

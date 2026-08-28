@@ -11,6 +11,7 @@ import {
   getListCredits,
 } from "@/lib/service"
 import type {
+  ConfirmBookingDto,
   CreateBookingDto,
   CreditTransactionDto,
   ResourceDto,
@@ -112,6 +113,9 @@ function bookingPayload(formData: FormData): CreateBookingDto | { error: string 
   if (!memberId && !companyId) {
     return { error: "Select a member or a company" }
   }
+  const isFree = formData.get("isFree") === "on"
+  const freeReason = text(formData, "freeReason")
+  if (isFree && !freeReason) return { error: "Pick a reason for the free booking" }
 
   return {
     resourceId,
@@ -122,6 +126,8 @@ function bookingPayload(formData: FormData): CreateBookingDto | { error: string 
     title: text(formData, "title"),
     notes: text(formData, "notes"),
     extraIds: formData.getAll("extraIds").map(String).filter(Boolean),
+    isFree,
+    freeReason: isFree ? (freeReason as CreateBookingDto["freeReason"]) : undefined,
   }
 }
 
@@ -213,7 +219,10 @@ export async function confirmBookingAction(
     const id = text(formData, "id")
     if (!id) return { success: false, error: "Booking ID is required" }
 
-    await confirmBooking(id)
+    const isFree = formData.get("isFree") === "on"
+    const freeReason = text(formData, "freeReason")
+    if (isFree && !freeReason) return { success: false, error: "Pick a reason for the free booking" }
+    await confirmBooking(id, isFree ? { isFree, freeReason: freeReason as ConfirmBookingDto["freeReason"] } : {})
     revalidate()
     return { success: true }
   } catch (error) {

@@ -6,6 +6,7 @@ import type {
   AnalyticsMembershipsParams,
   AnalyticsOccupancyParams,
   AnalyticsRevenueParams,
+  ConfirmBookingDto,
   CreateAmenityDto,
   CreateAssignmentDto,
   CreateBookingDto,
@@ -423,8 +424,8 @@ export async function cancelBooking(id: string, params?: RequestParams) {
   return hsService.api.cancelBooking(id, params);
 }
 
-export async function confirmBooking(id: string, params?: RequestParams) {
-  return hsService.api.confirmBooking(id, params);
+export async function confirmBooking(id: string, data: ConfirmBookingDto = {}, params?: RequestParams) {
+  return hsService.api.confirmBooking(id, data, params);
 }
 
 export async function getResourceAvailability({ id, ...query }: GetResourceAvailabilityParams, params?: RequestParams) {

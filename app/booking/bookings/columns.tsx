@@ -8,6 +8,7 @@ import { ArrowUpDown } from "lucide-react"
 import { formatDateTime, formatEnumLabel, formatPriceHt } from "@/lib/format"
 import { BOOKING_STATUS_CLASSES, BOOKING_STATUS_LABELS } from "./booking-status"
 import { BookingRowActions } from "./booking-row-actions"
+import { FREE_REASON_LABELS } from "./free-reason"
 
 interface ColumnsProps {
   onEdit: (booking: BookingDto) => void
@@ -64,6 +65,14 @@ export const createColumns = ({ onEdit, timeZone }: ColumnsProps): ColumnDef<Boo
     accessorKey: "priceHt",
     header: "Price (HT)",
     cell: ({ row }) => {
+      const booking = row.original
+      if (booking.isFree) {
+        return (
+          <Badge variant="secondary" className="font-normal" title={FREE_REASON_LABELS[booking.freeReason ?? "goodwill"]}>
+            Free · {FREE_REASON_LABELS[booking.freeReason ?? "goodwill"]}
+          </Badge>
+        )
+      }
       // NULL price means the booking is fully covered by credits.
       const value = row.getValue<number | null>("priceHt")
       return value === null || value === undefined ? (

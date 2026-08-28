@@ -49,12 +49,14 @@ export function useBookingMutations(booking: BookingDto) {
     kind: BookingMutationKind,
     action: typeof confirmBookingAction,
     done: string,
-    failed: string
+    failed: string,
+    fields: Record<string, string> = {}
   ): Promise<boolean> => {
     setPending(kind)
     try {
       const formData = new FormData()
       formData.set("id", booking.id)
+      for (const [key, value] of Object.entries(fields)) formData.set(key, value)
       const result = await action({}, formData)
       if (result.success) {
         toast.success(`${label} ${done}`)
@@ -78,7 +80,9 @@ export function useBookingMutations(booking: BookingDto) {
     canMarkNoShow: noShowHint === null,
     /** Set only when `canMarkNoShow` is false; suitable as a tooltip. */
     noShowHint: noShowHint ?? undefined,
-    confirm: () => run("confirm", confirmBookingAction, "confirmed", "Failed to confirm"),
+    confirm: (opts: { isFree: boolean; freeReason?: string } = { isFree: false }) =>
+      run("confirm", confirmBookingAction, opts.isFree ? "confirmed as free" : "confirmed", "Failed to confirm",
+        opts.isFree ? { isFree: "on", freeReason: opts.freeReason ?? "partnership" } : {}),
     cancel: () => run("cancel", cancelBookingAction, "cancelled", "Failed to cancel"),
     markNoShow: () =>
       run("no_show", markNoShowAction, "marked as a no-show", "Failed to mark as no-show"),

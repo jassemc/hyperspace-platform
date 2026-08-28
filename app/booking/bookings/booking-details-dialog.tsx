@@ -33,6 +33,7 @@ import {
 import { getIconFromFontAwesome } from "@/lib/icon-utils"
 import { getBookingDetailsAction, type BookingDetails } from "./actions"
 import { CancelBookingAlert } from "./cancel-booking-alert"
+import { FREE_REASON_LABELS } from "./free-reason"
 import { MarkNoShowAlert } from "./mark-no-show-alert"
 import { useBookingMutations } from "./use-booking-mutations"
 import { BOOKING_SOURCE_LABELS, BOOKING_STATUS_CLASSES, BOOKING_STATUS_LABELS } from "./booking-status"
@@ -374,20 +375,31 @@ export function BookingDetailsDialog({
 
           <Section title="Pricing">
             <dl className="rounded-lg border text-sm">
-              <div className="flex justify-between px-3 py-2">
-                <dt className="text-muted-foreground">Room (HT)</dt>
-                <dd className="tabular-nums">
-                  {creditCovered ? "Covered by credits" : formatPriceHt(booking.priceHt)}
-                </dd>
-              </div>
-              <div className="flex justify-between border-t px-3 py-2">
-                <dt className="text-muted-foreground">Extras (HT)</dt>
-                <dd className="tabular-nums">{formatPriceHt(extrasHt)}</dd>
-              </div>
-              <div className="flex justify-between border-t bg-muted/40 px-3 py-2 font-semibold">
-                <dt>Total HT</dt>
-                <dd className="tabular-nums">{formatPriceHt(totalHt)}</dd>
-              </div>
+              {booking.isFree ? (
+                <div className="flex justify-between px-3 py-2">
+                  <dt className="text-muted-foreground">Complimentary</dt>
+                  <dd className="tabular-nums">
+                    {FREE_REASON_LABELS[booking.freeReason ?? "goodwill"]} — nothing charged
+                  </dd>
+                </div>
+              ) : (
+                <>
+                  <div className="flex justify-between px-3 py-2">
+                    <dt className="text-muted-foreground">Room (HT)</dt>
+                    <dd className="tabular-nums">
+                      {creditCovered ? "Covered by credits" : formatPriceHt(booking.priceHt)}
+                    </dd>
+                  </div>
+                  <div className="flex justify-between border-t px-3 py-2">
+                    <dt className="text-muted-foreground">Extras (HT)</dt>
+                    <dd className="tabular-nums">{formatPriceHt(extrasHt)}</dd>
+                  </div>
+                  <div className="flex justify-between border-t bg-muted/40 px-3 py-2 font-semibold">
+                    <dt>Total HT</dt>
+                    <dd className="tabular-nums">{formatPriceHt(totalHt)}</dd>
+                  </div>
+                </>
+              )}
             </dl>
           </Section>
 
@@ -413,8 +425,11 @@ export function BookingDetailsDialog({
               Edit
             </Button>
           )}
+          {/* No free option here — that lives in the row menu's
+              ConfirmBookingDialog; this footer button is the plain,
+              non-free confirm. */}
           {canConfirm && (
-            <Button size="sm" onClick={confirm} disabled={pending !== null}>
+            <Button size="sm" onClick={() => confirm()} disabled={pending !== null}>
               <Check className="mr-1.5 h-4 w-4" />
               {pending === "confirm" ? "Confirming..." : "Confirm"}
             </Button>

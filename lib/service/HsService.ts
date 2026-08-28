@@ -2038,6 +2038,8 @@ export interface QuoteExtraDto {
   totalTtc: number;
 }
 
+export type BookingFreeReason = "partnership" | "internal_event" | "goodwill" | "staff";
+
 export interface BookingDto {
   /**
    * Unique identifier
@@ -2069,6 +2071,12 @@ export interface BookingDto {
   notes?: string | null;
   /** Snapshot of the extras priced at booking time (§6.3 Task 6). */
   extras?: Array<QuoteExtraDto>;
+  /**
+   * Complimentary: no credits, no charges (spec 2026-08-28).
+   * @example false
+   */
+  isFree: boolean;
+  freeReason?: BookingFreeReason | null;
   /**
    * The date of creation of the resource
    * @format date-time
@@ -2246,6 +2254,13 @@ export interface CreateBookingDto {
   notes?: string;
   /** Extras offered by the booked resource's rates (§6.3 Task 6). */
   extraIds?: Array<string>;
+  /**
+   * Staff/admin only: waive the room AND the extras, consume no
+   * credits. Requires `freeReason`.
+   * @example false
+   */
+  isFree?: boolean;
+  freeReason?: BookingFreeReason;
 }
 
 export interface QuoteConsumptionDto {
@@ -2327,6 +2342,16 @@ export interface UpdateBookingDto {
   startsAt?: string;
   /** @example "2026-08-26T11:00:00Z" */
   endsAt?: string;
+}
+
+export interface ConfirmBookingDto {
+  /**
+   * Staff/admin only: waive the room AND the extras, consume no
+   * credits. Requires `freeReason`.
+   * @example false
+   */
+  isFree?: boolean;
+  freeReason?: BookingFreeReason;
 }
 
 export interface BusyIntervalDto {
@@ -3541,6 +3566,11 @@ export interface ListBookingsParams {
   memberId?: string;
   /** @format uuid */
   companyId?: string;
+  /**
+   * Query strings arrive as text; "true"/"false" become booleans.
+   * @example true
+   */
+  isFree?: boolean;
   /** The search term to filter results. */
   q?: string;
 }
@@ -3558,6 +3588,11 @@ export interface GetBookingStatsParams {
   memberId?: string;
   /** @format uuid */
   companyId?: string;
+  /**
+   * Query strings arrive as text; "true"/"false" become booleans.
+   * @example true
+   */
+  isFree?: boolean;
 }
 
 export interface GetBookingCalendarParams {
@@ -6250,6 +6285,11 @@ export namespace Api {
       memberId?: string;
       /** @format uuid */
       companyId?: string;
+      /**
+       * Query strings arrive as text; "true"/"false" become booleans.
+       * @example true
+       */
+      isFree?: boolean;
       /** The search term to filter results. */
       q?: string;
     };
@@ -6262,7 +6302,7 @@ export namespace Api {
   }
 
   /**
-   * @description Members book for themselves (source=portal); staff book for any member XOR company (source=staff). Pricing: room_hour credits first (scope from membership snapshots, drained soonest-expiring first), remainder at the member rate — or the visitor rate without a membership. price_ht is NULL when fully credit-covered. Conflicts are impossible at the database level (GiST exclusion constraint).
+   * @description Members book for themselves (source=portal); staff book for any member XOR company (source=staff). Pricing: room_hour credits first (scope from membership snapshots, drained soonest-expiring first), remainder at the member rate — or the visitor rate without a membership. price_ht is NULL when fully credit-covered. Conflicts are impossible at the database level (GiST exclusion constraint). Staff may pass isFree + freeReason: no credits are consumed and no charges written (room and extras alike).
    * @tags Bookings
    * @name CreateBooking
    * @summary Create a booking (§6.3 credit-first pricing)
@@ -6315,6 +6355,11 @@ export namespace Api {
       memberId?: string;
       /** @format uuid */
       companyId?: string;
+      /**
+       * Query strings arrive as text; "true"/"false" become booleans.
+       * @example true
+       */
+      isFree?: boolean;
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
@@ -6468,7 +6513,7 @@ export namespace Api {
   }
 
   /**
-   * @description Staff-only. Re-checks availability, prices the booking per §6.3 (typically the visitor rate → a booking charge) and flips it to confirmed — from then on it blocks the slot.
+   * @description Staff-only. Re-checks availability, prices the booking per §6.3 (typically the visitor rate → a booking charge) and flips it to confirmed — from then on it blocks the slot. Optional body { isFree, freeReason } confirms a partner request as complimentary.
    * @tags Bookings
    * @name ConfirmBooking
    * @summary Staff confirmation of website booking requests (Phase 6).
@@ -6489,7 +6534,7 @@ export namespace Api {
       id: string;
     };
     export type RequestQuery = {};
-    export type RequestBody = never;
+    export type RequestBody = ConfirmBookingDto;
     export type RequestHeaders = {};
     export type ResponseBody = BookingDto;
   }
@@ -9815,7 +9860,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Members book for themselves (source=portal); staff book for any member XOR company (source=staff). Pricing: room_hour credits first (scope from membership snapshots, drained soonest-expiring first), remainder at the member rate — or the visitor rate without a membership. price_ht is NULL when fully credit-covered. Conflicts are impossible at the database level (GiST exclusion constraint).
+     * @description Members book for themselves (source=portal); staff book for any member XOR company (source=staff). Pricing: room_hour credits first (scope from membership snapshots, drained soonest-expiring first), remainder at the member rate — or the visitor rate without a membership. price_ht is NULL when fully credit-covered. Conflicts are impossible at the database level (GiST exclusion constraint). Staff may pass isFree + freeReason: no credits are consumed and no charges written (room and extras alike).
      *
      * @tags Bookings
      * @name CreateBooking
@@ -10004,7 +10049,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Staff-only. Re-checks availability, prices the booking per §6.3 (typically the visitor rate → a booking charge) and flips it to confirmed — from then on it blocks the slot.
+     * @description Staff-only. Re-checks availability, prices the booking per §6.3 (typically the visitor rate → a booking charge) and flips it to confirmed — from then on it blocks the slot. Optional body { isFree, freeReason } confirms a partner request as complimentary.
      *
      * @tags Bookings
      * @name ConfirmBooking
@@ -10021,11 +10066,13 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `500` `(ResponseErrorDto)` Internal Server Error
      * @response `default` `BookingDto`
      */
-    confirmBooking: (id: string, params: RequestParams = {}) =>
+    confirmBooking: (id: string, data: ConfirmBookingDto, params: RequestParams = {}) =>
       this.http.request<BookingDto, ResponseErrorDto | BookingDto>({
         path: `/api/v1/bookings/${id}/confirm`,
         method: "POST",
+        body: data,
         secure: true,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),

@@ -13,6 +13,7 @@ import { Ban, Check, Edit, Eye, MoreHorizontal, UserX } from "lucide-react"
 import type { BookingDto } from "@/lib/service/HsService"
 import { BookingDetailsDialog } from "./booking-details-dialog"
 import { CancelBookingAlert } from "./cancel-booking-alert"
+import { ConfirmBookingDialog } from "./confirm-booking-dialog"
 import { MarkNoShowAlert } from "./mark-no-show-alert"
 import { useBookingMutations } from "./use-booking-mutations"
 
@@ -43,6 +44,7 @@ export function BookingRowActions({ booking, timeZone, onEdit }: Readonly<Bookin
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
   const [noShowOpen, setNoShowOpen] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const confirmHint = canConfirm ? undefined : "Only pending bookings can be confirmed"
   const cancelHint = canCancel
@@ -73,7 +75,7 @@ export function BookingRowActions({ booking, timeZone, onEdit }: Readonly<Bookin
             Edit
           </DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem disabled={!canConfirm} onSelect={confirm} title={confirmHint}>
+          <DropdownMenuItem disabled={!canConfirm} onSelect={() => setConfirmOpen(true)} title={confirmHint}>
             <Check />
             Confirm
           </DropdownMenuItem>
@@ -117,6 +119,20 @@ export function BookingRowActions({ booking, timeZone, onEdit }: Readonly<Bookin
         pending={pending === "cancel"}
         onConfirm={async () => {
           if (await cancel()) setCancelOpen(false)
+        }}
+      />
+
+      <ConfirmBookingDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        booking={booking}
+        pending={pending === "confirm"}
+        // BookingCompanyDto on the row only carries id/name — no `tags` —
+        // so there is no partner hint to pre-tick from here. A `tags`
+        // field on that summary DTO would enable it; out of scope here.
+        partnerTagged={false}
+        onConfirm={async (opts) => {
+          if (await confirm(opts)) setConfirmOpen(false)
         }}
       />
 
