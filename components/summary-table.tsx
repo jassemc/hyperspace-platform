@@ -59,10 +59,15 @@ export function SummaryTable({
                                     </TableCell>
                                 </TableRow>
                             ) : (
-                                rows.map((row) => (
-                                    <TableRow key={row.join("|")}>
-                                        {row.map((cell, index) => (
-                                            <TableCell key={`${headers[index]}-${cell}`}>{cell}</TableCell>
+                                /* Rows are plain strings with no id, and two of them can be
+                                   identical — two uninvoiced charges for the same room, at the
+                                   same rate, read the same. Nothing here reorders or edits in
+                                   place, so position is the only identity available, and the
+                                   right one. */
+                                rows.map((row, rowIndex) => (
+                                    <TableRow key={rowIndex}>
+                                        {row.map((cell, cellIndex) => (
+                                            <TableCell key={cellIndex}>{cell}</TableCell>
                                         ))}
                                     </TableRow>
                                 ))
