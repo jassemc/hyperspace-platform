@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { ColumnDef } from "@tanstack/react-table"
 import type { OpportunityDto, OpportunityInterest, OpportunityStage } from "@/lib/service/HsService"
-import { Edit, Loader2, UserPlus } from "lucide-react"
+import { Edit, Eye, Loader2, UserPlus } from "lucide-react"
 import { formatDate, formatPriceHt } from "@/lib/format"
 import type { OpportunityAction, OptionsLoading } from "./use-opportunity-options"
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
@@ -13,9 +13,12 @@ import {
   OPPORTUNITY_INTEREST_LABELS,
   OPPORTUNITY_STAGE_CLASSES,
   OPPORTUNITY_STAGE_LABELS,
+  opportunityValue,
+  valueBreakdown,
 } from "./opportunity-meta"
 
 interface ColumnsProps {
+  onDetails: (opportunity: OpportunityDto) => void
   onEdit: (opportunity: OpportunityDto) => void
   onConvert: (opportunity: OpportunityDto) => void
   /** The row and the button waiting on data, if any. */
@@ -30,6 +33,7 @@ function convertHint(closed: boolean, hasPlan: boolean): string {
 }
 
 export const createColumns = ({
+  onDetails,
   onEdit,
   onConvert,
   loading = null,
@@ -102,34 +106,16 @@ export const createColumns = ({
     accessorFn: (opportunity) => apiNumber(opportunity.expectedValue) ?? 0,
     header: "Expected value",
     cell: ({ row }) => {
-      const opportunity = row.original
-      const value = apiNumber(opportunity.expectedValue)
-      const extras = opportunity.requestedExtras ?? []
-      const extrasTotal = extras.reduce((sum, extra) => sum + extra.priceHt, 0)
-      // The quote if one was given, otherwise what the plan itself costs.
-      const planFee =
-        apiNumber(opportunity.requestedPlanPriceHt) ??
-        opportunity.requestedPlan?.priceHt ??
-        null
-
-      if (value === null && planFee === null && extras.length === 0) {
+      // Shared with the details dialog, so the two cannot disagree.
+      const value = opportunityValue(row.original)
+      if (value.total === null) {
         return <span className="text-muted-foreground">-</span>
       }
-
-      // Says what the figure is made of, so a total nobody recognises can be
-      // traced back to the plan fee and the add-ons that make it up.
-      const breakdown =
-        planFee === null
-          ? null
-          : `${formatPriceHt(planFee)} plan${
-              extras.length > 0
-                ? ` + ${extras.length} add-on${extras.length > 1 ? "s" : ""} (${formatPriceHt(extrasTotal)})`
-                : ""
-            }`
+      const breakdown = valueBreakdown(value)
 
       return (
         <div className="flex flex-col">
-          <span>{formatPriceHt(value ?? (planFee ?? 0) + extrasTotal)}</span>
+          <span>{formatPriceHt(value.total)}</span>
           {breakdown && (
             <span className="text-xs text-muted-foreground">{breakdown}</span>
           )}
@@ -175,6 +161,22 @@ export const createColumns = ({
 
       return (
         <div className="flex items-center gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              {/* Reads off the row, so it needs nothing loaded and stays
+                  usable while another action is fetching. */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => onDetails(opportunity)}
+              >
+                <Eye className="h-4 w-4" />
+                <span className="sr-only">Details</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>See everything on this lead</TooltipContent>
+          </Tooltip>
+
           <Tooltip>
             {/* A disabled button fires no pointer events, so the span carries
                 the trigger — the reason matters most when it is disabled. */}

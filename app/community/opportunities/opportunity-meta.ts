@@ -1,11 +1,13 @@
 import type {
+    OpportunityDto,
     OpportunityInterest,
     OpportunityStage,
     OpportunityStatsDto,
     PlanBenefitDto,
+    RequestedExtraDto,
 } from "@/lib/service/HsService"
 import { apiNumber, apiString } from "@/lib/api-value"
-import { formatEnumLabel } from "@/lib/format"
+import { formatEnumLabel, formatPriceHt } from "@/lib/format"
 
 export const OPPORTUNITY_STAGE_LABELS: Record<OpportunityStage, string> = {
     new: "New",
@@ -67,6 +69,51 @@ export function benefitLabel(benefit: PlanBenefitDto): string {
     const scopeName = apiString(benefit.resourceTypeName)
 
     return scopeName ? `${head}${renewal} — ${scopeName}` : `${head}${renewal}`
+}
+
+export interface OpportunityValue {
+    /** The fee actually quoted, else the plan's own price; null for neither. */
+    planFee: number | null
+    extras: RequestedExtraDto[]
+    extrasTotal: number
+    /** What the deal is worth, or null when there is nothing to add up. */
+    total: number | null
+}
+
+/**
+ * One definition of what a lead is worth, so the table cell and the details
+ * dialog cannot drift apart. The API's own `expectedValue` wins when it has
+ * one; otherwise it is the quoted plan fee plus the add-ons billing with it.
+ */
+export function opportunityValue(opportunity: OpportunityDto): OpportunityValue {
+    const extras = opportunity.requestedExtras ?? []
+    const extrasTotal = extras.reduce((sum, extra) => sum + extra.priceHt, 0)
+    const planFee =
+        apiNumber(opportunity.requestedPlanPriceHt) ??
+        opportunity.requestedPlan?.priceHt ??
+        null
+    const reported = apiNumber(opportunity.expectedValue)
+    const nothingToSum = planFee === null && extras.length === 0
+
+    return {
+        planFee,
+        extras,
+        extrasTotal,
+        total: reported ?? (nothingToSum ? null : (planFee ?? 0) + extrasTotal),
+    }
+}
+
+/**
+ * Says what the figure is made of, so a total nobody recognises can be traced
+ * back to the plan fee and the add-ons that make it up.
+ */
+export function valueBreakdown({ planFee, extras, extrasTotal }: OpportunityValue): string | null {
+    if (planFee === null) return null
+    const addOns =
+        extras.length > 0
+            ? ` + ${extras.length} add-on${extras.length > 1 ? "s" : ""} (${formatPriceHt(extrasTotal)})`
+            : ""
+    return `${formatPriceHt(planFee)} plan${addOns}`
 }
 
 /** Won is money made, lost is money gone; neither is still in play. */
