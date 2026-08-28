@@ -15,10 +15,14 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer"
 import { X } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
 import { getListMembers, getListCompanies, getListPlans } from "@/lib/service"
 import type { CompanyDto, MemberDto, MembershipDto, PlanDto } from "@/lib/service/HsService"
-import { formatPriceHt } from "@/lib/format"
+import { formatDate, formatEnumLabel, formatPriceHt, formatVatRate } from "@/lib/format"
+import { benefitLabel } from "@/lib/benefits"
 import { createMembershipAction, updateMembershipAction } from "./actions"
+import { billingCycleLabel, membershipSnapshot } from "./membership-snapshot"
+import { MEMBERSHIP_STATUS_CLASSES, MEMBERSHIP_STATUS_LABELS } from "./membership-status"
 import { toast } from "sonner"
 
 interface AddMembershipFormProps {
@@ -34,6 +38,34 @@ type CustomerKind = "member" | "company"
 
 const selectClassName =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+
+/** Same rhythm as a field in the add drawer, visibly inert. */
+const readOnlyClassName =
+  "flex min-h-10 w-full items-center rounded-md border border-input bg-muted/40 px-3 py-2 text-sm"
+
+function ReadOnlyField({
+  label,
+  hint,
+  children,
+}: Readonly<{ label: string; hint?: string; children: React.ReactNode }>) {
+  return (
+    <div className="grid gap-2">
+      <Label>{label}</Label>
+      <div className={readOnlyClassName}>{children}</div>
+      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  )
+}
+
+/** A row of the frozen terms table. */
+function Term({ label, value }: Readonly<{ label: string; value: React.ReactNode }>) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 border-b px-3 py-2 last:border-b-0">
+      <span className="text-muted-foreground">{label}</span>
+      <span className="text-right tabular-nums">{value}</span>
+    </div>
+  )
+}
 
 function SubmitButton({ editingMembership }: Readonly<{ editingMembership?: MembershipDto | null }>) {
   const { pending } = useFormStatus()
@@ -137,6 +169,16 @@ export function AddMembershipForm({
   const currentState = editingMembership ? updateState : createState
   const formAction = editingMembership ? updateFormAction : createFormAction
 
+  // What the membership actually runs on, rather than what the catalog says today.
+  const snapshot = membershipSnapshot(editingMembership ?? ({ planSnapshot: {} } as MembershipDto))
+  const cycle = billingCycleLabel(snapshot.plan)
+  const planCode = snapshot.plan?.code
+  const customerName = editingMembership?.companyId
+    ? companyNames[editingMembership.companyId]
+    : editingMembership?.memberId
+      ? memberNames[editingMembership.memberId]
+      : null
+
   return (
     <Drawer open={isOpen} onOpenChange={onClose} direction="right">
       <DrawerContent className="h-full w-[440px] ml-auto">
@@ -174,21 +216,139 @@ export function AddMembershipForm({
                 </div>
 
                 {/* The terms are snapshotted at creation, so everything below is
-                    create-only — the update schema takes name and notes alone. */}
+                    create-only — the update schema takes name and notes alone.
+                    On edit the same ground is shown, read-only, plus the
+                    snapshot the membership actually bills on. */}
                 {editingMembership ? (
-                  <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
-                    Running since{" "}
-                    <span className="font-medium text-foreground">
-                      {new Date(editingMembership.startsAt).toLocaleDateString()}
-                    </span>
-                    {editingMembership.endsAt
-                      ? ` until ${new Date(editingMembership.endsAt).toLocaleDateString()}`
-                      : ", open-ended"}
-                    .
-                    <span className="block pt-1 text-xs">
-                      Plan, customer and dates are fixed once the membership exists.
-                    </span>
-                  </div>
+                  <>
+                    <ReadOnlyField label="Status">
+                      <Badge
+                        variant="secondary"
+                        className={`${MEMBERSHIP_STATUS_CLASSES[editingMembership.status] ?? ""} border-0`}
+                      >
+                        {MEMBERSHIP_STATUS_LABELS[editingMembership.status] ?? editingMembership.status}
+                      </Badge>
+                    </ReadOnlyField>
+
+                    <ReadOnlyField
+                      label="Customer"
+                      hint={`Charged to the ${editingMembership.billTo}.`}
+                    >
+                      {customerName ?? (
+                        <span className="text-muted-foreground">Unknown customer</span>
+                      )}
+                    </ReadOnlyField>
+
+                    <ReadOnlyField label="Plan" hint={planCode ? `Code ${planCode}` : undefined}>
+                      {snapshot.plan?.name ?? (
+                        <span className="text-muted-foreground">Not in the snapshot</span>
+                      )}
+                    </ReadOnlyField>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <ReadOnlyField label="Starts at">
+                        {formatDate(editingMembership.startsAt)}
+                      </ReadOnlyField>
+                      <ReadOnlyField label="Ends at">
+                        {editingMembership.endsAt ? (
+                          formatDate(editingMembership.endsAt)
+                        ) : (
+                          <span className="text-muted-foreground">Open-ended</span>
+                        )}
+                      </ReadOnlyField>
+                    </div>
+
+                    {editingMembership.cancelledAt && (
+                      <ReadOnlyField
+                        label="Cancelled at"
+                        hint="It keeps running until the last active day above."
+                      >
+                        {formatDate(editingMembership.cancelledAt)}
+                      </ReadOnlyField>
+                    )}
+
+                    {/* The contract it bills on. The catalog plan may have been
+                        repriced or archived since; none of that reaches a
+                        membership already sold, so this is the figure that counts. */}
+                    <div className="grid gap-2">
+                      <Label>Plan snapshot</Label>
+                      <div className="rounded-md border text-sm">
+                        <Term
+                          label="Price (HT)"
+                          value={formatPriceHt(snapshot.plan?.priceHt)}
+                        />
+                        <Term label="VAT" value={formatVatRate(snapshot.plan?.vatRate)} />
+                        <Term label="Deposit" value={formatPriceHt(snapshot.plan?.deposit)} />
+                        {cycle && <Term label="Billing cycle" value={cycle} />}
+                        {snapshot.plan?.kind && (
+                          <Term label="Kind" value={formatEnumLabel(snapshot.plan.kind)} />
+                        )}
+                        <Term
+                          label="Notice period"
+                          value={
+                            snapshot.plan?.cancellationDays
+                              ? `${snapshot.plan.cancellationDays} days`
+                              : "None"
+                          }
+                        />
+                        {snapshot.snapshotAt && (
+                          <Term label="Taken" value={formatDate(snapshot.snapshotAt)} />
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Frozen at creation. Later changes to the catalog plan do not
+                        reach this membership.
+                      </p>
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label>Extras</Label>
+                      {snapshot.extras.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">
+                          No extras were taken with this membership.
+                        </p>
+                      ) : (
+                        <div className="rounded-md border text-sm">
+                          {snapshot.extras.map((extra) => (
+                            <Term
+                              key={extra.extraId}
+                              label={extra.name}
+                              value={
+                                <>
+                                  {formatPriceHt(extra.priceHt)}
+                                  <span className="block text-xs text-muted-foreground">
+                                    VAT {formatVatRate(extra.vatRate)}
+                                    {extra.deposit
+                                      ? ` · deposit ${formatPriceHt(extra.deposit)}`
+                                      : ""}
+                                  </span>
+                                </>
+                              }
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid gap-2">
+                      <Label>Included benefits</Label>
+                      {snapshot.benefits.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">
+                          This plan grants no benefits.
+                        </p>
+                      ) : (
+                        <ul className="grid gap-1 rounded-md border bg-muted/40 p-3">
+                          {snapshot.benefits.map((benefit, index) => (
+                            // Snapshot benefits carry no id of their own, and the
+                            // list is a frozen copy that never reorders.
+                            <li key={index} className="text-sm text-muted-foreground">
+                              {benefitLabel(benefit)}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  </>
                 ) : (
                   <>
                     <div className="grid gap-2">

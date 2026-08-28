@@ -108,6 +108,7 @@ export const createColumns = ({
             className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-950 dark:border-blue-800"
           >
             <Edit className="h-4 w-4" />
+            <span className="sr-only">Edit</span>
           </Button>
           <LifecycleButtons
             membershipId={membership.id}
