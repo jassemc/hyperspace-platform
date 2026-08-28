@@ -221,6 +221,27 @@ export async function confirmBookingAction(
   }
 }
 
+/**
+ * Flags a past booking as a no-show. PATCH /bookings is the only route
+ * that writes this status; the API itself refuses members
+ * (`no_show_requires_staff`) and future bookings (`no_show_before_start`).
+ */
+export async function markNoShowAction(
+  prevState: ActionState,
+  formData: FormData
+): Promise<ActionState> {
+  try {
+    const id = text(formData, "id")
+    if (!id) return { success: false, error: "Booking ID is required" }
+
+    await updateBooking(id, { status: "no_show" })
+    revalidate()
+    return { success: true }
+  } catch (error) {
+    return problem(error, "Failed to mark as no-show")
+  }
+}
+
 export async function cancelBookingAction(
   prevState: ActionState,
   formData: FormData

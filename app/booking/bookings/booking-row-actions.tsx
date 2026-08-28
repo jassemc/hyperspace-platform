@@ -9,10 +9,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Ban, Check, Edit, Eye, MoreHorizontal } from "lucide-react"
+import { Ban, Check, Edit, Eye, MoreHorizontal, UserX } from "lucide-react"
 import type { BookingDto } from "@/lib/service/HsService"
 import { BookingDetailsDialog } from "./booking-details-dialog"
 import { CancelBookingAlert } from "./cancel-booking-alert"
+import { MarkNoShowAlert } from "./mark-no-show-alert"
 import { useBookingMutations } from "./use-booking-mutations"
 
 interface BookingRowActionsProps {
@@ -28,9 +29,20 @@ interface BookingRowActionsProps {
  * dialog down with it.
  */
 export function BookingRowActions({ booking, timeZone, onEdit }: Readonly<BookingRowActionsProps>) {
-  const { label, pending, canConfirm, canCancel, confirm, cancel } = useBookingMutations(booking)
+  const {
+    label,
+    pending,
+    canConfirm,
+    canCancel,
+    canMarkNoShow,
+    noShowHint,
+    confirm,
+    cancel,
+    markNoShow,
+  } = useBookingMutations(booking)
   const [detailsOpen, setDetailsOpen] = useState(false)
   const [cancelOpen, setCancelOpen] = useState(false)
+  const [noShowOpen, setNoShowOpen] = useState(false)
 
   const confirmHint = canConfirm ? undefined : "Only pending bookings can be confirmed"
   const cancelHint = canCancel
@@ -65,6 +77,15 @@ export function BookingRowActions({ booking, timeZone, onEdit }: Readonly<Bookin
             <Check />
             Confirm
           </DropdownMenuItem>
+          {/* One-way status change, so it asks first. */}
+          <DropdownMenuItem
+            disabled={!canMarkNoShow}
+            onSelect={() => setNoShowOpen(true)}
+            title={noShowHint}
+          >
+            <UserX />
+            Mark as no-show
+          </DropdownMenuItem>
           {/* Cancelling frees the slot and cannot be undone here, so it asks first. */}
           <DropdownMenuItem
             variant="destructive"
@@ -96,6 +117,16 @@ export function BookingRowActions({ booking, timeZone, onEdit }: Readonly<Bookin
         pending={pending === "cancel"}
         onConfirm={async () => {
           if (await cancel()) setCancelOpen(false)
+        }}
+      />
+
+      <MarkNoShowAlert
+        open={noShowOpen}
+        onOpenChange={setNoShowOpen}
+        label={label}
+        pending={pending === "no_show"}
+        onConfirm={async () => {
+          if (await markNoShow()) setNoShowOpen(false)
         }}
       />
     </>
