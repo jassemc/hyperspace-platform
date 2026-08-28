@@ -18,8 +18,8 @@ import { getPlan } from "@/lib/service"
 import type { OpportunityDto, PlanDto } from "@/lib/service/HsService"
 import { apiString } from "@/lib/api-value"
 import { formatDate, formatPriceHt, formatVatRate, priceTtc } from "@/lib/format"
+import { benefitLabel } from "@/lib/benefits"
 import {
-  benefitLabel,
   OPPORTUNITY_INTEREST_LABELS,
   OPPORTUNITY_STAGE_CLASSES,
   OPPORTUNITY_STAGE_LABELS,

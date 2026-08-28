@@ -3,11 +3,10 @@ import type {
     OpportunityInterest,
     OpportunityStage,
     OpportunityStatsDto,
-    PlanBenefitDto,
     RequestedExtraDto,
 } from "@/lib/service/HsService"
-import { apiNumber, apiString } from "@/lib/api-value"
-import { formatEnumLabel, formatPriceHt } from "@/lib/format"
+import { apiNumber } from "@/lib/api-value"
+import { formatPriceHt } from "@/lib/format"
 
 export const OPPORTUNITY_STAGE_LABELS: Record<OpportunityStage, string> = {
     new: "New",
@@ -54,22 +53,6 @@ export const OPPORTUNITY_INTEREST_LABELS: Record<OpportunityInterest, string> = 
 export const OPPORTUNITY_INTEREST_VALUES = Object.keys(
     OPPORTUNITY_INTEREST_LABELS
 ) as OpportunityInterest[]
-
-/** Reads as "20 × half day per cycle — Meeting Room", or just "Locker". */
-export function benefitLabel(benefit: PlanBenefitDto): string {
-    if (benefit.benefitKind === "amenity") {
-        return apiString(benefit.amenityName) ?? formatEnumLabel(benefit.benefitType)
-    }
-
-    const amount = apiNumber(benefit.amount)
-    const unit = formatEnumLabel(benefit.benefitType)
-    const head = amount === null ? unit : `${amount} × ${unit}`
-    const renewal = benefit.renewal === "per_cycle" ? " per cycle" : ""
-    // The benefit names its own type now.
-    const scopeName = apiString(benefit.resourceTypeName)
-
-    return scopeName ? `${head}${renewal} — ${scopeName}` : `${head}${renewal}`
-}
 
 export interface OpportunityValue {
     /** The fee actually quoted, else the plan's own price; null for neither. */

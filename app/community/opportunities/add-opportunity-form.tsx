@@ -24,8 +24,8 @@ import type { OpportunityOptions } from "./use-opportunity-options"
 import { apiNumber, apiString } from "@/lib/api-value"
 import { formatPriceHt } from "@/lib/format"
 import { createOpportunityAction, updateOpportunityAction } from "./actions"
+import { benefitLabel } from "@/lib/benefits"
 import {
-  benefitLabel,
   OPPORTUNITY_INTEREST_LABELS,
   OPPORTUNITY_INTEREST_VALUES,
   OPPORTUNITY_STAGE_EDITABLE_VALUES,

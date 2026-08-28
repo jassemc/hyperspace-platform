@@ -19,8 +19,8 @@ import type { OpportunityDto } from "@/lib/service/HsService"
 import { apiNumber } from "@/lib/api-value"
 import { formatPriceHt } from "@/lib/format"
 import { onboardLeadAction } from "./actions"
+import { benefitLabel } from "@/lib/benefits"
 import {
-  benefitLabel,
   OPPORTUNITY_INTEREST_LABELS,
 } from "./opportunity-meta"
 import type { ConvertContext } from "./use-opportunity-options"
