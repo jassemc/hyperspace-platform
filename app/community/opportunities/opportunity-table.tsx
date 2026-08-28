@@ -11,6 +11,7 @@ import type {
 import { createColumns } from "./columns"
 import { AddOpportunityForm } from "./add-opportunity-form"
 import { ConvertLeadForm } from "./convert-lead-form"
+import { OpportunityDetailsDialog } from "./opportunity-details-dialog"
 import { useOpportunityOptions, type ConvertContext } from "./use-opportunity-options"
 import {
   OPPORTUNITY_INTEREST_LABELS,
@@ -82,6 +83,7 @@ export function OpportunityTable({
   const [editingOpportunity, setEditingOpportunity] = useState<OpportunityDto | null>(null)
   const [convertingOpportunity, setConvertingOpportunity] = useState<OpportunityDto | null>(null)
   const [convertContext, setConvertContext] = useState<ConvertContext | null>(null)
+  const [detailsOpportunity, setDetailsOpportunity] = useState<OpportunityDto | null>(null)
   const { options, loading, loadOptions, loadConvert } = useOpportunityOptions()
 
   // Its plan, space and add-ons load first; the drawer opens already filled in.
@@ -103,7 +105,17 @@ export function OpportunityTable({
     setEditingOpportunity(null)
   }
 
+  // Handing over to a drawer: the details dialog closes first, so the two are
+  // never stacked, and only reopens if the caller goes back to it.
+  const handOff = (run: (opportunity: OpportunityDto) => Promise<void>) => {
+    const opportunity = detailsOpportunity
+    if (!opportunity) return
+    setDetailsOpportunity(null)
+    void run(opportunity)
+  }
+
   const columns = createColumns({
+    onDetails: setDetailsOpportunity,
     onEdit: handleEdit,
     onConvert: handleConvert,
     loading,
@@ -132,6 +144,19 @@ export function OpportunityTable({
         inlineFilters
         searchPlaceholder="Search by member..."
       />
+      {detailsOpportunity && (
+        <OpportunityDetailsDialog
+          key={detailsOpportunity.id}
+          opportunity={detailsOpportunity}
+          open={true}
+          onOpenChange={(next) => {
+            if (!next) setDetailsOpportunity(null)
+          }}
+          onEdit={() => handOff(handleEdit)}
+          onConvert={() => handOff(handleConvert)}
+          busy={loading !== null}
+        />
+      )}
       {isDrawerOpen && (
         <AddOpportunityForm
           key={editingOpportunity?.id || "create"}
