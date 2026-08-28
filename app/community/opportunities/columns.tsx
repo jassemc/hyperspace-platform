@@ -1,14 +1,12 @@
 "use client"
 
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import type { ColumnDef } from "@tanstack/react-table"
 import type { OpportunityDto, OpportunityInterest, OpportunityStage } from "@/lib/service/HsService"
-import { Edit, Eye, Loader2, UserPlus } from "lucide-react"
 import { formatDate, formatPriceHt } from "@/lib/format"
-import type { OpportunityAction, OptionsLoading } from "./use-opportunity-options"
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
+import type { OptionsLoading } from "./use-opportunity-options"
 import { apiNumber, apiString } from "@/lib/api-value"
+import { OpportunityRowActions } from "./opportunity-row-actions"
 import {
   OPPORTUNITY_INTEREST_LABELS,
   OPPORTUNITY_STAGE_CLASSES,
@@ -23,13 +21,6 @@ interface ColumnsProps {
   onConvert: (opportunity: OpportunityDto) => void
   /** The row and the button waiting on data, if any. */
   loading?: OptionsLoading | null
-}
-
-/** Why the conversion is unavailable matters more than that it is. */
-function convertHint(closed: boolean, hasPlan: boolean): string {
-  if (closed) return "Already closed — reopen it to convert"
-  if (!hasPlan) return "Add a requested plan before converting"
-  return "Convert to a membership and assignment"
 }
 
 export const createColumns = ({
@@ -148,82 +139,14 @@ export const createColumns = ({
   {
     id: "actions",
     header: "Actions",
-    cell: ({ row }) => {
-      const opportunity = row.original
-      const busy = loading !== null
-      const waitingOn = (action: OpportunityAction) =>
-        loading?.action === action && loading.id === opportunity.id
-      // Converting a closed lead is refused: won/lost stamps closed_at.
-      const closed = Boolean(opportunity.closedAt)
-      // No plan, nothing to bill — onboarding refuses it. Shown but disabled,
-      // so the action stays discoverable and the tooltip says what is missing.
-      const hasPlan = Boolean(apiString(opportunity.requestedPlanId))
-
-      return (
-        <div className="flex items-center gap-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              {/* Reads off the row, so it needs nothing loaded and stays
-                  usable while another action is fetching. */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => onDetails(opportunity)}
-              >
-                <Eye className="h-4 w-4" />
-                <span className="sr-only">Details</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>See everything on this lead</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            {/* A disabled button fires no pointer events, so the span carries
-                the trigger — the reason matters most when it is disabled. */}
-            <TooltipTrigger asChild>
-              <span className="inline-flex">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onEdit(opportunity)}
-                  disabled={busy}
-                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-950 dark:border-blue-800"
-                >
-                  {waitingOn("edit") ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Edit className="h-4 w-4" />
-                  )}
-                  <span className="sr-only">Edit</span>
-                </Button>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>Edit this opportunity</TooltipContent>
-          </Tooltip>
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="inline-flex">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onConvert(opportunity)}
-                  disabled={busy || closed || !hasPlan}
-                  className="text-green-700 hover:text-green-800 hover:bg-green-50 border-green-200 dark:text-green-400 dark:hover:text-green-300 dark:hover:bg-green-950 dark:border-green-800"
-                >
-                  {waitingOn("convert") ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <UserPlus className="h-4 w-4" />
-                  )}
-                  <span className="sr-only">Convert</span>
-                </Button>
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>{convertHint(closed, hasPlan)}</TooltipContent>
-          </Tooltip>
-        </div>
-      )
-    },
+    cell: ({ row }) => (
+      <OpportunityRowActions
+        opportunity={row.original}
+        onDetails={onDetails}
+        onEdit={onEdit}
+        onConvert={onConvert}
+        loading={loading}
+      />
+    ),
   },
 ]
