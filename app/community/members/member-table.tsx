@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { DataTable } from "@/components/data-table"
-import { AddMemberForm } from "./add-member-form"
+import { MemberFormDialog } from "./member-form-dialog"
 import type { MemberDto } from "@/lib/service/HsService"
 import { createColumns } from "./columns"
 import { MemberDetailsDialog } from "./member-details-dialog"
@@ -60,7 +60,7 @@ export function MemberTable({
         searchPlaceholder="Search members..."
       />
       {isFormOpen && (
-        <AddMemberForm
+        <MemberFormDialog
           key={editingMember?.id || "create"}
           isOpen
           onClose={handleClose}
