@@ -11,11 +11,18 @@ import { BookingRowActions } from "./booking-row-actions"
 import { FREE_REASON_LABELS } from "./free-reason"
 
 interface ColumnsProps {
+  /** Off on a member's own page, where every row is theirs. */
+  hideCustomer?: boolean
   onEdit: (booking: BookingDto) => void
   timeZone: string
 }
 
-export const createColumns = ({ onEdit, timeZone }: ColumnsProps): ColumnDef<BookingDto>[] => [
+export const createColumns = ({
+  onEdit,
+  timeZone,
+  hideCustomer = false,
+}: ColumnsProps): ColumnDef<BookingDto>[] => {
+  const columns: ColumnDef<BookingDto>[] = [
   {
     id: "title",
     accessorFn: (booking) => booking.title ?? "",
@@ -139,4 +146,6 @@ export const createColumns = ({ onEdit, timeZone }: ColumnsProps): ColumnDef<Boo
       <BookingRowActions booking={row.original} timeZone={timeZone} onEdit={onEdit} />
     ),
   },
-]
+  ]
+  return columns.filter((column) => !(hideCustomer && column.id === "customer"))
+}

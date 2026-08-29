@@ -12,6 +12,8 @@ import { INVOICE_STATUS_CLASSES, INVOICE_STATUS_LABELS } from "./invoice-status"
 import { InvoiceActionButtons } from "./invoice-actions-buttons"
 
 interface ColumnsProps {
+  /** Off on a member's own page, where every row is theirs. */
+  hideCustomer?: boolean
   memberNames?: Record<string, string>
   companyNames?: Record<string, string>
 }
@@ -19,7 +21,9 @@ interface ColumnsProps {
 export const createColumns = ({
   memberNames = {},
   companyNames = {},
-}: ColumnsProps): ColumnDef<InvoiceDto>[] => [
+  hideCustomer = false,
+}: ColumnsProps): ColumnDef<InvoiceDto>[] => {
+  const columns: ColumnDef<InvoiceDto>[] = [
   {
     accessorKey: "number",
     header: "Number",
@@ -137,4 +141,6 @@ export const createColumns = ({
       )
     },
   },
-]
+  ]
+  return columns.filter((column) => !(hideCustomer && column.id === "billedTo"))
+}

@@ -7,6 +7,8 @@ import { formatDate, formatEnumLabel, formatPriceHt, formatVatRate } from "@/lib
 import { apiName, apiString } from "@/lib/api-value"
 
 interface ColumnsProps {
+  /** Off on a member's own page, where every row is theirs. */
+  hideCustomer?: boolean
   memberNames?: Record<string, string>
   companyNames?: Record<string, string>
 }
@@ -14,7 +16,9 @@ interface ColumnsProps {
 export const createColumns = ({
   memberNames = {},
   companyNames = {},
-}: ColumnsProps): ColumnDef<ChargeDto>[] => [
+  hideCustomer = false,
+}: ColumnsProps): ColumnDef<ChargeDto>[] => {
+  const columns: ColumnDef<ChargeDto>[] = [
   {
     accessorKey: "description",
     header: "Description",
@@ -93,4 +97,6 @@ export const createColumns = ({
     header: "Created",
     cell: ({ row }) => <span>{formatDate(row.getValue<string>("createdAt"))}</span>,
   },
-]
+  ]
+  return columns.filter((column) => !(hideCustomer && column.id === "customer"))
+}

@@ -7,6 +7,8 @@ import { formatEnumLabel } from "@/lib/format"
 import { CheckoutButton } from "./checkout-button"
 
 interface ColumnsProps {
+  /** Off on a member's own page, where every row is theirs. */
+  hideMember?: boolean
   memberNames?: Record<string, string>
   locationNames?: Record<string, string>
 }
@@ -30,7 +32,9 @@ function duration(checkin: CheckinDto): string {
 export const createColumns = ({
   memberNames = {},
   locationNames = {},
-}: ColumnsProps): ColumnDef<CheckinDto>[] => [
+  hideMember = false,
+}: ColumnsProps): ColumnDef<CheckinDto>[] => {
+  const columns: ColumnDef<CheckinDto>[] = [
   {
     id: "member",
     accessorFn: (checkin) => memberNames[checkin.memberId] ?? "",
@@ -103,4 +107,6 @@ export const createColumns = ({
       )
     },
   },
-]
+  ]
+  return columns.filter((column) => !(hideMember && column.id === "member"))
+}

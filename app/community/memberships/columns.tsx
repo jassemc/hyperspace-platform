@@ -10,11 +10,18 @@ import { MEMBERSHIP_STATUS_CLASSES, MEMBERSHIP_STATUS_LABELS } from "./membershi
 import { MembershipRowActions } from "./membership-row-actions"
 
 interface ColumnsProps {
+  /** Off on a member's own page, where every row is theirs. */
+  hideCustomer?: boolean
   onDetails: (membership: MembershipDto) => void
   onEdit: (membership: MembershipDto) => void
 }
 
-export const createColumns = ({ onDetails, onEdit }: ColumnsProps): ColumnDef<MembershipDto>[] => [
+export const createColumns = ({
+  onDetails,
+  onEdit,
+  hideCustomer = false,
+}: ColumnsProps): ColumnDef<MembershipDto>[] => {
+  const columns: ColumnDef<MembershipDto>[] = [
   {
     accessorKey: "name",
     header: ({ column }) => (
@@ -111,4 +118,6 @@ export const createColumns = ({ onDetails, onEdit }: ColumnsProps): ColumnDef<Me
       <MembershipRowActions membership={row.original} onDetails={onDetails} onEdit={onEdit} />
     ),
   },
-]
+  ]
+  return columns.filter((column) => !(hideCustomer && column.id === "customer"))
+}

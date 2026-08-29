@@ -23,6 +23,11 @@ interface MembershipTableProps {
   planOptions?: MembershipPlanCountDto[] | null
   activeStatus?: MembershipStatus
   activePlanId?: string
+  /** Member page: every row is theirs, so no Customer column and no Plan filter. */
+  hideCustomer?: boolean
+  showPlanFilter?: boolean
+  /** Forwarded to the create dialog so the member select starts on them. */
+  defaultMemberId?: string
 }
 
 export function MembershipTable({
@@ -32,6 +37,9 @@ export function MembershipTable({
   planOptions,
   activeStatus,
   activePlanId,
+  hideCustomer = false,
+  showPlanFilter = true,
+  defaultMemberId,
 }: Readonly<MembershipTableProps>) {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingMembership, setEditingMembership] = useState<MembershipDto | null>(null)
@@ -56,7 +64,7 @@ export function MembershipTable({
     run(membership)
   }
 
-  const columns = createColumns({ onDetails: setDetailsMembership, onEdit: handleEdit })
+  const columns = createColumns({ onDetails: setDetailsMembership, onEdit: handleEdit, hideCustomer })
 
   const totals = membershipTotals(stats ?? null)
 
@@ -81,7 +89,7 @@ export function MembershipTable({
         columns={columns}
         data={data}
         totalCount={typeof totalCount === "number" ? totalCount : undefined}
-        filters={filters}
+        filters={showPlanFilter ? filters : []}
         showStatusTabs={true}
         statusTabOptions={MEMBERSHIP_STATUS_TABS.map((tab) => ({
           ...tab,
@@ -98,6 +106,7 @@ export function MembershipTable({
           isOpen
           onClose={handleClose}
           editingMembership={editingMembership}
+          defaultMemberId={defaultMemberId}
         />
       )}
       {detailsMembership && (
