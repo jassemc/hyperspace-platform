@@ -212,14 +212,20 @@ export function BookingFormDialog({
       const result = await validateBookingAction({}, new FormData(formRef.current))
       if (seq !== checkSeq.current) return
       if (result.success) {
-        const quote = result.quote as { priceHt?: number | null } | undefined
+        const quote = result.quote as
+          | { priceHt?: number | null; discount?: { code: string; amountHt: number } | null }
+          | undefined
         const price = quote?.priceHt
+        // Spec §8.4: name the discount the quote applied (plan rate discount or promo).
+        const discountNote = quote?.discount
+          ? ` (${quote.discount.code}: ${formatPriceHt(quote.discount.amountHt)})`
+          : ""
         setQuoteMessage(
           price === null || price === undefined
             ? "Available — fully covered by credits."
             : isFree
               ? `Available — free (would have been ${formatPriceHt(price)} excl. VAT).`
-              : `Available — ${formatPriceHt(price)} excl. VAT.`
+              : `Available — ${formatPriceHt(price)} excl. VAT.${discountNote}`
         )
       } else {
         setQuoteMessage(messageFor(result, "The booking is not valid."))
