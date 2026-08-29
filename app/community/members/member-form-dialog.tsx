@@ -15,7 +15,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import type { MemberDto, MemberKindHint, MemberSegment } from "@/lib/service/HsService"
-import { createMemberAction, updateMemberAction, type ActionState } from "./actions"
+import { createMemberAction, updateMemberAction } from "./actions"
+import type { ActionState } from "@/lib/action-state"
 import { toast } from "sonner"
 
 const KIND_HINT_OPTIONS: { value: MemberKindHint; label: string }[] = [

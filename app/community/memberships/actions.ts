@@ -17,7 +17,6 @@ import type {
 } from "@/lib/service/HsService"
 import { type ActionState, problem, text, clearableText, num } from "@/lib/action-state"
 
-export type { ActionState }
 
 function revalidate() {
   revalidatePath("/community/memberships")

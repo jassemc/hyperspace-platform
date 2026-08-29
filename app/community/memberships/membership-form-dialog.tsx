@@ -26,7 +26,8 @@ import type {
 import { formatPriceHt } from "@/lib/format"
 import { formatDiscountValue, isInWindow } from "@/app/billing/discounts/discount-meta"
 import { totalDiscount } from "@/lib/pricing/discount-math"
-import { createMembershipAction, updateMembershipAction, type ActionState } from "./actions"
+import { createMembershipAction, updateMembershipAction } from "./actions"
+import type { ActionState } from "@/lib/action-state"
 import { toast } from "sonner"
 
 interface MembershipFormDialogProps {

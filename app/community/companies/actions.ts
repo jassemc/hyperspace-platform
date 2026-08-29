@@ -9,7 +9,6 @@ import type {
 } from "@/lib/service/HsService"
 import { type ActionState, problem, text, clearableText, tags } from "@/lib/action-state"
 
-export type { ActionState }
 
 function revalidate(id?: string) {
   revalidatePath("/community/companies")

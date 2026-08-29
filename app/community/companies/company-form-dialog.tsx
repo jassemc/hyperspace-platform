@@ -15,7 +15,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import type { CompanyDto } from "@/lib/service/HsService"
-import { createCompanyAction, updateCompanyAction, type ActionState } from "./actions"
+import { createCompanyAction, updateCompanyAction } from "./actions"
+import type { ActionState } from "@/lib/action-state"
 import { toast } from "sonner"
 
 interface CompanyFormDialogProps {

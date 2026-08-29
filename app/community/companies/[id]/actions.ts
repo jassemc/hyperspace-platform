@@ -22,7 +22,6 @@ import {
   resumeMembershipAction as resumeMembership,
 } from "@/app/community/memberships/actions"
 
-export type { ActionState }
 
 function revalidateCompany(companyId: string) {
   revalidatePath(`/community/companies/${companyId}`)
