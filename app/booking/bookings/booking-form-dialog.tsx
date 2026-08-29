@@ -380,6 +380,7 @@ export function BookingFormDialog({
             disabled={Boolean(editingBooking)}
             onExtrasChange={invalidateQuote}
             initialExtraIds={(editingBooking?.extras ?? []).map((extra) => extra.extraId)}
+            onDiscountChange={invalidateQuote}
           />
 
           <div className="grid gap-3" role="group" aria-labelledby="booking-when-label">

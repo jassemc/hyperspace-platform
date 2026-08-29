@@ -128,6 +128,9 @@ function bookingPayload(formData: FormData): CreateBookingDto | { error: string 
     extraIds: formData.getAll("extraIds").map(String).filter(Boolean),
     isFree,
     freeReason: isFree ? (freeReason as CreateBookingDto["freeReason"]) : undefined,
+    // "No discount" posts "" — `text` turns that into `undefined`, which
+    // is exactly what an absent discountId means to the API.
+    discountId: text(formData, "discountId"),
   }
 }
 
@@ -228,14 +231,14 @@ export async function confirmBookingAction(
     const isFree = formData.get("isFree") === "on"
     const freeReason = text(formData, "freeReason")
     if (isFree && !freeReason) return { success: false, error: "Pick a reason for the free booking" }
-    // Absent field = no requested code, nothing to send. Present but empty =
-    // staff unticked "apply the requested code", so the API must drop it —
-    // that has to reach the body as an explicit `null`, not a missing key.
-    const discountCodeField = formData.get("discountCode")
-    const discountCode = typeof discountCodeField === "string" ? discountCodeField.trim() || null : undefined
+    // "No discount" (the select's default) posts nothing here — omitting
+    // `discountId` is what confirms at the list price. Never sends
+    // `discountCode`: staff pick a discount from the select now, not a
+    // visitor-typed code kept or replaced.
+    const discountId = text(formData, "discountId")
     await confirmBooking(id, {
       ...(isFree ? { isFree, freeReason: freeReason as ConfirmBookingDto["freeReason"] } : {}),
-      ...(discountCode !== undefined ? { discountCode } : {}),
+      ...(discountId ? { discountId } : {}),
     })
     revalidate()
     return { success: true }

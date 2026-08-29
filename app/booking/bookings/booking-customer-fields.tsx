@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { Label } from "@/components/ui/label"
 import { NativeSelect } from "@/components/ui/native-select"
-import { getListResources, getListMembers, getListCompanies } from "@/lib/service"
-import type { CompanyDto, MemberDto, ResourceDto } from "@/lib/service/HsService"
+import { getListResources, getListMembers, getListCompanies, getListDiscounts } from "@/lib/service"
+import type { CompanyDto, DiscountDto, MemberDto, ResourceDto } from "@/lib/service/HsService"
 import { ExtraTagPicker } from "@/components/extra-tag-picker"
+import { formatDiscountValue, isInWindow } from "@/app/billing/discounts/discount-meta"
 
 type CustomerKind = "member" | "company"
 
@@ -35,6 +36,8 @@ interface BookingCustomerFieldsProps {
   onExtrasChange?: () => void
   /** Edit mode: the ids already on the booking, so the tags start selected. */
   initialExtraIds?: string[]
+  /** A quote describes one exact discount too — same reasoning as extras. */
+  onDiscountChange?: () => void
 }
 
 /**
@@ -57,6 +60,7 @@ export function BookingCustomerFields({
   disabled = false,
   onExtrasChange,
   initialExtraIds = [],
+  onDiscountChange,
 }: Readonly<BookingCustomerFieldsProps>) {
   const [resources, setResources] = useState<ResourceDto[]>(seedResources ?? [])
   const [memberNames, setMemberNames] = useState<Record<string, string>>(() =>
@@ -69,6 +73,12 @@ export function BookingCustomerFields({
   // Controlled so the tags know their own state; the picker posts the
   // selection as hidden `extraIds` inputs, which is what the action reads.
   const [extraIds, setExtraIds] = useState<string[]>(initialExtraIds)
+  // Create only (see the `!disabled` gate below): active resource-rate
+  // discounts, fetched once. Filtered against the selected resource's
+  // rates at render time rather than re-fetched per resource — the
+  // catalog is small and shared across every room.
+  const [discounts, setDiscounts] = useState<DiscountDto[]>([])
+  const [discountId, setDiscountId] = useState("")
 
   // Every caller on the bookings page seeds all three lists from the
   // server (see lookups.ts), so nothing below runs there. The fetches stay
@@ -114,6 +124,39 @@ export function BookingCustomerFields({
     }
   }, [disabled, hasCustomerSeed])
 
+  // Create only: PATCH /bookings has no `discountId`, so edit mode never
+  // fetches — the request would be pure waste, same reasoning as the
+  // member/company fetch above.
+  useEffect(() => {
+    if (disabled) return
+    let cancelled = false
+    getListDiscounts({ limit: 100, offset: 0, sort: "ASC", kind: "resource_rate", status: "active" })
+      .then((page) => {
+        if (cancelled) return
+        setDiscounts((page.results ?? []) as DiscountDto[])
+      })
+      .catch((error) => console.error("Failed to load discounts", error))
+    return () => {
+      cancelled = true
+    }
+  }, [disabled])
+
+  // A discount picked for one room's rates means nothing on another —
+  // reset rather than let a stale id ride along, silently narrowed to
+  // whatever the new resource's eligible list happens to contain. Skips
+  // the very first render: nothing has been quoted yet, so there is
+  // nothing for `onDiscountChange` to invalidate.
+  const isFirstResourceRender = useRef(true)
+  useEffect(() => {
+    if (isFirstResourceRender.current) {
+      isFirstResourceRender.current = false
+      return
+    }
+    setDiscountId("")
+    onDiscountChange?.()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [resourceId])
+
   const selectedResource = resources.find((resource) => resource.id === resourceId)
 
   /**
@@ -141,6 +184,16 @@ export function BookingCustomerFields({
     .filter((id) => !availableExtras.some((extra) => extra.id === id))
     .map((id) => ({ id, name: "No longer offered", priceHt: 0 }))
   const pickerExtras = [...availableExtras, ...bookedButGone]
+
+  // A resource-rate discount fits this booking when it targets every rate
+  // or names one of THIS resource's — the same rates the extras above are
+  // deduped across — and is inside its validity window.
+  const resourceRateIds = new Set((selectedResource?.rates ?? []).map((rate) => rate.id))
+  const eligibleDiscounts = discounts.filter(
+    (discount) =>
+      isInWindow(discount) &&
+      (discount.appliesToAll || discount.resourceRateIds.some((id) => resourceRateIds.has(id)))
+  )
 
   return (
     <>
@@ -247,6 +300,31 @@ export function BookingCustomerFields({
               ? "Extras you keep stay at the price they were booked at; ones you add are priced at today's rate."
               : "Offered by the rates attached to this resource."}
           </p>
+        </div>
+      )}
+
+      {/* Create only: PATCH /bookings has no `discountId`, so edit mode
+          keeps whatever discount confirm already applied. */}
+      {!disabled && (
+        <div className="grid gap-2">
+          <Label htmlFor="discountId">Discount</Label>
+          <NativeSelect
+            id="discountId"
+            name="discountId"
+            value={discountId}
+            onChange={(e) => {
+              setDiscountId(e.target.value)
+              onDiscountChange?.()
+            }}
+            disabled={!resourceId}
+          >
+            <option value="">{resourceId ? "No discount" : "Select a resource first"}</option>
+            {eligibleDiscounts.map((discount) => (
+              <option key={discount.id} value={discount.id}>
+                {discount.code} — {formatDiscountValue(discount)}
+              </option>
+            ))}
+          </NativeSelect>
         </div>
       )}
     </>
