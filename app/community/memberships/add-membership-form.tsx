@@ -69,6 +69,30 @@ function Term({ label, value }: Readonly<{ label: string; value: React.ReactNode
   )
 }
 
+type SnapshotDiscount = {
+  code?: string | null
+  percentOff?: number | null
+  amountOffHt?: number | null
+} | null | undefined
+
+/**
+ * Labels the option for a membership's assigned discount that fell out of
+ * the fetched active/eligible list. `resolved` (a real backend record, from
+ * either fetch) is the only source trusted to call it "no longer eligible" —
+ * a loading state or a failed lookup falls back to the frozen snapshot, or
+ * worst case the bare id, so the option — and the value it keeps matched —
+ * never depends on a network round trip succeeding.
+ */
+function assignedDiscountLabel(
+  resolved: Pick<DiscountDto, "code" | "percentOff" | "amountOffHt"> | null,
+  snapshot: SnapshotDiscount,
+  id: string
+): string {
+  if (resolved) return `${resolved.code} — ${formatDiscountValue(resolved)} (no longer eligible)`
+  if (snapshot?.code) return `${snapshot.code} — ${formatDiscountValue(snapshot)}`
+  return id
+}
+
 function SubmitButton({
   editingMembership,
   disabled,
@@ -109,6 +133,7 @@ export function AddMembershipForm({
   // plan) — without it the seeded discountId has no matching <option>.
   const [assignedDiscount, setAssignedDiscount] = useState<DiscountDto | null>(null)
   const [discountsLoading, setDiscountsLoading] = useState(false)
+  const [discountsError, setDiscountsError] = useState(false)
   const [selectedExtraIds, setSelectedExtraIds] = useState<string[]>([])
   const [priceOverride, setPriceOverride] = useState<number | undefined>(undefined)
 
@@ -125,6 +150,7 @@ export function AddMembershipForm({
       setSelectedExtraIds([])
       setPriceOverride(undefined)
       setAssignedDiscount(null)
+      setDiscountsError(false)
     }
   }, [isOpen, editingMembership])
 
@@ -132,14 +158,18 @@ export function AddMembershipForm({
   // catalog is fetched once per open and filtered client-side against
   // whichever plan is selected. An edit's own discount may have fallen out
   // of that list (archived, expired, or detached from the plan) — it is
-  // fetched separately by id so the select always has a matching option,
-  // and Save stays disabled until both requests have settled.
+  // fetched separately by id so the select usually has a matching option
+  // straight from the backend. Either request can still fail outright
+  // (network, 5xx): that must never cost the membership its discount, so a
+  // snapshot-derived fallback option (built below, from `editingMembership`
+  // alone) covers that case regardless of what these two requests do.
   useEffect(() => {
     if (!isOpen) return
     let cancelled = false
     const assignedId = editingMembership?.discountId ?? null
 
     setDiscountsLoading(true)
+    setDiscountsError(false)
     getListDiscounts({ limit: 200, offset: 0, sort: "ASC", status: "active" })
       .then(async (page) => {
         if (cancelled) return
@@ -152,10 +182,14 @@ export function AddMembershipForm({
             if (!cancelled) setAssignedDiscount(discount as DiscountDto)
           } catch (error) {
             console.error("Failed to load the assigned discount", error)
+            if (!cancelled) setDiscountsError(true)
           }
         }
       })
-      .catch((error) => console.error("Failed to load discounts", error))
+      .catch((error) => {
+        console.error("Failed to load discounts", error)
+        if (!cancelled) setDiscountsError(true)
+      })
       .finally(() => {
         if (!cancelled) setDiscountsLoading(false)
       })
@@ -234,12 +268,26 @@ export function AddMembershipForm({
 
   // Edit mode only: the membership's own discount, when it fell out of
   // `eligibleDiscounts` above — rendered as its own option so the seeded
-  // discountId always has somewhere to land instead of silently resolving
-  // to whatever option a mismatched value happens to fall back to.
+  // discountId always has somewhere to land instead of a save silently
+  // resolving to whatever option a mismatched value happens to fall back
+  // to. `resolved` prefers real backend data (from either fetch, including
+  // one merely excluded from eligibility) over the frozen snapshot; the
+  // label only claims "no longer eligible" once `resolved` confirms it —
+  // otherwise this still has to produce *an* option (snapshot code, or
+  // worst case the bare id) so the value round-trips even when both
+  // network requests failed outright.
   const assignedDiscountId = editingMembership?.discountId ?? null
+  const assignedResolved =
+    (assignedDiscountId && discounts.find((d) => d.id === assignedDiscountId)) ||
+    (assignedDiscountId && assignedDiscount?.id === assignedDiscountId ? assignedDiscount : null) ||
+    null
+  const snapshotDiscount = editingMembership?.planSnapshot?.plan?.discount as SnapshotDiscount
   const assignedFallback =
     assignedDiscountId && !eligibleDiscounts.some((d) => d.id === assignedDiscountId)
-      ? assignedDiscount
+      ? {
+          id: assignedDiscountId,
+          label: assignedDiscountLabel(assignedResolved, snapshotDiscount, assignedDiscountId),
+        }
       : null
 
   // Mirrors the create-only preview below; edit mode never renders it since
@@ -457,8 +505,7 @@ export function AddMembershipForm({
                         <option value="">{selectedPlan ? "No discount" : "Select a plan first"}</option>
                         {assignedFallback && (
                           <option key={assignedFallback.id} value={assignedFallback.id}>
-                            {assignedFallback.code} — {formatDiscountValue(assignedFallback)} (no
-                            longer eligible)
+                            {assignedFallback.label}
                           </option>
                         )}
                         {eligibleDiscounts.map((d) => (
@@ -471,6 +518,11 @@ export function AddMembershipForm({
                       {selectedPlan && eligibleDiscounts.length === 0 && !assignedFallback && (
                         <p className="text-xs text-muted-foreground">
                           No discount is eligible for this plan.
+                        </p>
+                      )}
+                      {discountsError && (
+                        <p className="text-xs text-amber-600">
+                          Couldn&apos;t load discounts — the current discount is kept.
                         </p>
                       )}
                       <p className="text-xs text-muted-foreground">
