@@ -142,11 +142,12 @@ export function MembershipFormDialog({
     }
   }, [isOpen, editingMembership])
 
-  // Discounts are scoped to a plan (or promo window), so the whole active
-  // catalog is fetched once per open and filtered client-side against
-  // whichever plan is selected. An edit's own discount may have fallen out
-  // of that list (archived, expired, or detached from the plan) — it is
-  // fetched separately by id so the select usually has a matching option
+  // Discounts are scoped to a plan (or applied to every plan, with an
+  // optional validity window), so the whole active catalog is fetched once
+  // per open and filtered client-side against whichever plan is selected.
+  // An edit's own discount may have fallen out of that list (archived,
+  // expired, or detached from the plan) — it is fetched separately by id
+  // so the select usually has a matching option
   // straight from the backend. Either request can still fail outright
   // (network, 5xx): that must never cost the membership its discount, so a
   // snapshot-derived fallback option (built below, from `editingMembership`
@@ -248,12 +249,14 @@ export function MembershipFormDialog({
   const currentState = editingMembership ? updateState : createState
   const formAction = editingMembership ? updateFormAction : createFormAction
 
-  // A plan discount only fits the plan it targets; a promo just needs to be
-  // in its date window. Only one of these ever has to explain a "-".
+  // Only plan-kind discounts ever fit a membership; a discount fits when it
+  // applies to every plan or lists this one, and is inside its validity
+  // window (any kind may carry one now).
   const eligibleDiscounts = discounts.filter(
     (d) =>
-      (d.kind === "plan" && !!selectedPlan && d.planIds.includes(selectedPlan.id)) ||
-      (d.kind === "promo" && isInWindow(d))
+      d.kind === "plan" &&
+      (d.appliesToAll || (!!selectedPlan && d.planIds.includes(selectedPlan.id))) &&
+      isInWindow(d)
   )
   const selectedDiscount = eligibleDiscounts.find((d) => d.id === discountId)
 
@@ -351,7 +354,7 @@ export function MembershipFormDialog({
                     {eligibleDiscounts.map((d) => (
                       <option key={d.id} value={d.id}>
                         {d.code} — {formatDiscountValue(d)}
-                        {d.kind === "promo" ? " (promo)" : ""}
+                        {d.appliesToAll ? " (all plans)" : ""}
                       </option>
                     ))}
                   </select>
@@ -440,10 +443,9 @@ export function MembershipFormDialog({
                           const stillEligible = discounts.some(
                             (d) =>
                               d.id === current &&
-                              ((d.kind === "plan" &&
-                                !!nextPlan &&
-                                d.planIds.includes(nextPlan.id)) ||
-                                (d.kind === "promo" && isInWindow(d)))
+                              d.kind === "plan" &&
+                              (d.appliesToAll || (!!nextPlan && d.planIds.includes(nextPlan.id))) &&
+                              isInWindow(d)
                           )
                           return stillEligible ? current : ""
                         })
@@ -473,7 +475,7 @@ export function MembershipFormDialog({
                       {eligibleDiscounts.map((d) => (
                         <option key={d.id} value={d.id}>
                           {d.code} — {formatDiscountValue(d)}
-                          {d.kind === "promo" ? " (promo)" : ""}
+                          {d.appliesToAll ? " (all plans)" : ""}
                         </option>
                       ))}
                     </select>
