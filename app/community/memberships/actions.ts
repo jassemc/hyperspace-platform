@@ -70,7 +70,10 @@ export async function createMembershipAction(
   }
 }
 
-/** Only the label, notes and discount are patchable; terms live in the plan snapshot. */
+/**
+ * Only the label, notes, discount and end date are patchable; the other
+ * terms live in the plan snapshot.
+ */
 export async function updateMembershipAction(
   prevState: ActionState,
   formData: FormData
@@ -84,6 +87,9 @@ export async function updateMembershipAction(
       notes: clearableText(formData, "notes"),
       // Only treat the field as "cleared" when it was actually submitted.
       discountId: formData.has("discountId") ? (text(formData, "discountId") ?? null) : undefined,
+      // Same shape: a submitted-but-blank date means "open-ended", omitted
+      // means "leave it alone". No notice period applies — see the dialog.
+      endsAt: formData.has("endsAt") ? (text(formData, "endsAt") ?? null) : undefined,
     }
 
     await updateMembership(id, data)

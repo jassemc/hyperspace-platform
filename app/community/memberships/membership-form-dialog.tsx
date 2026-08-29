@@ -69,6 +69,8 @@ function messageFor(state: ActionState, fallback: string): string {
       return "The membership cannot start before the company does."
     case "membership_end_before_start":
       return "The end date is before the start date."
+    case "cancelled_membership_needs_end":
+      return "A cancelled membership must keep an end date."
     case "extra_not_on_plan":
       return "One of the extras is not offered on this plan."
     default:
@@ -305,7 +307,7 @@ export function MembershipFormDialog({
           <DialogTitle>{editingMembership ? "Edit Membership" : "Add New Membership"}</DialogTitle>
           <DialogDescription>
             {editingMembership
-              ? "Only the label, notes and discount can change; the terms are fixed to the plan snapshot."
+              ? "Only the label, notes, discount and end date can change; the other terms are fixed to the plan snapshot."
               : "Subscribe a member or a company to a catalog plan."}
           </DialogDescription>
         </DialogHeader>
@@ -325,8 +327,8 @@ export function MembershipFormDialog({
             </div>
 
             {/* The terms are snapshotted at creation, so everything below is
-                create-only — the update schema takes name, notes and discount
-                alone. Details owns the frozen snapshot display. */}
+                create-only — the update schema takes name, notes, discount and
+                the end date alone. Details owns the frozen snapshot display. */}
             {editingMembership ? (
               <>
                 <div className="grid gap-2">
@@ -366,8 +368,27 @@ export function MembershipFormDialog({
                   </p>
                 </div>
 
+                {/* Unlike Cancel, this applies no notice period: today ends
+                    the membership tonight, and a blank field reopens it. */}
+                <div className="grid gap-2">
+                  <Label htmlFor="endsAt">Ends at</Label>
+                  <Input
+                    id="endsAt"
+                    name="endsAt"
+                    type="date"
+                    min={editingMembership.startsAt}
+                    defaultValue={editingMembership.endsAt ?? ""}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Last active day, inclusive — takes effect as is, with no notice period.
+                    {editingMembership.cancelledAt
+                      ? " This membership is cancelled, so it must keep an end date."
+                      : " Leave blank for open-ended."}
+                  </p>
+                </div>
+
                 <p className="text-xs text-muted-foreground">
-                  Terms are fixed to the plan snapshot. Open Details to see them.
+                  The other terms are fixed to the plan snapshot. Open Details to see them.
                 </p>
               </>
             ) : (
