@@ -2207,7 +2207,8 @@ export interface BookingDiscountDto {
   percentOff: number | null;
   /** @example null */
   amountOffHt: number | null;
-  rateScope: DiscountRateScopeDto | null;
+  /** Missing on a booking confirmed before the rateScope field existed. */
+  rateScope?: DiscountRateScopeDto | null;
 }
 
 export type BookingFreeReason = "partnership" | "internal_event" | "goodwill" | "staff";
@@ -2509,6 +2510,18 @@ export interface BookingQuoteDto {
   roomListHt?: number | null;
   /** The one discount applied to the room line, or null. priceHt/totalTtc are already net. */
   discount?: QuoteDiscountDto | null;
+  /**
+   * Whether the discount CODE passed to `quote()` (the 8th, `codeDiscount`
+   * param) targets the winning rate, independent of whether it actually
+   * won `discount` above — a plan rate discount can legitimately out-win
+   * an applicable code. Null when no code was given, or nothing was
+   * priced (fully credit-covered, no winning rate to check against).
+   * `BookingService.confirm` refuses (422) a code that resolves but
+   * targets a DIFFERENT rate — this is `false` in exactly that case
+   * (spec §5.4 amendment 2026-08-29).
+   * @example null
+   */
+  codeDiscountApplies?: boolean | null;
   /** Flat per-booking add-ons (§6.3 Task 6) — never credit-covered. */
   extras: Array<QuoteExtraDto>;
   /**
@@ -3203,8 +3216,8 @@ export interface BookingRequestResultDto {
   grandTotalTtc: number;
   /**
    * The code as typed (normalised), echoed back — not applied to any
-   * price on this path. Staff keep or drop it at onboarding.
-   * @example "SUMMER26"
+   * price on this path. Staff keep or drop it at confirm.
+   * @example "ROOM10"
    */
   discountCode?: string | null;
 }
@@ -3235,7 +3248,7 @@ export interface CreateBookingRequestDto {
   /**
    * Discount code typed on the website. Stored verbatim for staff; not
    * validated or priced here (spec §5.4).
-   * @example "SUMMER26"
+   * @example "ROOM10"
    */
   discountCode?: string;
   /**
@@ -5502,6 +5515,7 @@ export namespace Api {
    * @response `201` `(DiscountDto)` 201
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `((ResponseErrorDto))` 404
    * @response `409` `(ResponseErrorDto)` Conflict
    * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
@@ -5552,7 +5566,7 @@ export namespace Api {
    * @response `200` `(DiscountDto)` 200
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
-   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `404` `((ResponseErrorDto))` 404
    * @response `409` `(ResponseErrorDto)` Conflict
    * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
@@ -9355,6 +9369,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `201` `(DiscountDto)` 201
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `((ResponseErrorDto))` 404
      * @response `409` `(ResponseErrorDto)` Conflict
      * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
@@ -9409,7 +9424,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `200` `(DiscountDto)` 200
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
-     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `404` `((ResponseErrorDto))` 404
      * @response `409` `(ResponseErrorDto)` Conflict
      * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
