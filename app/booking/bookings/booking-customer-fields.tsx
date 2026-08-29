@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { Label } from "@/components/ui/label"
 import { NativeSelect } from "@/components/ui/native-select"
 import { getListResources, getListMembers, getListCompanies, getListDiscounts } from "@/lib/service"
-import type { CompanyDto, DiscountDto, MemberDto, ResourceDto } from "@/lib/service/HsService"
+import type { BookingDiscountDto, CompanyDto, DiscountDto, MemberDto, ResourceDto } from "@/lib/service/HsService"
 import { ExtraTagPicker } from "@/components/extra-tag-picker"
 import { formatDiscountValue, isInWindow } from "@/app/billing/discounts/discount-meta"
 
@@ -38,6 +38,15 @@ interface BookingCustomerFieldsProps {
   initialExtraIds?: string[]
   /** A quote describes one exact discount too — same reasoning as extras. */
   onDiscountChange?: () => void
+  /** Edit mode: the discount already applied to the booking (its id), so the select starts on it. */
+  initialDiscountId?: string
+  /** Edit mode: the applied discount's own snapshot (code, percentOff, amountOffHt),
+   *  so a discount that has fallen out of the eligible list below still has a
+   *  labelled option to keep the select on — see `assignedFallback`. */
+  initialDiscountSnapshot?: BookingDiscountDto | null
+  /** Edit mode: the code the visitor typed on the website (spec §5.4), so staff
+   *  can spot it in the list rather than having to remember it. */
+  requestedDiscountCode?: string | null
 }
 
 /**
@@ -48,7 +57,8 @@ interface BookingCustomerFieldsProps {
  * resource list — the alternative was fetching that list twice. The customer
  * is create-only: PATCH /bookings cannot change it, so `disabled` hides the
  * Member/Company selects rather than showing them blank and inert. The
- * extras are editable in both modes — PATCH accepts `extraIds`.
+ * extras and the discount are both editable in both modes — PATCH accepts
+ * `extraIds` and `discountId`.
  */
 export function BookingCustomerFields({
   resources: seedResources,
@@ -61,6 +71,9 @@ export function BookingCustomerFields({
   onExtrasChange,
   initialExtraIds = [],
   onDiscountChange,
+  initialDiscountId = "",
+  initialDiscountSnapshot = null,
+  requestedDiscountCode = null,
 }: Readonly<BookingCustomerFieldsProps>) {
   const [resources, setResources] = useState<ResourceDto[]>(seedResources ?? [])
   const [memberNames, setMemberNames] = useState<Record<string, string>>(() =>
@@ -73,12 +86,12 @@ export function BookingCustomerFields({
   // Controlled so the tags know their own state; the picker posts the
   // selection as hidden `extraIds` inputs, which is what the action reads.
   const [extraIds, setExtraIds] = useState<string[]>(initialExtraIds)
-  // Create only (see the `!disabled` gate below): active resource-rate
-  // discounts, fetched once. Filtered against the selected resource's
-  // rates at render time rather than re-fetched per resource — the
-  // catalog is small and shared across every room.
+  // Active resource-rate discounts, fetched once regardless of mode.
+  // Filtered against the selected resource's rates at render time rather
+  // than re-fetched per resource — the catalog is small and shared across
+  // every room.
   const [discounts, setDiscounts] = useState<DiscountDto[]>([])
-  const [discountId, setDiscountId] = useState("")
+  const [discountId, setDiscountId] = useState(initialDiscountId)
 
   // Every caller on the bookings page seeds all three lists from the
   // server (see lookups.ts), so nothing below runs there. The fetches stay
@@ -124,11 +137,9 @@ export function BookingCustomerFields({
     }
   }, [disabled, hasCustomerSeed])
 
-  // Create only: PATCH /bookings has no `discountId`, so edit mode never
-  // fetches — the request would be pure waste, same reasoning as the
-  // member/company fetch above.
+  // Fetched in both modes now: PATCH /bookings accepts `discountId` too
+  // (docs/superpowers/plans/2026-08-29-booking-patch-discount.md).
   useEffect(() => {
-    if (disabled) return
     let cancelled = false
     getListDiscounts({ limit: 100, offset: 0, sort: "ASC", kind: "resource_rate", status: "active" })
       .then((page) => {
@@ -139,7 +150,7 @@ export function BookingCustomerFields({
     return () => {
       cancelled = true
     }
-  }, [disabled])
+  }, [])
 
   // A discount picked for one room's rates means nothing on another —
   // reset rather than let a stale id ride along, silently narrowed to
@@ -194,6 +205,24 @@ export function BookingCustomerFields({
       isInWindow(discount) &&
       (discount.appliesToAll || discount.resourceRateIds.some((id) => resourceRateIds.has(id)))
   )
+
+  // Edit mode's safeguard (mirrors app/community/memberships/
+  // membership-form-dialog.tsx's `assignedFallback`): the booking's own
+  // discount can fall out of `eligibleDiscounts` above (archived, expired,
+  // detached from this resource's rates since confirm) while it is still
+  // the one actually applied. Without an option for it, the select would
+  // silently land on "No discount" and an untouched save would clear it.
+  // Built from the snapshot PATCH already returns on the booking — no
+  // extra fetch needed.
+  const assignedFallback =
+    initialDiscountId && !eligibleDiscounts.some((discount) => discount.id === initialDiscountId)
+      ? {
+          id: initialDiscountId,
+          label: initialDiscountSnapshot?.code
+            ? `${initialDiscountSnapshot.code} — ${formatDiscountValue(initialDiscountSnapshot)} (no longer eligible)`
+            : initialDiscountId,
+        }
+      : null
 
   return (
     <>
@@ -303,30 +332,46 @@ export function BookingCustomerFields({
         </div>
       )}
 
-      {/* Create only: PATCH /bookings has no `discountId`, so edit mode
-          keeps whatever discount confirm already applied. */}
-      {!disabled && (
-        <div className="grid gap-2">
-          <Label htmlFor="discountId">Discount</Label>
-          <NativeSelect
-            id="discountId"
-            name="discountId"
-            value={discountId}
-            onChange={(e) => {
-              setDiscountId(e.target.value)
-              onDiscountChange?.()
-            }}
-            disabled={!resourceId}
-          >
-            <option value="">{resourceId ? "No discount" : "Select a resource first"}</option>
-            {eligibleDiscounts.map((discount) => (
-              <option key={discount.id} value={discount.id}>
-                {discount.code} — {formatDiscountValue(discount)}
-              </option>
-            ))}
-          </NativeSelect>
-        </div>
-      )}
+      {/* Editable in both modes now — PATCH /bookings accepts `discountId`
+          (docs/superpowers/plans/2026-08-29-booking-patch-discount.md). */}
+      <div className="grid gap-2">
+        <Label htmlFor="discountId">Discount</Label>
+        <NativeSelect
+          id="discountId"
+          name="discountId"
+          value={discountId}
+          onChange={(e) => {
+            setDiscountId(e.target.value)
+            onDiscountChange?.()
+          }}
+          disabled={!resourceId}
+        >
+          <option value="">{resourceId ? "No discount" : "Select a resource first"}</option>
+          {/* The applied discount, kept selectable even after it has
+              fallen out of the eligible list below — see `assignedFallback`. */}
+          {assignedFallback && (
+            <option key={assignedFallback.id} value={assignedFallback.id}>
+              {assignedFallback.label}
+            </option>
+          )}
+          {eligibleDiscounts.map((discount) => (
+            <option key={discount.id} value={discount.id}>
+              {discount.code} — {formatDiscountValue(discount)}
+              {/* The visitor's own request, called out so staff don't have
+                  to remember it — but only while it isn't already what's
+                  applied, which needs no extra flag. */}
+              {requestedDiscountCode &&
+              discount.code === requestedDiscountCode &&
+              discount.id !== initialDiscountId
+                ? " — requested by the visitor"
+                : ""}
+            </option>
+          ))}
+        </NativeSelect>
+        {/* Hidden field the action reads to tell "left untouched" apart
+            from "explicitly cleared" — see updateBookingAction. */}
+        {disabled && <input type="hidden" name="currentDiscountId" value={initialDiscountId} />}
+      </div>
     </>
   )
 }

@@ -248,6 +248,46 @@ export interface CompanyDto {
   updatedAt: string;
 }
 
+export interface CompanyStatusCountDto {
+  status: CompanyStatus;
+  /** @example 12 */
+  count: number;
+}
+
+export interface CompanyWeekStatsDto {
+  /**
+   * Monday of the week, as a business date in Africa/Tunis.
+   * @example "2026-08-24"
+   */
+  week: string;
+  /**
+   * Companies added that week, by created_at.
+   * @example 3
+   */
+  created: number;
+}
+
+export interface CompanyStatsDto {
+  /** @example 120 */
+  total: number;
+  /**
+   * Every status, always — a zero reads as empty, a gap reads as broken.
+   * Resolved, not grouped: status is derived, not a column.
+   */
+  byStatus: Array<CompanyStatusCountDto>;
+  /**
+   * Companies with at least one non-deleted member.
+   * @example 80
+   */
+  withMembers: number;
+  /**
+   * The last eight weeks, oldest first, always all eight — a week nothing
+   * happened in reads as zero rather than going missing and bending the
+   * shape of a chart drawn from it.
+   */
+  byWeek: Array<CompanyWeekStatsDto>;
+}
+
 export interface CreateCompanyDto {
   /** @example "Acme Consulting SARL" */
   name: string;
@@ -321,6 +361,13 @@ export interface UpdateCompanyDto {
   startDate?: string | null;
 }
 
+export interface MemberCompanyDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Hyperspace SARL" */
+  name: string;
+}
+
 export type MemberSegment =
   | "student"
   | "freelancer"
@@ -356,6 +403,7 @@ export interface MemberDto {
   phone?: string | null;
   /** @format uuid */
   companyId?: string | null;
+  company?: MemberCompanyDto | null;
   /** True if this member receives their company's invoices. */
   isBillingPerson: boolean;
   /** True if this member is their company's contact person. */
@@ -386,6 +434,53 @@ export interface MemberDto {
    * @example "2025-05-25T10:03:33.169Z"
    */
   updatedAt: string;
+}
+
+export interface MemberStatusCountDto {
+  status: MemberStatus;
+  /** @example 12 */
+  count: number;
+}
+
+export interface MemberKindHintCountDto {
+  kindHint: MemberKindHint;
+  /** @example 4 */
+  count: number;
+}
+
+export interface MemberWeekStatsDto {
+  /**
+   * Monday of the week, as a business date in Africa/Tunis.
+   * @example "2026-08-24"
+   */
+  week: string;
+  /**
+   * Members added that week, by created_at.
+   * @example 3
+   */
+  created: number;
+}
+
+export interface MemberStatsDto {
+  /** @example 120 */
+  total: number;
+  /**
+   * Every status, always — a zero reads as empty, a gap reads as broken.
+   * Resolved, not grouped: status is derived, not a column.
+   */
+  byStatus: Array<MemberStatusCountDto>;
+  byKindHint: Array<MemberKindHintCountDto>;
+  /**
+   * Members attached to a company.
+   * @example 80
+   */
+  withCompany: number;
+  /**
+   * The last eight weeks, oldest first, always all eight — a week nothing
+   * happened in reads as zero rather than going missing and bending the
+   * shape of a chart drawn from it.
+   */
+  byWeek: Array<MemberWeekStatsDto>;
 }
 
 export interface CreateMemberDto {
@@ -1794,8 +1889,32 @@ export interface UpdateCreditDto {
   reason?: string;
 }
 
+export interface MembershipMemberDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Mohamed Ali May" */
+  fullName: string;
+  email?: string | null;
+}
+
+export interface MembershipCompanyDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Hyperspace SARL" */
+  name: string;
+}
+
 /** Who receives this membership's charges. */
 export type MembershipBillTo = "member" | "company";
+
+export interface MembershipPlanDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Flex Desk" */
+  name: string;
+  /** @example "FLEX" */
+  code?: string | null;
+}
 
 /** Derived from dates on every read. */
 export type MembershipStatus = "pending" | "active" | "paused" | "ended";
@@ -1820,8 +1939,10 @@ export interface MembershipDto {
   id: string;
   /** @format uuid */
   memberId?: string | null;
+  member?: MembershipMemberDto | null;
   /** @format uuid */
   companyId?: string | null;
+  company?: MembershipCompanyDto | null;
   /** Who receives this membership's charges. */
   billTo: MembershipBillTo;
   /**
@@ -1829,6 +1950,8 @@ export interface MembershipDto {
    * @format uuid
    */
   planId: string;
+  /** The LIVE plan's summary — never null; blank name when unjoined. */
+  plan: MembershipPlanDto;
   /** The contractual terms this membership runs on — frozen at creation. */
   planSnapshot: Record<string, any>;
   /**
@@ -1864,6 +1987,69 @@ export interface MembershipDto {
    * @example "2025-05-25T10:03:33.169Z"
    */
   updatedAt: string;
+}
+
+export interface MembershipStatusCountDto {
+  status: MembershipStatus;
+  /** @example 12 */
+  count: number;
+}
+
+export interface MembershipBillToCountDto {
+  billTo: MembershipBillTo;
+  /** @example 8 */
+  count: number;
+}
+
+export interface MembershipPlanCountDto {
+  /** @format uuid */
+  planId: string;
+  /**
+   * The LIVE plan's name — blank if the plan row has since vanished.
+   * @example "Flex Desk"
+   */
+  name: string;
+  /** @example 5 */
+  count: number;
+}
+
+export interface MembershipWeekStatsDto {
+  /**
+   * Monday of the week, as a business date in Africa/Tunis.
+   * @example "2026-08-24"
+   */
+  week: string;
+  /**
+   * Memberships created that week, by created_at.
+   * @example 3
+   */
+  created: number;
+  /**
+   * Memberships whose term begins that week, by starts_at.
+   * @example 2
+   */
+  starting: number;
+}
+
+export interface MembershipStatsDto {
+  /** @example 120 */
+  total: number;
+  /**
+   * All four statuses, always — a zero reads as empty, a gap reads as
+   * broken. Derived in SQL from the same dates and pauses
+   * `MembershipMapper.deriveStatus` reads.
+   */
+  byStatus: Array<MembershipStatusCountDto>;
+  /** Both bill-to values, always. */
+  byBillTo: Array<MembershipBillToCountDto>;
+  /** Plans with at least one matching membership, busiest first. */
+  byPlan: Array<MembershipPlanCountDto>;
+  /**
+   * The last eight weeks, oldest first, always all eight — a week nothing
+   * happened in reads as zero rather than going missing and bending the
+   * shape of a chart drawn from it.
+   */
+  byWeek: Array<MembershipWeekStatsDto>;
 }
 
 export interface CreateMembershipDto {
@@ -2553,6 +2739,20 @@ export interface UpdateBookingDto {
   /** Extras offered by the booked resource's rates (§6.3 Task 6). */
   extraIds?: Array<string>;
   status?: "no_show";
+  /**
+   * Change the booking's discount (docs/superpowers/plans/2026-08-29-
+   * booking-patch-discount.md). Omitted = unchanged; `null` = remove the
+   * discount; an id resolves the same way as create's `discountId` (404
+   * `discount_not_found` for an unknown id, 422 `discount_not_eligible`
+   * for one that is not an active, in-window, kind=resource_rate discount
+   * or does not apply to this booking's rate). A CONFIRMED booking's
+   * money is reversed and re-applied with the new discount, exactly like
+   * an `extraIds` change; a PENDING booking has no money yet, so only its
+   * stored snapshot is replaced — confirm() prices it, and confirm's own
+   * `discountId`/`discountCode` still override whatever was set here.
+   * @format uuid
+   */
+  discountId?: string | null;
   /**
    * Reschedule. Both times or neither — one alone is refused with
    * `reschedule_requires_both`, because "move the end" alone is far
@@ -3439,6 +3639,11 @@ export interface ListCompaniesParams {
   q?: string;
 }
 
+export interface CompanyStatsParams {
+  /** Matches name or email. */
+  q?: string;
+}
+
 export interface ListMembersParams {
   /**
    * The number of items to skip before starting to collect the result set, starting from 0.
@@ -3459,7 +3664,20 @@ export interface ListMembersParams {
   companyId?: string;
   /** Exact-match email filter (OfficeRnD-style); use `q` for fuzzy search. */
   email?: string;
+  /**
+   * Derived lifecycle status. Not a column: the list resolves every
+   * candidate's status first and pages the matches, so totals stay true.
+   */
+  status?: MemberStatus;
   /** The search term to filter results. */
+  q?: string;
+}
+
+export interface MemberStatsParams {
+  kindHint?: MemberKindHint;
+  /** @format uuid */
+  companyId?: string;
+  /** Matches fullName, email or phone. */
   q?: string;
 }
 
@@ -3783,11 +4001,35 @@ export interface ListMembershipsParams {
   /** @format uuid */
   companyId?: string;
   /**
+   * Memberships billed to this company or held by any of its members. Mutually exclusive with companyId.
+   * @format uuid
+   */
+  forCompanyId?: string;
+  /**
    * Memberships whose ends_at falls on or before this date.
    * @example "2026-09-01"
    */
   expiringBefore?: string;
   /** The search term to filter results. */
+  q?: string;
+}
+
+export interface MembershipStatsParams {
+  /** @format uuid */
+  planId?: string;
+  /**
+   * Memberships held DIRECTLY by this member (no employer-company pooling).
+   * @format uuid
+   */
+  memberId?: string;
+  /** @format uuid */
+  companyId?: string;
+  /**
+   * Memberships billed to this company or held by any of its members. Mutually exclusive with companyId.
+   * @format uuid
+   */
+  forCompanyId?: string;
+  /** Matches the membership label, the member name or the company name. */
   q?: string;
 }
 
@@ -4284,6 +4526,32 @@ export namespace Api {
   }
 
   /**
+   * @description Counts by derived status plus companies with at least one member, plus an eight-week creation trend. Accepts the list filters minus `name` and pagination.
+   * @tags Companies
+   * @name CompanyStats
+   * @summary Company statistics
+   * @request GET:/api/v1/companies/stats
+   * @secure
+   * @response `200` `(CompanyStatsDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `CompanyStatsDto`
+   */
+  export namespace CompanyStats {
+    export type RequestParams = {};
+    export type RequestQuery = {
+      /** Matches name or email. */
+      q?: string;
+    };
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = CompanyStatsDto;
+  }
+
+  /**
    * @description `status` is derived from membership/charge/opportunity data — never stored.
    * @tags Companies
    * @name GetCompany
@@ -4336,7 +4604,7 @@ export namespace Api {
   }
 
   /**
- * @description Paginated list. `q` fuzzy-matches name/email/phone; `email` is exact-match; filter by `kindHint` and `companyId`. The `status` field on each result is derived on read, never stored: a manual `statusOverride` pin (set via PUT /members/:id/status) wins, otherwise it derives from memberships, then one-off charges, then open opportunities, then `kindHint`.
+ * @description Paginated list. `q` fuzzy-matches name/email/phone; `email` is exact-match; filter by `kindHint` and `companyId`. The `status` field on each result is derived on read, never stored: a manual `statusOverride` pin (set via PUT /members/:id/status) wins, otherwise it derives from memberships, then one-off charges, then open opportunities, then `kindHint`. `status` can also be used as a filter — since it is derived rather than a column, matching candidates are resolved before paging, so `totalItems` is always the exact count of matches, never a post-page approximation.
  * @tags Members
  * @name ListMembers
  * @summary List members
@@ -4376,6 +4644,11 @@ export namespace Api {
       companyId?: string;
       /** Exact-match email filter (OfficeRnD-style); use `q` for fuzzy search. */
       email?: string;
+      /**
+       * Derived lifecycle status. Not a column: the list resolves every
+       * candidate's status first and pages the matches, so totals stay true.
+       */
+      status?: MemberStatus;
       /** The search term to filter results. */
       q?: string;
     };
@@ -4409,6 +4682,35 @@ export namespace Api {
     export type RequestBody = CreateMemberDto;
     export type RequestHeaders = {};
     export type ResponseBody = MemberDto;
+  }
+
+  /**
+   * @description Counts by derived status, kind hint and employer, plus an eight-week creation trend. Accepts the list filters minus status and pagination.
+   * @tags Members
+   * @name MemberStats
+   * @summary Member statistics
+   * @request GET:/api/v1/members/stats
+   * @secure
+   * @response `200` `(MemberStatsDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `MemberStatsDto`
+   */
+  export namespace MemberStats {
+    export type RequestParams = {};
+    export type RequestQuery = {
+      kindHint?: MemberKindHint;
+      /** @format uuid */
+      companyId?: string;
+      /** Matches fullName, email or phone. */
+      q?: string;
+    };
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = MemberStatsDto;
   }
 
   /**
@@ -6168,7 +6470,7 @@ export namespace Api {
   }
 
   /**
- * @description Staff/admin only. `status` filters the derived lifecycle; `expiringBefore` matches ends_at ≤ date (renewal follow-ups); `memberId`/`companyId` filter the direct holder (no employer-company pooling — query both for the pooled view).
+ * @description Staff/admin only. `status` filters the derived lifecycle in the query (dates and pauses), so the totals match the tabs; `expiringBefore` matches ends_at ≤ date (renewal follow-ups); `memberId`/`companyId` filter the direct holder (no employer-company pooling), while `forCompanyId` returns a company's whole roster — its own memberships plus those held by its members — and cannot be combined with `companyId`. `q` searches the membership label, the member name and the company name.
  * @tags Memberships
  * @name ListMemberships
  * @summary List memberships
@@ -6215,6 +6517,11 @@ export namespace Api {
       /** @format uuid */
       companyId?: string;
       /**
+       * Memberships billed to this company or held by any of its members. Mutually exclusive with companyId.
+       * @format uuid
+       */
+      forCompanyId?: string;
+      /**
        * Memberships whose ends_at falls on or before this date.
        * @example "2026-09-01"
        */
@@ -6251,6 +6558,46 @@ export namespace Api {
     export type RequestBody = CreateMembershipDto;
     export type RequestHeaders = {};
     export type ResponseBody = MembershipDto;
+  }
+
+  /**
+   * @description Counts by derived status (dates and pauses, in the query — the same rule the list filters on), by bill-to and by plan, plus an eight-week trend of memberships created and memberships starting. Accepts the list filters minus `status`, `expiringBefore` and pagination.
+   * @tags Memberships
+   * @name MembershipStats
+   * @summary Membership statistics
+   * @request GET:/api/v1/memberships/stats
+   * @secure
+   * @response `200` `(MembershipStatsDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `MembershipStatsDto`
+   */
+  export namespace MembershipStats {
+    export type RequestParams = {};
+    export type RequestQuery = {
+      /** @format uuid */
+      planId?: string;
+      /**
+       * Memberships held DIRECTLY by this member (no employer-company pooling).
+       * @format uuid
+       */
+      memberId?: string;
+      /** @format uuid */
+      companyId?: string;
+      /**
+       * Memberships billed to this company or held by any of its members. Mutually exclusive with companyId.
+       * @format uuid
+       */
+      forCompanyId?: string;
+      /** Matches the membership label, the member name or the company name. */
+      q?: string;
+    };
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = MembershipStatsDto;
   }
 
   /**
@@ -6913,7 +7260,7 @@ export namespace Api {
   }
 
   /**
-   * @description Title and notes anytime; staff may flag no_show after the start time. Passing startsAt AND endsAt reschedules: the slot is re-checked (ignoring this booking itself), the room is re-priced at the new duration and its credits and charges are reversed and re-applied. Passing extraIds replaces the extras ([] removes them all; omitted leaves them alone) and re-runs the money the same way. Extras that stay keep the prices they were booked at; only newly added ones are priced live. The resource cannot change — moving a booking between rooms is still cancel + rebook. Members may edit inside the cancellation window.
+   * @description Title and notes anytime; staff may flag no_show after the start time. Passing startsAt AND endsAt reschedules: the slot is re-checked (ignoring this booking itself), the room is re-priced at the new duration and its credits and charges are reversed and re-applied. Passing extraIds replaces the extras ([] removes them all; omitted leaves them alone) and re-runs the money the same way. Extras that stay keep the prices they were booked at; only newly added ones are priced live. Passing discountId changes the booking's discount (docs/superpowers/plans/2026-08-29-booking-patch-discount.md): null removes it, an id resolves the same way as create's discountId and re-runs the money like an extraIds change for a CONFIRMED booking; a PENDING booking has no money yet, so only its stored snapshot is replaced. The resource cannot change — moving a booking between rooms is still cancel + rebook. Members may edit inside the cancellation window.
    * @tags Bookings
    * @name UpdateBooking
    * @summary Update a booking (metadata, no_show, reschedule, extras)
@@ -8210,6 +8557,32 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
+     * @description Counts by derived status plus companies with at least one member, plus an eight-week creation trend. Accepts the list filters minus `name` and pagination.
+     *
+     * @tags Companies
+     * @name CompanyStats
+     * @summary Company statistics
+     * @request GET:/api/v1/companies/stats
+     * @secure
+     * @response `200` `(CompanyStatsDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `CompanyStatsDto`
+     */
+    companyStats: (query: CompanyStatsParams, params: RequestParams = {}) =>
+      this.http.request<CompanyStatsDto, ResponseErrorDto | CompanyStatsDto>({
+        path: `/api/v1/companies/stats`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description `status` is derived from membership/charge/opportunity data — never stored.
      *
      * @tags Companies
@@ -8264,7 +8637,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
- * @description Paginated list. `q` fuzzy-matches name/email/phone; `email` is exact-match; filter by `kindHint` and `companyId`. The `status` field on each result is derived on read, never stored: a manual `statusOverride` pin (set via PUT /members/:id/status) wins, otherwise it derives from memberships, then one-off charges, then open opportunities, then `kindHint`.
+ * @description Paginated list. `q` fuzzy-matches name/email/phone; `email` is exact-match; filter by `kindHint` and `companyId`. The `status` field on each result is derived on read, never stored: a manual `statusOverride` pin (set via PUT /members/:id/status) wins, otherwise it derives from memberships, then one-off charges, then open opportunities, then `kindHint`. `status` can also be used as a filter — since it is derived rather than a column, matching candidates are resolved before paging, so `totalItems` is always the exact count of matches, never a post-page approximation.
  *
  * @tags Members
  * @name ListMembers
@@ -8323,6 +8696,32 @@ export class HsService<SecurityDataType extends unknown> {
         body: data,
         secure: true,
         type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Counts by derived status, kind hint and employer, plus an eight-week creation trend. Accepts the list filters minus status and pagination.
+     *
+     * @tags Members
+     * @name MemberStats
+     * @summary Member statistics
+     * @request GET:/api/v1/members/stats
+     * @secure
+     * @response `200` `(MemberStatsDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `MemberStatsDto`
+     */
+    memberStats: (query: MemberStatsParams, params: RequestParams = {}) =>
+      this.http.request<MemberStatsDto, ResponseErrorDto | MemberStatsDto>({
+        path: `/api/v1/members/stats`,
+        method: "GET",
+        query: query,
+        secure: true,
         format: "json",
         ...params,
       }),
@@ -9953,7 +10352,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
- * @description Staff/admin only. `status` filters the derived lifecycle; `expiringBefore` matches ends_at ≤ date (renewal follow-ups); `memberId`/`companyId` filter the direct holder (no employer-company pooling — query both for the pooled view).
+ * @description Staff/admin only. `status` filters the derived lifecycle in the query (dates and pauses), so the totals match the tabs; `expiringBefore` matches ends_at ≤ date (renewal follow-ups); `memberId`/`companyId` filter the direct holder (no employer-company pooling), while `forCompanyId` returns a company's whole roster — its own memberships plus those held by its members — and cannot be combined with `companyId`. `q` searches the membership label, the member name and the company name.
  *
  * @tags Memberships
  * @name ListMemberships
@@ -10011,6 +10410,32 @@ export class HsService<SecurityDataType extends unknown> {
         body: data,
         secure: true,
         type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Counts by derived status (dates and pauses, in the query — the same rule the list filters on), by bill-to and by plan, plus an eight-week trend of memberships created and memberships starting. Accepts the list filters minus `status`, `expiringBefore` and pagination.
+     *
+     * @tags Memberships
+     * @name MembershipStats
+     * @summary Membership statistics
+     * @request GET:/api/v1/memberships/stats
+     * @secure
+     * @response `200` `(MembershipStatsDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `MembershipStatsDto`
+     */
+    membershipStats: (query: MembershipStatsParams, params: RequestParams = {}) =>
+      this.http.request<MembershipStatsDto, ResponseErrorDto | MembershipStatsDto>({
+        path: `/api/v1/memberships/stats`,
+        method: "GET",
+        query: query,
+        secure: true,
         format: "json",
         ...params,
       }),
@@ -10591,7 +11016,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Title and notes anytime; staff may flag no_show after the start time. Passing startsAt AND endsAt reschedules: the slot is re-checked (ignoring this booking itself), the room is re-priced at the new duration and its credits and charges are reversed and re-applied. Passing extraIds replaces the extras ([] removes them all; omitted leaves them alone) and re-runs the money the same way. Extras that stay keep the prices they were booked at; only newly added ones are priced live. The resource cannot change — moving a booking between rooms is still cancel + rebook. Members may edit inside the cancellation window.
+     * @description Title and notes anytime; staff may flag no_show after the start time. Passing startsAt AND endsAt reschedules: the slot is re-checked (ignoring this booking itself), the room is re-priced at the new duration and its credits and charges are reversed and re-applied. Passing extraIds replaces the extras ([] removes them all; omitted leaves them alone) and re-runs the money the same way. Extras that stay keep the prices they were booked at; only newly added ones are priced live. Passing discountId changes the booking's discount (docs/superpowers/plans/2026-08-29-booking-patch-discount.md): null removes it, an id resolves the same way as create's discountId and re-runs the money like an extraIds change for a CONFIRMED booking; a PENDING booking has no money yet, so only its stored snapshot is replaced. The resource cannot change — moving a booking between rooms is still cancel + rebook. Members may edit inside the cancellation window.
      *
      * @tags Bookings
      * @name UpdateBooking

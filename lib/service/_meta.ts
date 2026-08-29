@@ -83,6 +83,19 @@ const meta = {
     {
       namespace: "api",
       method: "GET",
+      usage: "companyStats",
+      path: "/api/v1/companies/stats",
+      functionName: "getCompanyStats",
+      pathParams: [],
+      requestParams: [{ name: "query", type: "CompanyStatsParams" }],
+      combinedPathAndRequestParams: [],
+      payload: null,
+      responseType: "(CompanyStatsDto)",
+    },
+
+    {
+      namespace: "api",
+      method: "GET",
       usage: "getCompany",
       path: "/api/v1/companies/${id}",
       functionName: "getCompany",
@@ -130,6 +143,19 @@ const meta = {
       combinedPathAndRequestParams: [],
       payload: { name: "data", optional: false, type: "CreateMemberDto" },
       responseType: "(MemberDto)",
+    },
+
+    {
+      namespace: "api",
+      method: "GET",
+      usage: "memberStats",
+      path: "/api/v1/members/stats",
+      functionName: "getMemberStats",
+      pathParams: [],
+      requestParams: [{ name: "query", type: "MemberStatsParams" }],
+      combinedPathAndRequestParams: [],
+      payload: null,
+      responseType: "(MemberStatsDto)",
     },
 
     {
@@ -884,6 +910,19 @@ const meta = {
       combinedPathAndRequestParams: [],
       payload: { name: "data", optional: false, type: "CreateMembershipDto" },
       responseType: "(MembershipDto)",
+    },
+
+    {
+      namespace: "api",
+      method: "GET",
+      usage: "membershipStats",
+      path: "/api/v1/memberships/stats",
+      functionName: "getMembershipStats",
+      pathParams: [],
+      requestParams: [{ name: "query", type: "MembershipStatsParams" }],
+      combinedPathAndRequestParams: [],
+      payload: null,
+      responseType: "(MembershipStatsDto)",
     },
 
     {

@@ -6,6 +6,7 @@ import type {
   AnalyticsMembershipsParams,
   AnalyticsOccupancyParams,
   AnalyticsRevenueParams,
+  CompanyStatsParams,
   ConfirmBookingDto,
   CreateAmenityDto,
   CreateAssignmentDto,
@@ -57,6 +58,8 @@ import type {
   ListResourceRatesParams,
   ListResourcesParams,
   ListResourceTypesParams,
+  MembershipStatsParams,
+  MemberStatsParams,
   OnboardLeadDto,
   OpportunityStatsParams,
   PublicListPlansParams,
@@ -107,6 +110,10 @@ export async function createCompany(data: CreateCompanyDto, params?: RequestPara
   return hsService.api.createCompany(data, params);
 }
 
+export async function getCompanyStats(query: CompanyStatsParams, params?: RequestParams) {
+  return hsService.api.companyStats(query, params);
+}
+
 export async function getCompany(id: string, params?: RequestParams) {
   return hsService.api.getCompany(id, params);
 }
@@ -121,6 +128,10 @@ export async function getListMembers(query: ListMembersParams, params?: RequestP
 
 export async function createMember(data: CreateMemberDto, params?: RequestParams) {
   return hsService.api.createMember(data, params);
+}
+
+export async function getMemberStats(query: MemberStatsParams, params?: RequestParams) {
+  return hsService.api.memberStats(query, params);
 }
 
 export async function getMember(id: string, params?: RequestParams) {
@@ -353,6 +364,10 @@ export async function getListMemberships(query: ListMembershipsParams, params?: 
 
 export async function createMembership(data: CreateMembershipDto, params?: RequestParams) {
   return hsService.api.createMembership(data, params);
+}
+
+export async function getMembershipStats(query: MembershipStatsParams, params?: RequestParams) {
+  return hsService.api.membershipStats(query, params);
 }
 
 export async function getMembership(id: string, params?: RequestParams) {

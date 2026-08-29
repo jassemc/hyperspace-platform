@@ -196,6 +196,19 @@ export async function updateBookingAction(
       }
     }
 
+    // `currentDiscountId` is the hidden snapshot booking-customer-fields.tsx
+    // writes of the booking's own discount at open; `discountId` is the
+    // live select. PATCH assigns on `!== undefined`, so an untouched select
+    // — same value both fields — must omit the key rather than resend the
+    // id (a no-op, but see the doc on UpdateBookingDto.discountId: a
+    // CONFIRMED booking's money is reversed and re-applied on any supplied
+    // discountId, so resending it would re-price the booking for nothing).
+    // A changed selection sends the new id, or `null` for "No discount".
+    const currentDiscountId = clearableText(formData, "currentDiscountId") ?? ""
+    const selectedDiscountId = clearableText(formData, "discountId") ?? ""
+    const discountId: string | null | undefined =
+      selectedDiscountId === currentDiscountId ? undefined : selectedDiscountId || null
+
     const data: UpdateBookingDto = {
       // `clearableText`, not `text`: an emptied note must reach the API
       // as "" so it actually clears — see the helper above.
@@ -210,6 +223,7 @@ export async function updateBookingAction(
         formData.get("extrasEdited") === "1"
           ? formData.getAll("extraIds").map(String).filter(Boolean)
           : undefined,
+      discountId,
     }
 
     await updateBooking(id, data)
