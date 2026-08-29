@@ -69,7 +69,7 @@ export default async function CompanyDetailsPage({
 
         {activeTab === "members" && (
           <Suspense fallback={<TableSkeleton rows={5} />}>
-            <MembersTab companyId={id} companyName={company.name} searchParams={resolvedSearchParams} />
+            <MembersTab companyId={id} searchParams={resolvedSearchParams} />
           </Suspense>
         )}
 

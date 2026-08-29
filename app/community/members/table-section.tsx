@@ -1,5 +1,5 @@
-import { getListMembers, getListCompanies } from "@/lib/service"
-import type { CompanyDto, MemberDto, MemberStatus } from "@/lib/service/HsService"
+import { getListMembers } from "@/lib/service"
+import type { MemberDto, MemberStatus } from "@/lib/service/HsService"
 import {
   asEnum,
   firstParam,
@@ -24,13 +24,8 @@ export async function MemberTableSection({
 
   let results: MemberDto[] = []
   let total = 0
-  let companies: CompanyDto[] = []
 
-  // Members carry only `companyId`, so the companies fetch below seeds the
-  // employer lookup and the form's option list. It's independent of the
-  // member list and stats, so it rides the same Promise.all instead of
-  // serialising after them.
-  const [response, stats, companiesResponse] = await Promise.all([
+  const [response, stats] = await Promise.all([
     getListMembers({ limit, offset, sort: "ASC", q, status, kindHint }).catch((error) => {
       console.warn("Failed to load members", error)
       return null
@@ -38,25 +33,16 @@ export async function MemberTableSection({
     // Positional, and in the same order as SectionCards' call: cache() keys
     // primitives by value, so this must match section-cards.tsx exactly.
     memberStats(q, kindHint, undefined),
-    getListCompanies({ limit: 100, offset: 0, sort: "ASC" }).catch((error) => {
-      console.warn("Failed to load companies for member lookup", error)
-      return null
-    }),
   ])
 
   if (response) {
     ;({ results, total } = pageResult<MemberDto>(response))
   }
 
-  if (companiesResponse) {
-    companies = (companiesResponse.results ?? []) as CompanyDto[]
-  }
-
   return (
     <MemberTable
       data={results}
       totalCount={total}
-      companies={companies}
       stats={stats}
       activeStatus={status}
       activeKindHint={kindHint}

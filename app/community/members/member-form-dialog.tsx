@@ -14,7 +14,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import type { MemberDto, MemberKindHint, MemberSegment } from "@/lib/service/HsService"
+import type { CompanyDto, MemberDto, MemberKindHint, MemberSegment } from "@/lib/service/HsService"
+import { getListCompanies } from "@/lib/service"
 import { createMemberAction, updateMemberAction } from "./actions"
 import type { ActionState } from "@/lib/action-state"
 import { toast } from "sonner"
@@ -42,7 +43,6 @@ interface MemberFormDialogProps {
   isOpen: boolean
   onClose: () => void
   editingMember?: MemberDto | null
-  companies?: { id: string; name: string }[]
 }
 
 function messageFor(state: ActionState, fallback: string): string {
@@ -74,13 +74,28 @@ export function MemberFormDialog({
   isOpen,
   onClose,
   editingMember,
-  companies,
 }: Readonly<MemberFormDialogProps>) {
   const [createState, createFormAction] = useActionState(createMemberAction, {})
   const [updateState, updateFormAction] = useActionState(updateMemberAction, {})
   const [companyId, setCompanyId] = useState("")
 
-  const companyOptions = companies ?? []
+  // The employer option list is only needed once the dialog is open, so it
+  // is fetched here rather than by every render of the members list.
+  const [companyOptions, setCompanyOptions] = useState<{ id: string; name: string }[]>([])
+  useEffect(() => {
+    if (!isOpen) return
+    let cancelled = false
+    getListCompanies({ limit: 100, offset: 0, sort: "ASC" })
+      .then((page) => {
+        if (cancelled) return
+        const rows = ((page as { results?: CompanyDto[] })?.results ?? []).map((c) => ({ id: c.id, name: c.name }))
+        setCompanyOptions(rows)
+      })
+      .catch((error) => console.warn("Failed to load companies for the employer select", error))
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen])
   const employerId = editingMember?.companyId
   // An employer past the first hundred companies — or whose summary did not
   // load — must still be selectable, or saving would silently detach the

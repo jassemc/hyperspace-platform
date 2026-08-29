@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { DataTable, type TableFilter } from "@/components/data-table"
 import { MemberFormDialog } from "./member-form-dialog"
-import type { CompanyDto, MemberDto, MemberKindHint, MemberStatsDto, MemberStatus } from "@/lib/service/HsService"
+import type { MemberDto, MemberKindHint, MemberStatsDto, MemberStatus } from "@/lib/service/HsService"
 import { createColumns } from "./columns"
 import { MemberDetailsDialog } from "./member-details-dialog"
 import { MEMBER_KIND_TABS, MEMBER_STATUS_TABS } from "./member-status"
@@ -12,7 +12,6 @@ import { memberTotals } from "./stats"
 interface MemberTableProps {
   data: MemberDto[]
   totalCount?: number
-  companies?: CompanyDto[]
   stats?: MemberStatsDto | null
   activeStatus?: MemberStatus
   activeKindHint?: MemberKindHint
@@ -21,7 +20,6 @@ interface MemberTableProps {
 export function MemberTable({
   data,
   totalCount,
-  companies = [],
   stats,
   activeStatus,
   activeKindHint,
@@ -90,7 +88,6 @@ export function MemberTable({
           isOpen
           onClose={handleClose}
           editingMember={editingMember}
-          companies={companies}
         />
       )}
       {detailsMember && (

@@ -12,14 +12,12 @@ interface CompanyMembersTableProps {
   data: MemberDto[]
   totalCount?: number
   companyId: string
-  companyName: string
 }
 
 export function CompanyMembersTable({
   data,
   totalCount,
   companyId,
-  companyName,
 }: Readonly<CompanyMembersTableProps>) {
   const [editingMember, setEditingMember] = useState<MemberDto | null>(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -65,7 +63,6 @@ export function CompanyMembersTable({
           isOpen
           onClose={handleClose}
           editingMember={editingMember}
-          companies={[{ id: companyId, name: companyName }]}
         />
       )}
       {detailsMember && (
