@@ -304,6 +304,14 @@ export function DataTable<TData, TValue>({
         : ((getTableColumn("name")?.getFilterValue() as string) ?? "")
     const typeValue = (getTableColumn("type")?.getFilterValue() as string) ?? ""
     const activeStatus = searchParams.get("status")
+    // Radix Tabs calls onValueChange from mousedown AND again from focus while
+    // the clicked trigger still reads as unselected. With `value` controlled
+    // from the URL that stays true until the navigation lands, so a click
+    // pushed the same URL twice and the page rendered (and fetched) twice.
+    // Selecting optimistically makes the focus call see the tab as selected.
+    // No reset needed: every caller remounts the table via `key` on status.
+    const [pendingStatus, setPendingStatus] = React.useState<string | null>(null)
+    const selectedStatus = pendingStatus ?? (activeStatus || "all")
     const activeFilters = filters.filter((filter) =>
         filter.kind === "dateRange"
             ? Boolean(filter.fromValue || filter.toValue)
@@ -375,8 +383,10 @@ export function DataTable<TData, TValue>({
                    where every other block on the page does. */
                 <div className="mx-4 border-b">
                 <Tabs
-                    value={activeStatus || "all"}
+                    value={selectedStatus}
                     onValueChange={(value) => {
+                        if (value === selectedStatus) return // the focus echo
+                        setPendingStatus(value)
                         const params = new URLSearchParams(searchParams.toString())
                         if (value && value !== "all") {
                             params.set("status", value)
