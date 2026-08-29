@@ -2,7 +2,12 @@
 
 import { useState } from "react"
 import { DataTable, type TableFilter } from "@/components/data-table"
-import type { MembershipDto, MembershipStatsDto, MembershipStatus } from "@/lib/service/HsService"
+import type {
+  MembershipDto,
+  MembershipPlanCountDto,
+  MembershipStatsDto,
+  MembershipStatus,
+} from "@/lib/service/HsService"
 import { createColumns } from "./columns"
 import { MembershipFormDialog } from "./membership-form-dialog"
 import { MembershipDetailsDialog } from "./membership-details-dialog"
@@ -13,6 +18,9 @@ interface MembershipTableProps {
   data: MembershipDto[]
   totalCount?: number
   stats?: MembershipStatsDto | null
+  // The full, unfiltered-by-plan `byPlan` list, so the Plan select keeps
+  // every option even once a plan is picked and `stats` narrows to it.
+  planOptions?: MembershipPlanCountDto[] | null
   activeStatus?: MembershipStatus
   activePlanId?: string
 }
@@ -21,6 +29,7 @@ export function MembershipTable({
   data,
   totalCount,
   stats,
+  planOptions,
   activeStatus,
   activePlanId,
 }: Readonly<MembershipTableProps>) {
@@ -56,7 +65,7 @@ export function MembershipTable({
       key: "planId",
       label: "Plan",
       value: activePlanId,
-      options: totals.plans.map((plan) => ({
+      options: (planOptions ?? totals.plans).map((plan) => ({
         value: plan.planId,
         label: plan.name,
         count: plan.count,

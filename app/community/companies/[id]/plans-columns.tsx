@@ -24,7 +24,7 @@ export const createPlanColumns = ({
   {
     id: "name",
     header: "Plan",
-    cell: ({ row }) => <span className="font-medium">{row.original.plan.name}</span>,
+    cell: ({ row }) => <span className="font-medium">{row.original.plan.name || "Unknown plan"}</span>,
   },
   {
     id: "subscriber",

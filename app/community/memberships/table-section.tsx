@@ -25,7 +25,7 @@ export async function MembershipTableSection({
   let results: MembershipDto[] = []
   let total = 0
 
-  const [response, stats] = await Promise.all([
+  const [response, stats, planOptionsStats] = await Promise.all([
     getListMemberships({ limit, offset, sort: "ASC", q, status, planId }).catch((error) => {
       console.warn("Failed to load memberships", error)
       return null
@@ -33,6 +33,11 @@ export async function MembershipTableSection({
     // Positional, and in the same order as SectionCards' call: cache() keys
     // primitives by value, so this must match section-cards.tsx exactly.
     membershipStats(q, planId, undefined, undefined),
+    // A second, unfiltered-by-plan call: once a plan is picked, `stats.byPlan`
+    // above collapses to that one plan, which would make the select forget
+    // every other option. When planId is undefined this lands on the same
+    // cache entry as the call above, so it costs nothing extra.
+    membershipStats(q, undefined, undefined, undefined),
   ])
 
   if (response) {
@@ -44,6 +49,7 @@ export async function MembershipTableSection({
       data={results}
       totalCount={total}
       stats={stats}
+      planOptions={planOptionsStats?.byPlan}
       activeStatus={status}
       activePlanId={planId}
     />

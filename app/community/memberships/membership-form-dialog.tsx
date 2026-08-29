@@ -34,9 +34,6 @@ interface MembershipFormDialogProps {
   isOpen: boolean
   onClose: () => void
   editingMembership?: MembershipDto | null
-  memberNames?: Record<string, string>
-  companyNames?: Record<string, string>
-  plans?: PlanDto[]
 }
 
 type CustomerKind = "member" | "company"
@@ -101,13 +98,10 @@ export function MembershipFormDialog({
   isOpen,
   onClose,
   editingMembership,
-  memberNames: seedMemberNames,
-  companyNames: seedCompanyNames,
-  plans: seedPlans,
 }: Readonly<MembershipFormDialogProps>) {
-  const [memberNames, setMemberNames] = useState<Record<string, string>>(seedMemberNames ?? {})
-  const [companyNames, setCompanyNames] = useState<Record<string, string>>(seedCompanyNames ?? {})
-  const [plans, setPlans] = useState<PlanDto[]>(seedPlans ?? [])
+  const [memberOptions, setMemberOptions] = useState<Record<string, string>>({})
+  const [companyNames, setCompanyNames] = useState<Record<string, string>>({})
+  const [plans, setPlans] = useState<PlanDto[]>([])
   const [createState, createFormAction] = useActionState(createMembershipAction, {})
   const [updateState, updateFormAction] = useActionState(updateMembershipAction, {})
   const [customerKind, setCustomerKind] = useState<CustomerKind>("member")
@@ -188,11 +182,10 @@ export function MembershipFormDialog({
     }
   }, [isOpen, editingMembership])
 
-  // The page-level Add button renders this form with no seed data, so the
-  // lookups are fetched here rather than threaded through every caller.
+  // No caller seeds these lookups, so they're fetched here on every open
+  // rather than threaded through every caller.
   useEffect(() => {
     if (!isOpen) return
-    if ((seedPlans ?? []).length > 0) return
 
     let cancelled = false
     Promise.all([
@@ -202,7 +195,7 @@ export function MembershipFormDialog({
     ])
       .then(([memberPage, companyPage, planPage]) => {
         if (cancelled) return
-        setMemberNames(
+        setMemberOptions(
           Object.fromEntries(
             ((memberPage.results ?? []) as MemberDto[]).map((m) => [m.id, m.fullName])
           )
@@ -219,7 +212,7 @@ export function MembershipFormDialog({
     return () => {
       cancelled = true
     }
-  }, [isOpen, seedPlans])
+  }, [isOpen])
 
   useEffect(() => {
     if (createState === lastCreateStateRef.current) return
@@ -401,7 +394,7 @@ export function MembershipFormDialog({
                       <Label htmlFor="memberId">Member</Label>
                       <select id="memberId" name="memberId" className={selectClassName} required>
                         <option value="">Select member</option>
-                        {Object.entries(memberNames).map(([id, name]) => (
+                        {Object.entries(memberOptions).map(([id, name]) => (
                           <option key={id} value={id}>
                             {name}
                           </option>

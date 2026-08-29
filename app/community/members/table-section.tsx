@@ -24,8 +24,13 @@ export async function MemberTableSection({
 
   let results: MemberDto[] = []
   let total = 0
+  let companies: CompanyDto[] = []
 
-  const [response, stats] = await Promise.all([
+  // Members carry only `companyId`, so the companies fetch below seeds the
+  // employer lookup and the form's option list. It's independent of the
+  // member list and stats, so it rides the same Promise.all instead of
+  // serialising after them.
+  const [response, stats, companiesResponse] = await Promise.all([
     getListMembers({ limit, offset, sort: "ASC", q, status, kindHint }).catch((error) => {
       console.warn("Failed to load members", error)
       return null
@@ -33,20 +38,18 @@ export async function MemberTableSection({
     // Positional, and in the same order as SectionCards' call: cache() keys
     // primitives by value, so this must match section-cards.tsx exactly.
     memberStats(q, kindHint, undefined),
+    getListCompanies({ limit: 100, offset: 0, sort: "ASC" }).catch((error) => {
+      console.warn("Failed to load companies for member lookup", error)
+      return null
+    }),
   ])
 
   if (response) {
     ;({ results, total } = pageResult<MemberDto>(response))
   }
 
-  // Members carry only `companyId`, so this seeds the employer lookup and
-  // the form's option list — the same list Task 3 wires into the form.
-  let companies: CompanyDto[] = []
-  try {
-    const loaded = await getListCompanies({ limit: 100, offset: 0, sort: "ASC" })
-    companies = (loaded?.results ?? []) as CompanyDto[]
-  } catch (error) {
-    console.warn("Failed to load companies for member lookup", error)
+  if (companiesResponse) {
+    companies = (companiesResponse.results ?? []) as CompanyDto[]
   }
 
   return (

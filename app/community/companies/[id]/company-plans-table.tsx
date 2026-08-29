@@ -85,7 +85,7 @@ export function CompanyPlansTable({
         }))}
         statusAllCount={totals.total}
         serverSearch
-        searchPlaceholder="Search plans..."
+        searchPlaceholder="Search memberships..."
       />
       {isFormOpen && (
         <MembershipFormDialog

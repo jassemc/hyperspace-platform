@@ -81,12 +81,13 @@ export function MemberFormDialog({
   const [companyId, setCompanyId] = useState("")
 
   const companyOptions = companies ?? []
-  const currentEmployer = editingMember?.company
-  // An employer past the first hundred companies must still be selectable,
-  // or saving would silently detach the member.
+  const employerId = editingMember?.companyId
+  // An employer past the first hundred companies — or whose summary did not
+  // load — must still be selectable, or saving would silently detach the
+  // member.
   const options =
-    currentEmployer && !companyOptions.some((c) => c.id === currentEmployer.id)
-      ? [currentEmployer, ...companyOptions]
+    employerId && !companyOptions.some((c) => c.id === employerId)
+      ? [{ id: employerId, name: editingMember?.company?.name || "Unknown company" }, ...companyOptions]
       : companyOptions
 
   // The last state object each notify effect has already reacted to.

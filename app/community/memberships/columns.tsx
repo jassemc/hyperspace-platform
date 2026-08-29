@@ -47,7 +47,7 @@ export const createColumns = ({ onDetails, onEdit }: ColumnsProps): ColumnDef<Me
         <div className="flex flex-col">
           <span>{value}</span>
           <span className="text-xs text-muted-foreground">
-            {membership.company ? "Company" : "Member"}
+            {membership.companyId ? "Company" : "Member"}
           </span>
         </div>
       )
