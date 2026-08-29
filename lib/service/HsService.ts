@@ -1418,16 +1418,16 @@ export interface UpdateDiscountDto {
    * @example "10LOYALTY"
    */
   code?: string;
-  /** @example 10 */
-  percentOff?: number;
-  /** @example 15 */
-  amountOffHt?: number;
-  /** @example "2026-09-01" */
-  validFrom?: string;
-  /** @example "2026-12-31" */
-  validUntil?: string;
   planIds?: Array<string>;
   resourceRateIds?: Array<string>;
+  /** @example 10 */
+  percentOff?: number | null;
+  /** @example 15 */
+  amountOffHt?: number | null;
+  /** @example "2026-09-01" */
+  validFrom?: string | null;
+  /** @example "2026-12-31" */
+  validUntil?: string | null;
 }
 
 export type ChargeKind = "plan_fee" | "booking" | "store" | "one_off" | "deposit" | "setup_fee" | "discount";
@@ -1774,6 +1774,17 @@ export type MembershipBillTo = "member" | "company";
 /** Derived from dates on every read. */
 export type MembershipStatus = "pending" | "active" | "paused" | "ended";
 
+export interface MembershipDiscountDto {
+  /** @format uuid */
+  discountId: string;
+  /** @example "10LOYALTY" */
+  code: string;
+  /** @example 10 */
+  percentOff?: number | null;
+  /** @example null */
+  amountOffHt?: number | null;
+}
+
 export interface MembershipDto {
   /**
    * Unique identifier
@@ -1813,6 +1824,8 @@ export interface MembershipDto {
    * @format uuid
    */
   discountId?: string | null;
+  /** Snapshot copy of the applied discount (planSnapshot.plan.discount ?? null). */
+  discount?: MembershipDiscountDto | null;
   /**
    * The date of creation of the resource
    * @format date-time
