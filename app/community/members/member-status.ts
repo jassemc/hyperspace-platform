@@ -40,9 +40,9 @@ export const MEMBER_STATUS_OVERRIDE_OPTIONS: { value: MemberStatusUpdate; label:
 export const MEMBER_KIND_HINT_VALUES: MemberKindHint[] = ["lead", "visitor", "member"]
 
 /**
- * These tabs filter by `kindHint`, the only lifecycle-ish filter the list
- * endpoint accepts. `status` is derived server-side and not filterable, so it
- * stays a display-only column.
+ * These tabs filter by `kindHint`, a secondary filter alongside the status
+ * tabs — `status`, though derived server-side, is filterable on the list
+ * endpoint too.
  */
 export const MEMBER_KIND_TABS = [
     { value: "lead", label: "Lead" },

@@ -65,7 +65,7 @@ export function CompanyMembersTable({
           isOpen
           onClose={handleClose}
           editingMember={editingMember}
-          companyNames={{ [companyId]: companyName }}
+          companies={[{ id: companyId, name: companyName }]}
         />
       )}
       {detailsMember && (

@@ -49,14 +49,7 @@ export function MemberTable({
     run(member)
   }
 
-  // Members carry only `companyId`; the form still takes name lookups by
-  // id, so that stays built here until Task 3 moves it onto `companies`.
-  const companyNames: Record<string, string> = {}
-  for (const company of companies) {
-    companyNames[company.id] = company.name
-  }
-
-  const columns = createColumns({ onDetails: setDetailsMember, onEdit: handleEdit, companyNames })
+  const columns = createColumns({ onDetails: setDetailsMember, onEdit: handleEdit })
 
   const totals = memberTotals(stats ?? null)
 
@@ -97,7 +90,7 @@ export function MemberTable({
           isOpen
           onClose={handleClose}
           editingMember={editingMember}
-          companyNames={companyNames}
+          companies={companies}
         />
       )}
       {detailsMember && (
