@@ -1,11 +1,5 @@
-import { getListMemberships, getListMembers, getListCompanies, getListPlans } from "@/lib/service"
-import type {
-  CompanyDto,
-  MemberDto,
-  MembershipDto,
-  MembershipStatus,
-  PlanDto,
-} from "@/lib/service/HsService"
+import { getListMemberships } from "@/lib/service"
+import type { MembershipDto, MembershipStatus } from "@/lib/service/HsService"
 import {
   asEnum,
   firstParam,
@@ -34,36 +28,5 @@ export async function MembershipTableSection({
     console.warn("Failed to load memberships", error)
   }
 
-  // Memberships reference their customer and plan by id only.
-  const memberNames: Record<string, string> = {}
-  const companyNames: Record<string, string> = {}
-  let plans: PlanDto[] = []
-
-  try {
-    const [members, companies, planPage] = await Promise.all([
-      getListMembers({ limit: 100, offset: 0, sort: "ASC" }),
-      getListCompanies({ limit: 100, offset: 0, sort: "ASC" }),
-      getListPlans({ limit: 100, offset: 0, sort: "ASC" }),
-    ])
-    for (const member of (members?.results ?? []) as MemberDto[]) {
-      memberNames[member.id] = member.fullName
-    }
-    for (const company of (companies?.results ?? []) as CompanyDto[]) {
-      companyNames[company.id] = company.name
-    }
-    plans = (planPage?.results ?? []) as PlanDto[]
-  } catch (error) {
-    console.warn("Failed to load membership lookups", error)
-  }
-
-  return (
-    <MembershipTable
-      data={results}
-      totalCount={total}
-      memberNames={memberNames}
-      companyNames={companyNames}
-      plans={plans}
-      activeStatus={status}
-    />
-  )
+  return <MembershipTable data={results} totalCount={total} activeStatus={status} />
 }

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { DataTable } from "@/components/data-table"
-import type { MembershipDto, MembershipStatus, PlanDto } from "@/lib/service/HsService"
+import type { MembershipDto, MembershipStatus } from "@/lib/service/HsService"
 import { createColumns } from "./columns"
 import { MembershipFormDialog } from "./membership-form-dialog"
 import { MembershipDetailsDialog } from "./membership-details-dialog"
@@ -11,18 +11,12 @@ import { MEMBERSHIP_STATUS_TABS } from "./membership-status"
 interface MembershipTableProps {
   data: MembershipDto[]
   totalCount?: number
-  memberNames?: Record<string, string>
-  companyNames?: Record<string, string>
-  plans?: PlanDto[]
   activeStatus?: MembershipStatus
 }
 
 export function MembershipTable({
   data,
   totalCount,
-  memberNames = {},
-  companyNames = {},
-  plans = [],
   activeStatus,
 }: Readonly<MembershipTableProps>) {
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -48,7 +42,7 @@ export function MembershipTable({
     run(membership)
   }
 
-  const columns = createColumns({ onDetails: setDetailsMembership, onEdit: handleEdit, memberNames, companyNames })
+  const columns = createColumns({ onDetails: setDetailsMembership, onEdit: handleEdit })
 
   return (
     <>
@@ -69,9 +63,6 @@ export function MembershipTable({
           isOpen
           onClose={handleClose}
           editingMembership={editingMembership}
-          memberNames={memberNames}
-          companyNames={companyNames}
-          plans={plans}
         />
       )}
       {detailsMembership && (
