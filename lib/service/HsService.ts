@@ -459,6 +459,14 @@ export interface MemberWeekStatsDto {
    * @example 3
    */
   created: number;
+  /**
+   * Members whose FIRST membership of their own starts that week, by
+   * starts_at — the week they stopped being a lead or a walk-in. A
+   * membership billed through the employer company is not theirs, so a
+   * member covered only by a company plan never counts here.
+   * @example 2
+   */
+  joined: number;
 }
 
 export interface MemberStatsDto {

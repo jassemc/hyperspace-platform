@@ -16,40 +16,63 @@ export async function SectionCards({
 
   const totals = memberTotals(stats)
   const figure = (value: number | undefined) => (value === undefined ? "–" : value)
+  const thisWeek = totals.weeks.at(-1)
+  const filtered = Boolean(q || kindHint)
+  const withCompanyShare =
+    totals.total && totals.withCompany !== undefined
+      ? Math.round((totals.withCompany / totals.total) * 100)
+      : undefined
 
   return (
     <StatCards
       cards={[
         {
-          label: "Total members",
-          value: figure(totals.total),
-          badge: "All",
+          // The series plots what the figure counts: members added, by week.
+          label: "New members",
+          value: figure(thisWeek?.created),
+          unit: "this week",
           icon: UsersIcon,
           delta: totals.changeIn("created"),
           series: totals.weeks.map((entry) => entry.created),
           seriesLabels: weekLabels(totals.weeks),
-          footer: "Added over the last eight weeks",
+          footer: filtered
+            ? `${figure(totals.total)} matching the current filters`
+            : `${figure(totals.total)} members in total`,
         },
         {
+          // The headline is the snapshot; the trend behind it is the week
+          // each member's first own membership started — when a lead
+          // became one of these.
           label: "Active",
           value: figure(totals.countFor("active")),
           badge: "Community",
           icon: UserCheckIcon,
-          footer: "Currently active members",
+          delta: totals.changeIn("joined"),
+          series: totals.weeks.map((entry) => entry.joined),
+          seriesLabels: weekLabels(totals.weeks),
+          footer:
+            thisWeek === undefined
+              ? "Currently active members"
+              : thisWeek.joined === 0
+                ? "Nobody joined this week"
+                : `${thisWeek.joined} joined this week`,
         },
         {
           label: "Leads",
           value: figure(totals.countFor("lead")),
           badge: "Pipeline",
           icon: UserPlusIcon,
-          footer: "Flagged as leads",
+          footer: "Open opportunity, nothing consumed yet",
         },
         {
           label: "With employer",
           value: figure(totals.withCompany),
           badge: "Companies",
           icon: Building2Icon,
-          footer: "Attached to a company",
+          footer:
+            withCompanyShare === undefined
+              ? "Attached to a company"
+              : `${withCompanyShare}% of all members`,
         },
       ]}
     />
