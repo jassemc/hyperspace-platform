@@ -1,6 +1,6 @@
 # Member details page — design
 
-**Date:** 2026-08-29 · **App:** `hyperspace-platform` (staff admin) · **Backend changes:** none
+**Date:** 2026-08-29 (revised same day) · **Apps:** `hscowork-backend-platform` + `hyperspace-platform` (staff admin)
 
 ## Goal
 
@@ -19,12 +19,53 @@ memberships in it.
   exists. Easy to add as an eighth tab later.
 - **No photo.** `MemberDto` has no avatar field; use an initials avatar.
 - The existing `MemberDetailsDialog` is removed once the page replaces it.
+- **One request for the page head and Overview.** `GET /members/{id}` returns
+  `MemberDetailsDto` (the member plus six summary blocks, §0). The domain
+  *tabs* still page through the existing list endpoints with `memberId`, since
+  full histories are unbounded and need paging/search.
+
+## 0. Backend — `GET /members/{id}` returns `MemberDetailsDto`
+
+**Module cycle.** Membership, Booking, Attendance and Billing all import
+`MemberModule`, so it cannot import them back. A new module
+`src/modules/member-overview/` (imports Member, Membership, Booking,
+Attendance, Credits, Billing, User, Role) owns `MemberOverviewController`
+with the single route `@Get('/:id')` on `@Controller({ version: '1', path:
+'members' })`. `getById` is removed from `MemberController`. Same URL, same
+guard (`STAFF_OR_OWN`: admin/staff any member, member-role own record only,
+resolved by `MemberService.getByIdFor`), same `operationId: getMember`, same
+403 `member_access_denied` / 404 `member_not_found`.
+
+**Payload.** `MemberDetailsDto extends MemberDto` (every existing `MemberDto`
+consumer keeps working) plus six blocks, all built with `limit 5, offset 0`
+through the existing domain services, in one `Promise.all`:
+
+| Block | Fields | Source |
+|---|---|---|
+| `memberships` | `total`, `active`, `items: MembershipDto[]` (newest 5 by createdAt) | `MembershipService.list({memberId})`, `MembershipStatsService.stats({memberId})` → `byStatus` active count |
+| `bookings` | `upcoming`, `items: BookingDto[]` (next 5 `confirmed`, `from = now`, ASC) | `BookingService.list(caller, …)` |
+| `checkins` | `total`, `onSite: CheckinDto \| null` (latest with no `checkedOutAt`), `items` (last 5) | `CheckinService.list({memberId})` |
+| `credits` | `balances: MembershipCreditBalancesDto[]`, `recent: CreditTransactionDto[]` (last 5) | `CreditsService.balances({memberId})`, `.list({memberId})` |
+| `charges` | `total`, `uninvoiced`, `items` (latest 5 uninvoiced) | `ChargesService.list({memberId})` and `({memberId, uninvoiced: true})` |
+| `invoices` | `total`, `open` (status `sent`), `outstandingTtc` (Σ `totalTtc − paid` over open, `roundMoney`), `items` (latest 5 open) | `InvoicesService.list(caller, …)` ×2 + new `InvoicesService.outstandingFor(memberId)` |
+
+Plain DB reads only, so a failing block is a 500 — no partial payloads.
+Docs: `DocGetMember` moves to `member-overview/docs/` with response
+`MemberDetailsDto`. Unit spec `member-overview.service.spec.ts` with mocked
+domain services asserts every call carries `memberId` only (never
+`companyId`/`forCompanyId`) and the derived figures (`active`, `onSite`,
+`outstandingTtc`). `docs/DECISIONS.md` gets an entry. No migration.
+
+**Frontend consequence.** Regenerate `lib/service` (`npm run generate` against
+the local backend) and commit `swagger.json` + `lib/service`. The identity
+card and Overview read `member.<block>`; the Overview makes zero extra
+requests.
 
 ## API surface used (all existing)
 
 | Domain | Endpoint | Filter |
 |---|---|---|
-| Member | `GET /members/{id}` | — |
+| Member + overview | `GET /members/{id}` → `MemberDetailsDto` | — (see §0) |
 | Memberships | `GET /memberships`, `GET /memberships/stats` | `memberId` |
 | Bookings | `GET /bookings`, `GET /bookings/stats` | `memberId`, `from`, `sort` |
 | Check-ins | `GET /checkins` | `memberId`, `sort` |
@@ -78,10 +119,12 @@ quick action button (see §5).
 | Billing | open/overdue invoice count and summed total; uninvoiced charge count | up to 3 open invoices | Add charge · Create invoice |
 | Check-ins | "Checked in since {time}" when the latest check-in has no checkout, else "Last visit {date}" | last 3 check-ins | Check in, or **Check out** (existing `CheckoutButton`) when currently inside |
 
-Each card is its own async server component wrapped in `Suspense` with a card
-skeleton, so the five calls run in parallel and one slow call does not block
-the rest. A failed call renders the card with an inline "Couldn't load" line
-and logs a `console.warn`, matching the company page's tolerance.
+The cards are plain (synchronous) components over `member.<block>` from the
+single `getMember` payload — no per-card fetching. The "Memberships" headline
+is `memberships.active`; "Credits" sums `available` over
+`credits.balances[].balances[]`; "Billing" shows `invoices.outstandingTtc`
+with `invoices.open` / `charges.uninvoiced`; "Check-ins" uses
+`checkins.onSite`.
 
 ## 4. Domain tabs
 
