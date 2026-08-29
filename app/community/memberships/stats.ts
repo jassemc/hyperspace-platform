@@ -1,8 +1,8 @@
-import { cache } from "react"
 import { getMembershipStats } from "@/lib/service"
 import type { MembershipStatsDto } from "@/lib/service/HsService"
 import { firstParam, pageQuery } from "@/lib/search-params"
 import { changeIn } from "@/lib/stats"
+import { cachedStats } from "@/lib/cached-stats"
 
 /**
  * The tabs and the summary cards both want these counts. Memoised per
@@ -15,20 +15,19 @@ import { changeIn } from "@/lib/stats"
  * identical contents — so this stays positional on purpose. Resist folding
  * it back into an options object; it would silently double the request.
  */
-export const membershipStats = cache(
-  async (
+export const membershipStats = cachedStats(
+  "stats:memberships",
+  (
+    params,
     q: string | undefined,
     planId: string | undefined,
     companyId: string | undefined,
     forCompanyId: string | undefined
-  ): Promise<MembershipStatsDto | null> => {
-    try {
-      return (await getMembershipStats({ q, planId, companyId, forCompanyId })) as MembershipStatsDto
-    } catch (error) {
-      console.warn("Failed to load membership stats", error)
-      return null
-    }
-  }
+  ) =>
+    getMembershipStats(
+      { q, planId, companyId, forCompanyId },
+      params
+    ) as Promise<MembershipStatsDto>
 )
 
 /** Tab counts, with `undefined` meaning "unknown" rather than "zero". */

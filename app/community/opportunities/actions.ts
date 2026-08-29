@@ -1,6 +1,6 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
 import { createOpportunity, onboardLead, updateOpportunity } from "@/lib/service"
 import type {
   CreateOpportunityDto,
@@ -45,6 +45,13 @@ function clearable<T>(formData: FormData, field: string, value: T | undefined) {
  * VAT) because the opportunity stores them by value, the way a website plan
  * request does. Absent = leave whatever the opportunity already carries.
  */
+/** Open opportunities feed member status, so both tags move together. */
+function revalidate() {
+  revalidatePath("/community/opportunities")
+  revalidateTag("stats:opportunities")
+  revalidateTag("stats:members")
+}
+
 function requestedExtras(formData: FormData): RequestedExtraDto[] | undefined {
   const raw = text(formData, "requestedExtras")
   if (raw === undefined) return undefined
@@ -115,7 +122,7 @@ export async function createOpportunityAction(
     }
 
     await createOpportunity(data)
-    revalidatePath("/community/opportunities")
+    revalidate()
     return { success: true }
   } catch (error) {
     return {
@@ -136,7 +143,7 @@ export async function updateOpportunityAction(
     const data: UpdateOpportunityDto = opportunityFields(formData)
 
     await updateOpportunity(id, data)
-    revalidatePath("/community/opportunities")
+    revalidate()
     return { success: true }
   } catch (error) {
     return {
@@ -180,9 +187,12 @@ export async function onboardLeadAction(
       discountCode,
     })) as OnboardingResultDto
 
-    revalidatePath("/community/opportunities")
+    revalidate()
     revalidatePath("/community/memberships")
     revalidatePath("/booking/assignments")
+    // Onboarding turns the lead into a membership, moving company figures too.
+    revalidateTag("stats:memberships")
+    revalidateTag("stats:companies")
 
     return {
       success: true,

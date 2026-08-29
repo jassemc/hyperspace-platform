@@ -1,6 +1,6 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
 import {
   createBooking,
   updateBooking,
@@ -84,6 +84,9 @@ function toUtcIso(value: string, timeZone: string | undefined): string {
 
 function revalidate() {
   revalidatePath("/booking/bookings")
+  revalidateTag("stats:bookings")
+  // Member status considers booking charges.
+  revalidateTag("stats:members")
 }
 
 function bookingPayload(formData: FormData): CreateBookingDto | { error: string } {

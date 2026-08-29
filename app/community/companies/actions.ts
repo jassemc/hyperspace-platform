@@ -1,6 +1,6 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
 import { createCompany, updateCompany } from "@/lib/service"
 import type {
   AddressDto,
@@ -13,6 +13,7 @@ import { type ActionState, problem, text, clearableText, tags } from "@/lib/acti
 function revalidate(id?: string) {
   revalidatePath("/community/companies")
   if (id) revalidatePath(`/community/companies/${id}`)
+  revalidateTag("stats:companies")
 }
 
 function parseAddress(formData: FormData): AddressDto | undefined {

@@ -1,8 +1,8 @@
-import { cache } from "react"
 import { getMemberStats } from "@/lib/service"
 import type { MemberKindHint, MemberStatsDto } from "@/lib/service/HsService"
 import { asEnum, firstParam, pageQuery } from "@/lib/search-params"
 import { changeIn } from "@/lib/stats"
+import { cachedStats } from "@/lib/cached-stats"
 import { MEMBER_KIND_HINT_VALUES } from "./member-status"
 
 /**
@@ -16,19 +16,14 @@ import { MEMBER_KIND_HINT_VALUES } from "./member-status"
  * identical contents — so this stays positional on purpose. Resist folding
  * it back into an options object; it would silently double the request.
  */
-export const memberStats = cache(
-  async (
+export const memberStats = cachedStats(
+  "stats:members",
+  (
+    params,
     q: string | undefined,
     kindHint: MemberKindHint | undefined,
     companyId: string | undefined
-  ): Promise<MemberStatsDto | null> => {
-    try {
-      return (await getMemberStats({ q, kindHint, companyId })) as MemberStatsDto
-    } catch (error) {
-      console.warn("Failed to load member stats", error)
-      return null
-    }
-  }
+  ) => getMemberStats({ q, kindHint, companyId }, params) as Promise<MemberStatsDto>
 )
 
 /** Tab counts, with `undefined` meaning "unknown" rather than "zero". */
@@ -43,7 +38,7 @@ export function memberTotals(stats: MemberStatsDto | null) {
 
   return {
     weeks,
-    changeIn: (key: "created") => changeIn(weeks, key),
+    changeIn: (key: "created" | "joined") => changeIn(weeks, key),
     countFor: (status: string) => (stats ? (byStatus.get(status) ?? 0) : undefined),
     kindCount: (kind: string) => (stats ? (byKind.get(kind) ?? 0) : undefined),
     total: stats?.total,

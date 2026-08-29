@@ -1,7 +1,7 @@
-import { cache } from "react"
 import { getBookingStats } from "@/lib/service"
 import type { BookingSource, BookingStatsDto } from "@/lib/service/HsService"
 import { changeIn } from "@/lib/stats"
+import { cachedStats } from "@/lib/cached-stats"
 
 /**
  * The tabs and the summary cards both want these counts. Memoised per
@@ -14,16 +14,18 @@ import { changeIn } from "@/lib/stats"
  * identical contents — so this stays positional on purpose. Resist folding
  * it back into an options object; it would silently double the request.
  */
-export const bookingStats = cache(
-  async (
+export const bookingStats = cachedStats(
+  "stats:bookings",
+  (
+    params,
     q: string | undefined,
     resourceId: string | undefined,
     from: string | undefined,
     to: string | undefined,
     source: string | undefined
-  ): Promise<BookingStatsDto | null> => {
-    try {
-      return (await getBookingStats({
+  ) =>
+    getBookingStats(
+      {
         q,
         resourceId,
         from,
@@ -31,12 +33,9 @@ export const bookingStats = cache(
         // The API's `source` is the narrower BookingSource enum; this
         // function stays plain strings so callers do not need to import it.
         source: source as BookingSource | undefined,
-      })) as BookingStatsDto
-    } catch (error) {
-      console.warn("Failed to load booking stats", error)
-      return null
-    }
-  }
+      },
+      params
+    ) as Promise<BookingStatsDto>
 )
 
 /** Tab counts, with `undefined` meaning "unknown" rather than "zero". */

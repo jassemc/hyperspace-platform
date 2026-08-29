@@ -1,6 +1,6 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
 import {
   createMembership,
   updateMembership,
@@ -22,6 +22,10 @@ function revalidate() {
   revalidatePath("/community/memberships")
   revalidatePath("/community/members")
   revalidatePath("/community/companies")
+  revalidateTag("stats:memberships")
+  // Member/company status derive from memberships.
+  revalidateTag("stats:members")
+  revalidateTag("stats:companies")
 }
 
 export async function createMembershipAction(

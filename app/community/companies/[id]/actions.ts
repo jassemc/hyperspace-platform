@@ -1,6 +1,6 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
 import {
   createMembership,
   getListCompanies,
@@ -27,6 +27,9 @@ function revalidateCompany(companyId: string) {
   revalidatePath(`/community/companies/${companyId}`)
   revalidatePath("/community/companies")
   revalidatePath("/community/members")
+  revalidateTag("stats:companies")
+  revalidateTag("stats:members")
+  revalidateTag("stats:memberships")
 }
 
 /**

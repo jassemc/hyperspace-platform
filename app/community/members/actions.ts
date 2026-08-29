@@ -1,6 +1,6 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
 import {
   createMember,
   updateMember,
@@ -19,6 +19,9 @@ import { type ActionState, problem, text, clearableText, tags } from "@/lib/acti
 
 function revalidate() {
   revalidatePath("/community/members")
+  // A member's employer change moves company figures too.
+  revalidateTag("stats:members")
+  revalidateTag("stats:companies")
 }
 
 /**

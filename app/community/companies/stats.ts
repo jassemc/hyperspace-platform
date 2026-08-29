@@ -1,8 +1,8 @@
-import { cache } from "react"
 import { getCompanyStats } from "@/lib/service"
 import type { CompanyStatsDto } from "@/lib/service/HsService"
 import { pageQuery } from "@/lib/search-params"
 import { changeIn } from "@/lib/stats"
+import { cachedStats } from "@/lib/cached-stats"
 
 /**
  * The cards and the table both want these counts. Memoised per request, so
@@ -15,15 +15,9 @@ import { changeIn } from "@/lib/stats"
  * so this stays positional on purpose. Resist folding it back into an
  * options object; it would silently double the request.
  */
-export const companyStats = cache(
-  async (q: string | undefined): Promise<CompanyStatsDto | null> => {
-    try {
-      return (await getCompanyStats({ q })) as CompanyStatsDto
-    } catch (error) {
-      console.warn("Failed to load company stats", error)
-      return null
-    }
-  }
+export const companyStats = cachedStats(
+  "stats:companies",
+  (params, q: string | undefined) => getCompanyStats({ q }, params) as Promise<CompanyStatsDto>
 )
 
 /** Card counts, with `undefined` meaning "unknown" rather than "zero". */
