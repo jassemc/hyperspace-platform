@@ -4,17 +4,18 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { MemberDto, MemberStatus } from "@/lib/service/HsService"
 import type { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, Edit } from "lucide-react"
+import { ArrowUpDown } from "lucide-react"
 import { formatDate, formatEnumLabel } from "@/lib/format"
 import { MEMBER_STATUS_CLASSES, MEMBER_STATUS_LABELS } from "./member-status"
-import { StatusButton } from "./status-button"
+import { MemberRowActions } from "./member-row-actions"
 
 interface ColumnsProps {
+  onDetails: (member: MemberDto) => void
   onEdit: (member: MemberDto) => void
   companyNames?: Record<string, string>
 }
 
-export const createColumns = ({ onEdit, companyNames = {} }: ColumnsProps): ColumnDef<MemberDto>[] => [
+export const createColumns = ({ onDetails, onEdit, companyNames = {} }: ColumnsProps): ColumnDef<MemberDto>[] => [
   {
     id: "name",
     accessorKey: "fullName",
@@ -128,25 +129,8 @@ export const createColumns = ({ onEdit, companyNames = {} }: ColumnsProps): Colu
   {
     id: "actions",
     header: "Actions",
-    cell: ({ row }) => {
-      const member = row.original
-      return (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onEdit(member)}
-            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-950 dark:border-blue-800"
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <StatusButton
-            memberId={member.id}
-            memberName={member.fullName}
-            statusOverride={member.statusOverride}
-          />
-        </div>
-      )
-    },
+    cell: ({ row }) => (
+      <MemberRowActions member={row.original} onDetails={onDetails} onEdit={onEdit} />
+    ),
   },
 ]

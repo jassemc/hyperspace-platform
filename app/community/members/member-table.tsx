@@ -20,23 +20,32 @@ export function MemberTable({
   companyNames = {},
   activeKindHint,
 }: Readonly<MemberTableProps>) {
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [editingMember, setEditingMember] = useState<MemberDto | null>(null)
+  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [detailsMember, setDetailsMember] = useState<MemberDto | null>(null)
 
   const handleEdit = (member: MemberDto) => {
     setEditingMember(member)
-    setIsDrawerOpen(true)
+    setIsFormOpen(true)
   }
 
   const handleClose = () => {
-    setIsDrawerOpen(false)
+    setIsFormOpen(false)
     setEditingMember(null)
   }
 
-  const columns = createColumns({
-    onEdit: handleEdit,
-    companyNames,
-  })
+  // Handing over from the details dialog: it closes first, so the two are
+  // never stacked, and only reopens if the caller goes back to it.
+  // wired by the details dialog (next task)
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handOff = (run: (member: MemberDto) => void) => {
+    const member = detailsMember
+    if (!member) return
+    setDetailsMember(null)
+    run(member)
+  }
+
+  const columns = createColumns({ onDetails: setDetailsMember, onEdit: handleEdit, companyNames })
 
   return (
     <>
@@ -51,13 +60,15 @@ export function MemberTable({
         serverSearch
         searchPlaceholder="Search members..."
       />
-      <AddMemberForm
-        key={editingMember?.id || "create"}
-        isOpen={isDrawerOpen}
-        onClose={handleClose}
-        editingMember={editingMember}
-        companyNames={companyNames}
-      />
+      {isFormOpen && (
+        <AddMemberForm
+          key={editingMember?.id || "create"}
+          isOpen
+          onClose={handleClose}
+          editingMember={editingMember}
+          companyNames={companyNames}
+        />
+      )}
     </>
   )
 }
