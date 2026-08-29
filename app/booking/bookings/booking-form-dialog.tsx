@@ -221,7 +221,7 @@ export function BookingFormDialog({
           | { priceHt?: number | null; discount?: { code: string; amountHt: number } | null }
           | undefined
         const price = quote?.priceHt
-        // Spec §8.4: name the discount the quote applied (plan rate discount or promo).
+        // Spec §8.4: name the rate discount the quote applied (plan-granted or by code).
         const discountNote = quote?.discount
           ? ` (${quote.discount.code}: ${formatPriceHt(quote.discount.amountHt)})`
           : ""

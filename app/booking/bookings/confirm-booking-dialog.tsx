@@ -61,8 +61,8 @@ export function ConfirmBookingDialog({ open, onOpenChange, booking, pending, onC
               className="mt-0.5 h-4 w-4 rounded border-input"
             />
             <span>
-              Apply the requested code <code className="rounded bg-muted px-1">{booking.requestedDiscountCode}</code>
-              <span className="block text-xs text-muted-foreground">Unchecked = confirm at the list price. Unknown or expired codes are refused.</span>
+              Apply the requested discount code <code className="rounded bg-muted px-1">{booking.requestedDiscountCode}</code>
+              <span className="block text-xs text-muted-foreground">Unchecked = confirm at the list price. Only rate discounts apply to a booking; unknown or expired codes are refused.</span>
             </span>
           </label>
         )}
