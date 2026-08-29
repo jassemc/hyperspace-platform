@@ -75,8 +75,8 @@ export async function updateDiscountAction(prevState: ActionState, formData: For
       // A blank date field must clear the bound, not leave it untouched: the
       // generated client keeps `null` in the request body and drops
       // `undefined`, and the backend now treats `null` as "clear this date".
-      data.validFrom = (text(formData, "validFrom") ?? null) as UpdateDiscountDto["validFrom"]
-      data.validUntil = (text(formData, "validUntil") ?? null) as UpdateDiscountDto["validUntil"]
+      data.validFrom = text(formData, "validFrom") ?? null
+      data.validUntil = text(formData, "validUntil") ?? null
     }
     await updateDiscount(id, data)
     revalidatePath("/billing/discounts")

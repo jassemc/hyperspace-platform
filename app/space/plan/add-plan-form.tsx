@@ -146,6 +146,13 @@ export function AddPlanForm({ isOpen, onClose, editingPlan }: Readonly<AddPlanFo
     )
   }
 
+  // A grant the plan was seeded with that fell out of the active list —
+  // archived since. Shown struck through and unselectable, with no hidden
+  // input: the backend refuses an archived id, so saving must let it drop.
+  const missingRateDiscounts = (editingPlan?.rateDiscounts ?? []).filter(
+    (grant) => !rateDiscounts.some((d) => d.id === grant.id)
+  )
+
   const currentState = editingPlan ? updateState : createState
   const formAction = editingPlan ? updateFormAction : createFormAction
 
@@ -312,7 +319,7 @@ export function AddPlanForm({ isOpen, onClose, editingPlan }: Readonly<AddPlanFo
                     Members on this plan pay less for the selected rates. Applies immediately to all active
                     memberships — no plan clone.
                   </p>
-                  {rateDiscounts.length === 0 ? (
+                  {rateDiscounts.length === 0 && missingRateDiscounts.length === 0 ? (
                     <p className="text-sm text-muted-foreground">No resource-rate discounts yet.</p>
                   ) : (
                     <div className="grid gap-2 rounded-md border border-input p-3">
@@ -330,6 +337,20 @@ export function AddPlanForm({ isOpen, onClose, editingPlan }: Readonly<AddPlanFo
                             <code className="rounded bg-muted px-1 text-xs">{d.code}</code> {d.name}
                             <span className="block text-xs text-muted-foreground">{formatDiscountValue(d)}</span>
                           </span>
+                        </label>
+                      ))}
+                      {missingRateDiscounts.map((grant) => (
+                        <label
+                          key={grant.id}
+                          className="flex items-start gap-2 text-sm text-muted-foreground line-through"
+                        >
+                          <input
+                            type="checkbox"
+                            disabled
+                            readOnly
+                            className="mt-0.5 h-4 w-4 rounded border-input"
+                          />
+                          <span>{grant.code} — archived, will be removed on save</span>
                         </label>
                       ))}
                     </div>

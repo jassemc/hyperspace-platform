@@ -20,16 +20,6 @@ export interface SnapshotPlan {
     deposit?: number | null
     cycleMonths?: number | null
     cancellationDays?: number | null
-    /**
-     * The discount snapshotted alongside the plan, if the membership was
-     * created (or later updated) with one. Optional-chain every read —
-     * older snapshots predate this field.
-     */
-    discount?: {
-        code?: string | null
-        percentOff?: number | null
-        amountOffHt?: number | null
-    } | null
 }
 
 export interface SnapshotExtra {

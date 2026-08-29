@@ -18,7 +18,7 @@ import {
 import { X } from "lucide-react"
 import type { OpportunityDto } from "@/lib/service/HsService"
 import { apiNumber } from "@/lib/api-value"
-import { formatPriceHt } from "@/lib/format"
+import { formatPriceHt, todayInTunis } from "@/lib/format"
 import { onboardLeadAction } from "./actions"
 import { benefitLabel } from "@/lib/benefits"
 import {
@@ -32,11 +32,6 @@ interface ConvertLeadFormProps {
   onClose: () => void
   context: ConvertContext
   opportunity: OpportunityDto
-}
-
-/** The business date in Tunis, not the browser's, since the API works in it. */
-function todayInTunis(): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Tunis" }).format(new Date())
 }
 
 function SubmitButton({ disabled }: Readonly<{ disabled: boolean }>) {

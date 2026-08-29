@@ -165,6 +165,16 @@ export function AddDiscountForm({
     return groups
   }, {})
 
+  // Seeded ids the fetched list no longer carries — dropped, archived, or a
+  // page that only loaded the first N. Kept as disabled, checked rows plus a
+  // hidden input, so an unrelated edit to this discount never revokes them.
+  const missingPlanIds = (editingDiscount?.planIds ?? []).filter(
+    (id) => !plans.some((plan) => plan.id === id)
+  )
+  const missingRateIds = (editingDiscount?.resourceRateIds ?? []).filter(
+    (id) => !rates.some((rate) => rate.id === id)
+  )
+
   const currentState = editingDiscount ? updateState : createState
   const formAction = editingDiscount ? updateFormAction : createFormAction
 
@@ -308,7 +318,7 @@ export function AddDiscountForm({
                     <Label>Plans</Label>
                     {isLoading ? (
                       <p className="text-sm text-muted-foreground">Loading plans...</p>
-                    ) : plans.length === 0 ? (
+                    ) : plans.length === 0 && missingPlanIds.length === 0 ? (
                       <p className="text-sm text-muted-foreground">No plans defined yet.</p>
                     ) : (
                       <div className="grid gap-2 rounded-md border border-input p-3">
@@ -330,6 +340,22 @@ export function AddDiscountForm({
                             </span>
                           </label>
                         ))}
+                        {missingPlanIds.map((id) => (
+                          <label
+                            key={id}
+                            className="flex items-start gap-2 text-sm text-muted-foreground"
+                          >
+                            <input
+                              type="checkbox"
+                              checked
+                              disabled
+                              readOnly
+                              className="mt-0.5 h-4 w-4 rounded border-input"
+                            />
+                            <span>{id} (not in list — kept)</span>
+                            <input type="hidden" name="planIds" value={id} />
+                          </label>
+                        ))}
                       </div>
                     )}
                   </div>
@@ -338,7 +364,7 @@ export function AddDiscountForm({
                 {kind === "resource_rate" && (
                   <div className="grid gap-2">
                     <Label>Resource rates</Label>
-                    {rates.length === 0 ? (
+                    {rates.length === 0 && missingRateIds.length === 0 ? (
                       <p className="text-sm text-muted-foreground">No resource rates defined yet.</p>
                     ) : (
                       <div className="grid gap-3 rounded-md border border-input p-3">
@@ -366,6 +392,26 @@ export function AddDiscountForm({
                             ))}
                           </div>
                         ))}
+                        {missingRateIds.length > 0 && (
+                          <div className="grid gap-1.5">
+                            {missingRateIds.map((id) => (
+                              <label
+                                key={id}
+                                className="flex items-start gap-2 text-sm text-muted-foreground"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked
+                                  disabled
+                                  readOnly
+                                  className="mt-0.5 h-4 w-4 rounded border-input"
+                                />
+                                <span>{id} (not in list — kept)</span>
+                                <input type="hidden" name="resourceRateIds" value={id} />
+                              </label>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>

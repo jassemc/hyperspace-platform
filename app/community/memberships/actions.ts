@@ -83,9 +83,9 @@ export async function updateMembershipAction(
     const data: UpdateMembershipDto = {
       name: text(formData, "name"),
       notes: text(formData, "notes"),
-      // The select is always present in the edit form, so an empty value
-      // means "cleared" — never "not submitted".
-      discountId: text(formData, "discountId") ?? null,
+      // A DISABLED select is excluded from FormData entirely, so only treat
+      // the field as "cleared" when it was actually submitted.
+      discountId: formData.has("discountId") ? (text(formData, "discountId") ?? null) : undefined,
     }
 
     await updateMembership(id, data)

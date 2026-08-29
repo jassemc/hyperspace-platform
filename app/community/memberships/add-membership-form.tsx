@@ -17,7 +17,14 @@ import {
 import { X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { getListMembers, getListCompanies, getListPlans, getListDiscounts, getDiscount } from "@/lib/service"
-import type { CompanyDto, DiscountDto, MemberDto, MembershipDto, PlanDto } from "@/lib/service/HsService"
+import type {
+  CompanyDto,
+  DiscountDto,
+  MemberDto,
+  MembershipDiscountDto,
+  MembershipDto,
+  PlanDto,
+} from "@/lib/service/HsService"
 import { formatDate, formatEnumLabel, formatPriceHt, formatVatRate } from "@/lib/format"
 import { benefitLabel } from "@/lib/benefits"
 import { formatDiscountValue, isInWindow } from "@/app/billing/discounts/discount-meta"
@@ -69,12 +76,6 @@ function Term({ label, value }: Readonly<{ label: string; value: React.ReactNode
   )
 }
 
-type SnapshotDiscount = {
-  code?: string | null
-  percentOff?: number | null
-  amountOffHt?: number | null
-} | null | undefined
-
 /**
  * Labels the option for a membership's assigned discount that fell out of
  * the fetched active/eligible list. `resolved` (a real backend record, from
@@ -85,7 +86,7 @@ type SnapshotDiscount = {
  */
 function assignedDiscountLabel(
   resolved: Pick<DiscountDto, "code" | "percentOff" | "amountOffHt"> | null,
-  snapshot: SnapshotDiscount,
+  snapshot: Pick<MembershipDiscountDto, "code" | "percentOff" | "amountOffHt"> | null | undefined,
   id: string
 ): string {
   if (resolved) return `${resolved.code} — ${formatDiscountValue(resolved)} (no longer eligible)`
@@ -281,7 +282,7 @@ export function AddMembershipForm({
     (assignedDiscountId && discounts.find((d) => d.id === assignedDiscountId)) ||
     (assignedDiscountId && assignedDiscount?.id === assignedDiscountId ? assignedDiscount : null) ||
     null
-  const snapshotDiscount = editingMembership?.planSnapshot?.plan?.discount as SnapshotDiscount
+  const snapshotDiscount = editingMembership?.discount
   const assignedFallback =
     assignedDiscountId && !eligibleDiscounts.some((d) => d.id === assignedDiscountId)
       ? {
@@ -416,10 +417,10 @@ export function AddMembershipForm({
                         />
                         <Term label="VAT" value={formatVatRate(snapshot.plan?.vatRate)} />
                         <Term label="Deposit" value={formatPriceHt(snapshot.plan?.deposit)} />
-                        {snapshot.plan?.discount?.code && (
+                        {editingMembership?.discount?.code && (
                           <Term
                             label="Discount"
-                            value={`${snapshot.plan.discount.code} — ${formatDiscountValue(snapshot.plan.discount)}`}
+                            value={`${editingMembership.discount.code} — ${formatDiscountValue(editingMembership.discount)}`}
                           />
                         )}
                         {cycle && <Term label="Billing cycle" value={cycle} />}
@@ -500,7 +501,7 @@ export function AddMembershipForm({
                         className={selectClassName}
                         value={discountId}
                         onChange={(e) => setDiscountId(e.target.value)}
-                        disabled={!selectedPlan}
+                        disabled={!editingMembership && !selectedPlan}
                       >
                         <option value="">{selectedPlan ? "No discount" : "Select a plan first"}</option>
                         {assignedFallback && (

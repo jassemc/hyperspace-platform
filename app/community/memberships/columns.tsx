@@ -70,7 +70,7 @@ export const createColumns = ({
   },
   {
     id: "discount",
-    accessorFn: (membership) => membership.planSnapshot?.plan?.discount?.code ?? "",
+    accessorFn: (membership) => membership.discount?.code ?? "",
     header: "Discount",
     cell: ({ row }) => {
       const code = row.getValue<string>("discount")

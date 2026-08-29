@@ -1,5 +1,5 @@
 import type { DiscountDto, DiscountKind } from "@/lib/service/HsService"
-import { formatPriceHt } from "@/lib/format"
+import { formatPriceHt, todayInTunis } from "@/lib/format"
 
 export const DISCOUNT_KIND_LABELS: Record<DiscountKind, string> = {
   plan: "Plan discount",
@@ -22,7 +22,7 @@ export function formatDiscountValue(d: Pick<DiscountDto, "percentOff" | "amountO
 /** Promo validity, inclusive, YYYY-MM-DD compare (Africa/Tunis dates from the API). */
 export function isInWindow(
   d: Pick<DiscountDto, "validFrom" | "validUntil">,
-  today = new Date().toISOString().slice(0, 10)
+  today = todayInTunis()
 ): boolean {
   return (!d.validFrom || d.validFrom <= today) && (!d.validUntil || d.validUntil >= today)
 }
