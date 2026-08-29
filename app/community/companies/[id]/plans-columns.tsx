@@ -10,8 +10,6 @@ import type { MembershipActions } from "@/app/community/memberships/use-membersh
 
 interface ColumnsProps {
   companyId: string
-  plansById: Record<string, string>
-  subscribersById: Record<string, string>
   onDetails: (membership: MembershipDto) => void
   onEdit: (membership: MembershipDto) => void
   actions?: MembershipActions
@@ -19,39 +17,21 @@ interface ColumnsProps {
 
 export const createPlanColumns = ({
   companyId,
-  plansById,
-  subscribersById,
   onDetails,
   onEdit,
   actions,
 }: ColumnsProps): ColumnDef<MembershipDto>[] => [
   {
     id: "name",
-    accessorKey: "planId",
     header: "Plan",
-    cell: ({ row }) => {
-      const planId = row.getValue<string>("name")
-      return <span className="font-medium">{plansById[planId] || planId}</span>
-    },
-    // The cell holds a planId, so the shared search box has to match the
-    // resolved names instead of the raw accessor value. Mirrors the server-side
-    // filter in plans-tab.tsx so both passes agree.
-    filterFn: (row, id, value) => {
-      const planId = row.getValue<string>(id)
-      const planName = plansById[planId] || planId
-      const subscriber = subscribersById[row.original.id] ?? ""
-      const needle = String(value).toLowerCase()
-      return (
-        planName.toLowerCase().includes(needle) || subscriber.toLowerCase().includes(needle)
-      )
-    },
+    cell: ({ row }) => <span className="font-medium">{row.original.plan.name}</span>,
   },
   {
     id: "subscriber",
     header: "Subscriber",
     cell: ({ row }) => {
       const membership = row.original
-      const subscriber = subscribersById[membership.id]
+      const subscriber = membership.member?.fullName ?? membership.company?.name
       if (!subscriber) return <span>-</span>
 
       return (
