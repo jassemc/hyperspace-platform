@@ -1,9 +1,9 @@
 "use client"
 
 import { useState } from "react"
-import { usePathname, useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import { DataTable } from "@/components/data-table"
+import { DataTable, type TableFilter } from "@/components/data-table"
 import { Button } from "@/components/ui/button"
 import {
   AlertDialog,
@@ -14,7 +14,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
-import { cn } from "@/lib/utils"
 import type { DiscountDto, DiscountKind, DiscountStatus } from "@/lib/service/HsService"
 import { createColumns } from "./columns"
 import { AddDiscountForm } from "./add-discount-form"
@@ -30,15 +29,7 @@ interface DiscountTableProps {
   activeStatus?: DiscountStatus
 }
 
-const KIND_OPTIONS: { value?: DiscountKind; label: string }[] = [
-  { value: undefined, label: "All" },
-  { value: "plan", label: DISCOUNT_KIND_LABELS.plan },
-  { value: "resource_rate", label: DISCOUNT_KIND_LABELS.resource_rate },
-  { value: "promo", label: DISCOUNT_KIND_LABELS.promo },
-]
-
-const STATUS_OPTIONS: { value?: DiscountStatus; label: string }[] = [
-  { value: undefined, label: "All" },
+const STATUS_TAB_OPTIONS = [
   { value: "active", label: "Active" },
   { value: "archived", label: "Archived" },
 ]
@@ -52,8 +43,6 @@ export function DiscountTable({
   activeStatus,
 }: Readonly<DiscountTableProps>) {
   const router = useRouter()
-  const pathname = usePathname()
-  const searchParams = useSearchParams()
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [editingDiscount, setEditingDiscount] = useState<DiscountDto | null>(null)
@@ -89,71 +78,32 @@ export function DiscountTable({
     }
   }
 
-  const applyFilter = (key: "kind" | "status", value?: string) => {
-    const params = new URLSearchParams(searchParams.toString())
-    if (value) {
-      params.set(key, value)
-    } else {
-      params.delete(key)
-    }
-    params.delete("page") // a narrower list starts at the first page
-    const next = params.toString()
-    router.replace(next ? `${pathname}?${next}` : pathname)
-  }
-
   const columns = createColumns({ onEdit: handleEdit, onArchive: setArchivingDiscount, planNames, rateNames })
+
+  // Kind is a fixed vocabulary, so its options come straight from the label map.
+  const filters: TableFilter[] = [
+    {
+      key: "kind",
+      label: "Kind",
+      value: activeKind,
+      options: (Object.entries(DISCOUNT_KIND_LABELS) as [DiscountKind, string][]).map(
+        ([value, label]) => ({ value, label })
+      ),
+    },
+  ]
 
   return (
     <>
-      <div className="flex flex-wrap items-center gap-4 px-4 pb-3">
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-muted-foreground">Kind</span>
-          <div className="flex flex-wrap gap-1">
-            {KIND_OPTIONS.map((option) => (
-              <button
-                key={option.label}
-                type="button"
-                onClick={() => applyFilter("kind", option.value)}
-                className={cn(
-                  "rounded-full border px-2.5 py-1 text-xs",
-                  activeKind === option.value
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-input text-muted-foreground hover:bg-accent"
-                )}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-muted-foreground">Status</span>
-          <div className="flex flex-wrap gap-1">
-            {STATUS_OPTIONS.map((option) => (
-              <button
-                key={option.label}
-                type="button"
-                onClick={() => applyFilter("status", option.value)}
-                className={cn(
-                  "rounded-full border px-2.5 py-1 text-xs",
-                  activeStatus === option.value
-                    ? "border-primary bg-primary/10 text-primary"
-                    : "border-input text-muted-foreground hover:bg-accent"
-                )}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-
       {/* Remount on filter change so pagination is re-read from the URL. */}
       <DataTable
         key={`${activeKind ?? "all"}-${activeStatus ?? "all"}`}
         columns={columns}
         data={data}
         totalCount={typeof totalCount === "number" ? totalCount : undefined}
+        filters={filters}
+        inlineFilters
+        showStatusTabs
+        statusTabOptions={STATUS_TAB_OPTIONS}
       />
 
       <AddDiscountForm
