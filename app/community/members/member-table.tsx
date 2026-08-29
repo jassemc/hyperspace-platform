@@ -15,6 +15,9 @@ interface MemberTableProps {
   stats?: MemberStatsDto | null
   activeStatus?: MemberStatus
   activeKindHint?: MemberKindHint
+  /** ISO instants owned by the Created range filter. */
+  activeCreatedFrom?: string
+  activeCreatedTo?: string
 }
 
 export function MemberTable({
@@ -23,6 +26,8 @@ export function MemberTable({
   stats,
   activeStatus,
   activeKindHint,
+  activeCreatedFrom,
+  activeCreatedTo,
 }: Readonly<MemberTableProps>) {
   const [editingMember, setEditingMember] = useState<MemberDto | null>(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
@@ -61,13 +66,26 @@ export function MemberTable({
         count: totals.kindCount(tab.value),
       })),
     },
+    {
+      kind: "dateRange",
+      label: "Created",
+      fromKey: "createdFrom",
+      toKey: "createdTo",
+      fromValue: activeCreatedFrom,
+      toValue: activeCreatedTo,
+      presets: [
+        { label: "Today", days: 0 },
+        { label: "Last 7 days", days: 7 },
+        { label: "Last 30 days", days: 30 },
+      ],
+    },
   ]
 
   return (
     <>
       {/* Remount on filter change so pagination is re-read from the URL. */}
       <DataTable
-        key={`${activeStatus ?? "all"}-${activeKindHint ?? "any"}`}
+        key={`${activeStatus ?? "all"}-${activeKindHint ?? "any"}-${activeCreatedFrom ?? ""}-${activeCreatedTo ?? ""}`}
         columns={columns}
         data={data}
         totalCount={typeof totalCount === "number" ? totalCount : undefined}

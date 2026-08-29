@@ -1,10 +1,8 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { MemberDto, MemberStatus } from "@/lib/service/HsService"
 import type { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown } from "lucide-react"
 import { formatDate, formatEnumLabel } from "@/lib/format"
 import { MEMBER_STATUS_CLASSES, MEMBER_STATUS_LABELS } from "./member-status"
 import { MemberRowActions } from "./member-row-actions"
@@ -14,49 +12,64 @@ interface ColumnsProps {
   onEdit: (member: MemberDto) => void
 }
 
+/**
+ * Six columns, each answering one question: who (name + segment), how to
+ * reach them, who employs them, where they stand, since when, and what to
+ * do. Email and phone share a cell — either is often blank — and the
+ * company is named once, in its own column. Kind is not a column: it is
+ * the inline filter, and the derived status already says more.
+ */
 export const createColumns = ({ onDetails, onEdit }: ColumnsProps): ColumnDef<MemberDto>[] => [
   {
     id: "name",
     accessorKey: "fullName",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Name
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
+    header: "Member",
     cell: ({ row }) => {
       const member = row.original
-      const company = member.companyId
-        ? member.company?.name || "Unknown company"
-        : null
-
       return (
         <div className="flex flex-col">
-          <span>{member.fullName}</span>
-          {company && (
-            <span className="text-xs text-muted-foreground">{company}</span>
+          {/* The name opens the details — the row's most common action,
+              one click instead of a trip through the "⋯" menu. */}
+          <button
+            type="button"
+            onClick={() => onDetails(member)}
+            className="text-left font-medium hover:underline"
+          >
+            {member.fullName}
+          </button>
+          {member.segment && (
+            <span className="text-xs text-muted-foreground">
+              {formatEnumLabel(member.segment)}
+            </span>
           )}
         </div>
       )
     },
   },
   {
-    accessorKey: "email",
-    header: "Email",
+    id: "contact",
+    accessorFn: (member) => [member.email, member.phone].filter(Boolean).join(" "),
+    header: "Contact",
     cell: ({ row }) => {
-      const value = row.getValue<string | null>("email")
-      return <span>{value || "-"}</span>
-    },
-  },
-  {
-    accessorKey: "phone",
-    header: "Phone",
-    cell: ({ row }) => {
-      const value = row.getValue<string | null>("phone")
-      return <span>{value || "-"}</span>
+      const { email, phone } = row.original
+      if (!email && !phone) return <span className="text-muted-foreground">-</span>
+      return (
+        <div className="flex flex-col">
+          {email && (
+            <a href={`mailto:${email}`} className="hover:underline">
+              {email}
+            </a>
+          )}
+          {phone && (
+            <a
+              href={`tel:${phone}`}
+              className={email ? "text-xs text-muted-foreground hover:underline" : "hover:underline"}
+            >
+              {phone}
+            </a>
+          )}
+        </div>
+      )
     },
   },
   {
@@ -85,14 +98,6 @@ export const createColumns = ({ onDetails, onEdit }: ColumnsProps): ColumnDef<Me
           )}
         </div>
       )
-    },
-  },
-  {
-    accessorKey: "kindHint",
-    header: "Kind",
-    cell: ({ row }) => {
-      const value = row.getValue<string>("kindHint")
-      return <span className="capitalize">{value ? formatEnumLabel(value) : "-"}</span>
     },
   },
   {

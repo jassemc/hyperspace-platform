@@ -11,13 +11,13 @@ export async function SectionCards({
   // Same helper the table uses: cache() keys primitive arguments by value,
   // so this dedupes into a single request only because both call sites
   // derive `q`/`kindHint` from the URL the exact same way.
-  const { q, kindHint } = memberStatsArgs(params)
-  const stats = await memberStats(q, kindHint, undefined)
+  const { q, kindHint, createdFrom, createdTo } = memberStatsArgs(params)
+  const stats = await memberStats(q, kindHint, undefined, createdFrom, createdTo)
 
   const totals = memberTotals(stats)
   const figure = (value: number | undefined) => (value === undefined ? "–" : value)
   const thisWeek = totals.weeks.at(-1)
-  const filtered = Boolean(q || kindHint)
+  const filtered = Boolean(q || kindHint || createdFrom || createdTo)
   const withCompanyShare =
     totals.total && totals.withCompany !== undefined
       ? Math.round((totals.withCompany / totals.total) * 100)
