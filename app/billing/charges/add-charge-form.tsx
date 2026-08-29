@@ -23,6 +23,8 @@ import { CREATABLE_CHARGE_KINDS } from "./charge-meta"
 import { toast } from "sonner"
 
 interface AddChargeFormProps {
+  /** Opened from a member's page: the customer select starts on them. */
+  defaultMemberId?: string
   isOpen: boolean
   onClose: () => void
 }
@@ -41,7 +43,7 @@ function SubmitButton() {
   )
 }
 
-export function AddChargeForm({ isOpen, onClose }: Readonly<AddChargeFormProps>) {
+export function AddChargeForm({ isOpen, onClose, defaultMemberId }: Readonly<AddChargeFormProps>) {
   const [state, formAction] = useActionState(createChargeAction, {})
   const [customerKind, setCustomerKind] = useState<CustomerKind>("member")
   const [members, setMembers] = useState<MemberDto[]>([])
@@ -135,9 +137,12 @@ export function AddChargeForm({ isOpen, onClose }: Readonly<AddChargeFormProps>)
                     {customerKind === "member" ? "Member" : "Company"}
                   </Label>
                   <select
+                    // Remount on kind change so the default is re-read.
+                    key={customerKind}
                     id="customerId"
                     name={customerKind === "member" ? "memberId" : "companyId"}
                     className={selectClassName}
+                    defaultValue={customerKind === "member" ? (defaultMemberId ?? "") : ""}
                     required
                   >
                     <option value="">Select {customerKind}</option>

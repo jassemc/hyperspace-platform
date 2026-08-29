@@ -39,13 +39,14 @@ interface BookingFormDialogProps {
   resources?: ResourceDto[]
   members?: MemberDto[]
   companies?: CompanyDto[]
-  /** Set when opened from a calendar cell. */
+  /** Set when opened from a calendar cell (room + slot) or a member's page (member). */
   prefill?: {
-    resourceId: string
-    startsAt: string
-    endsAt: string
+    resourceId?: string
+    startsAt?: string
+    endsAt?: string
     /** Read off the calendar payload so the select never flashes blank. */
     resourceName?: string
+    memberId?: string
   }
   /** Zone every wall-clock string in this form is written in. */
   timeZone: string
@@ -76,7 +77,8 @@ function seedSlot(
       endsAt: toWallClock(editingBooking.endsAt, timeZone),
     }
   }
-  if (prefill) {
+  // A member-only prefill (from the member page) carries no slot.
+  if (prefill?.startsAt && prefill.endsAt) {
     return {
       startsAt: toWallClock(prefill.startsAt, timeZone),
       endsAt: toWallClock(prefill.endsAt, timeZone),
@@ -377,6 +379,7 @@ export function BookingFormDialog({
               invalidateQuote()
             }}
             prefillResourceName={prefill?.resourceName}
+            defaultMemberId={prefill?.memberId}
             disabled={Boolean(editingBooking)}
             onExtrasChange={invalidateQuote}
             initialExtraIds={(editingBooking?.extras ?? []).map((extra) => extra.extraId)}

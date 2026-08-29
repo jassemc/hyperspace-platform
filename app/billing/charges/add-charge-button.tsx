@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { AddChargeForm } from "./add-charge-form"
 
-export function AddChargeButton() {
+export function AddChargeButton({
+  defaultMemberId,
+}: Readonly<{ defaultMemberId?: string }> = {}) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
   return (
@@ -15,7 +17,11 @@ export function AddChargeButton() {
         Add Charge
       </Button>
       {isDrawerOpen && (
-        <AddChargeForm isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
+        <AddChargeForm
+          isOpen={isDrawerOpen}
+          onClose={() => setIsDrawerOpen(false)}
+          defaultMemberId={defaultMemberId}
+        />
       )}
     </>
   )

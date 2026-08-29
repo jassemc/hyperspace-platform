@@ -20,6 +20,8 @@ import { checkInAction } from "./actions"
 import { toast } from "sonner"
 
 interface AddCheckinFormProps {
+  /** Opened from a member's page: the member select starts on them. */
+  defaultMemberId?: string
   isOpen: boolean
   onClose: () => void
 }
@@ -36,9 +38,12 @@ function SubmitButton() {
   )
 }
 
-export function AddCheckinForm({ isOpen, onClose }: Readonly<AddCheckinFormProps>) {
+export function AddCheckinForm({ isOpen, onClose, defaultMemberId }: Readonly<AddCheckinFormProps>) {
   const [state, formAction] = useActionState(checkInAction, {})
   const [members, setMembers] = useState<MemberDto[]>([])
+  // Controlled: the options arrive after mount, and a defaultValue set
+  // before they exist is dropped by the browser.
+  const [memberId, setMemberId] = useState(defaultMemberId ?? "")
   const [locations, setLocations] = useState<LocationDto[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const notifiedRef = useRef(false)
@@ -106,7 +111,15 @@ export function AddCheckinForm({ isOpen, onClose }: Readonly<AddCheckinFormProps
               <div className="space-y-6">
                 <div className="grid gap-2">
                   <Label htmlFor="memberId">Member</Label>
-                  <select id="memberId" name="memberId" className={selectClassName} required disabled={isLoading}>
+                  <select
+                    id="memberId"
+                    name="memberId"
+                    className={selectClassName}
+                    value={memberId}
+                    onChange={(e) => setMemberId(e.target.value)}
+                    required
+                    disabled={isLoading}
+                  >
                     <option value="">{isLoading ? "Loading members..." : "Select member"}</option>
                     {members.map((member) => (
                       <option key={member.id} value={member.id}>

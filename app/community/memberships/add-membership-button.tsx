@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { MembershipFormDialog } from "./membership-form-dialog"
 
-export function AddMembershipButton() {
+export function AddMembershipButton({
+  defaultMemberId,
+}: Readonly<{ defaultMemberId?: string }> = {}) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   return (
@@ -15,7 +17,11 @@ export function AddMembershipButton() {
         Add Membership
       </Button>
       {isDialogOpen && (
-        <MembershipFormDialog isOpen={isDialogOpen} onClose={() => setIsDialogOpen(false)} />
+        <MembershipFormDialog
+          isOpen={isDialogOpen}
+          onClose={() => setIsDialogOpen(false)}
+          defaultMemberId={defaultMemberId}
+        />
       )}
     </>
   )

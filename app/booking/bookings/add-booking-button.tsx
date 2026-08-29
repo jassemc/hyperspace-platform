@@ -9,12 +9,15 @@ import type { BookingLookups } from "./lookups"
 export function AddBookingButton({
   timeZone,
   lookups,
+  defaultMemberId,
 }: Readonly<{
   /** Fetched by the page so opening the dialog issues no requests. */
   lookups: BookingLookups
   /** The location's zone, from the page — every time in the form is
    *  written and read in it, so there is nothing sane to default to. */
   timeZone: string
+  /** Opened from a member's page: the member select starts on them. */
+  defaultMemberId?: string
 }>) {
   const [isOpen, setIsOpen] = useState(false)
 
@@ -32,6 +35,7 @@ export function AddBookingButton({
           members={lookups.members}
           companies={lookups.companies}
           timeZone={timeZone}
+          prefill={defaultMemberId ? { memberId: defaultMemberId } : undefined}
         />
       )}
     </>

@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { MEMBER_ROUTE_PATTERN } from "@/app/community/members/[id]/member-route"
 import { createInvoice, recordPayment, voidInvoice } from "@/lib/service"
 import type { CreateInvoiceDto, CreatePaymentDto, PaymentMethod } from "@/lib/service/HsService"
 
@@ -24,6 +25,7 @@ function num(formData: FormData, field: string): number | undefined {
 function revalidate() {
   revalidatePath("/billing/invoices")
   revalidatePath("/billing/charges")
+  revalidatePath(MEMBER_ROUTE_PATTERN, "page")
 }
 
 export async function createInvoiceAction(

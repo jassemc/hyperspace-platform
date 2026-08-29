@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { MEMBER_ROUTE_PATTERN } from "@/app/community/members/[id]/member-route"
 import { checkIn, checkOut } from "@/lib/service"
 import type { CreateCheckinDto } from "@/lib/service/HsService"
 
@@ -38,6 +39,7 @@ export async function checkInAction(
 
     await checkIn(data)
     revalidatePath("/booking/checkins")
+    revalidatePath(MEMBER_ROUTE_PATTERN, "page")
     return { success: true }
   } catch (error) {
     return {
@@ -57,6 +59,7 @@ export async function checkOutAction(
 
     await checkOut(id)
     revalidatePath("/booking/checkins")
+    revalidatePath(MEMBER_ROUTE_PATTERN, "page")
     return { success: true }
   } catch (error) {
     return {

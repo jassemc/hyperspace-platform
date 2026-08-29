@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath, revalidateTag } from "next/cache"
+import { MEMBER_ROUTE_PATTERN } from "@/app/community/members/[id]/member-route"
 import {
   createBooking,
   updateBooking,
@@ -84,6 +85,7 @@ function toUtcIso(value: string, timeZone: string | undefined): string {
 
 function revalidate() {
   revalidatePath("/booking/bookings")
+  revalidatePath(MEMBER_ROUTE_PATTERN, "page")
   revalidateTag("stats:bookings")
   // Member status considers booking charges.
   revalidateTag("stats:members")

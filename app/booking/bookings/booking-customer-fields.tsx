@@ -47,6 +47,8 @@ interface BookingCustomerFieldsProps {
   /** Edit mode: the code the visitor typed on the website (spec §5.4), so staff
    *  can spot it in the list rather than having to remember it. */
   requestedDiscountCode?: string | null
+  /** Opened from a member's page: the member select starts on them. */
+  defaultMemberId?: string
 }
 
 /**
@@ -74,6 +76,7 @@ export function BookingCustomerFields({
   initialDiscountId = "",
   initialDiscountSnapshot = null,
   requestedDiscountCode = null,
+  defaultMemberId,
 }: Readonly<BookingCustomerFieldsProps>) {
   const [resources, setResources] = useState<ResourceDto[]>(seedResources ?? [])
   const [memberNames, setMemberNames] = useState<Record<string, string>>(() =>
@@ -340,7 +343,12 @@ export function BookingCustomerFields({
           {customerKind === "member" && (
             <div className="grid gap-2">
               <Label htmlFor="memberId">Member</Label>
-              <NativeSelect id="memberId" name="memberId" required>
+              <NativeSelect
+                id="memberId"
+                name="memberId"
+                defaultValue={defaultMemberId ?? ""}
+                required
+              >
                 <option value="">Select member</option>
                 {Object.entries(memberNames).map(([id, name]) => (
                   <option key={id} value={id}>

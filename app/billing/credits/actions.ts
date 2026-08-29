@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { MEMBER_ROUTE_PATTERN } from "@/app/community/members/[id]/member-route"
 import { grantCredit, updateCredit, deleteCredit } from "@/lib/service"
 import type { GrantCreditDto, UpdateCreditDto } from "@/lib/service/HsService"
 
@@ -23,6 +24,7 @@ function num(formData: FormData, field: string): number | undefined {
 
 function revalidate() {
   revalidatePath("/billing/credits")
+  revalidatePath(MEMBER_ROUTE_PATTERN, "page")
 }
 
 export async function grantCreditAction(

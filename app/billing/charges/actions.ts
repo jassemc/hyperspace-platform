@@ -1,6 +1,7 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { MEMBER_ROUTE_PATTERN } from "@/app/community/members/[id]/member-route"
 import { createCharge } from "@/lib/service"
 import type { CreateChargeDto } from "@/lib/service/HsService"
 import { CREATABLE_CHARGE_KINDS, type CreatableChargeKind } from "./charge-meta"
@@ -53,6 +54,7 @@ export async function createChargeAction(
     await createCharge(data)
     revalidatePath("/billing/charges")
     revalidatePath("/billing/invoices")
+    revalidatePath(MEMBER_ROUTE_PATTERN, "page")
     return { success: true }
   } catch (error) {
     return {

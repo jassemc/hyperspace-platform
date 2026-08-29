@@ -34,6 +34,8 @@ interface MembershipFormDialogProps {
   isOpen: boolean
   onClose: () => void
   editingMembership?: MembershipDto | null
+  /** Opened from a member's page: the member select starts on them. */
+  defaultMemberId?: string
 }
 
 type CustomerKind = "member" | "company"
@@ -100,6 +102,7 @@ export function MembershipFormDialog({
   isOpen,
   onClose,
   editingMembership,
+  defaultMemberId,
 }: Readonly<MembershipFormDialogProps>) {
   const [memberOptions, setMemberOptions] = useState<Record<string, string>>({})
   const [companyNames, setCompanyNames] = useState<Record<string, string>>({})
@@ -413,7 +416,13 @@ export function MembershipFormDialog({
                   {customerKind === "member" ? (
                     <div className="grid gap-2">
                       <Label htmlFor="memberId">Member</Label>
-                      <select id="memberId" name="memberId" className={selectClassName} required>
+                      <select
+                        id="memberId"
+                        name="memberId"
+                        className={selectClassName}
+                        defaultValue={defaultMemberId ?? ""}
+                        required
+                      >
                         <option value="">Select member</option>
                         {Object.entries(memberOptions).map(([id, name]) => (
                           <option key={id} value={id}>
