@@ -7,36 +7,22 @@ import type {
   CreateCompanyDto,
   UpdateCompanyDto,
 } from "@/lib/service/HsService"
+import { type ActionState, problem, text, clearableText, tags } from "@/lib/action-state"
 
-export type ActionState = {
-  success?: boolean
-  error?: string
-  fieldErrors?: Record<string, string[]>
-}
+export type { ActionState }
 
-function emptyToUndefined(value: FormDataEntryValue | null): string | undefined {
-  if (typeof value !== "string") return undefined
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : undefined
-}
-
-function parseTags(value: FormDataEntryValue | null): string[] | undefined {
-  const raw = emptyToUndefined(value)
-  if (!raw) return undefined
-  const tags = raw
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter((tag) => tag.length > 0)
-  return tags.length > 0 ? tags : undefined
+function revalidate(id?: string) {
+  revalidatePath("/community/companies")
+  if (id) revalidatePath(`/community/companies/${id}`)
 }
 
 function parseAddress(formData: FormData): AddressDto | undefined {
   const address: AddressDto = {
-    street: emptyToUndefined(formData.get("street")),
-    city: emptyToUndefined(formData.get("city")),
-    state: emptyToUndefined(formData.get("state")),
-    zip: emptyToUndefined(formData.get("zip")),
-    country: emptyToUndefined(formData.get("country")),
+    street: clearableText(formData, "street"),
+    city: clearableText(formData, "city"),
+    state: clearableText(formData, "state"),
+    zip: clearableText(formData, "zip"),
+    country: clearableText(formData, "country"),
   }
 
   const hasValue = Object.values(address).some((value) => value !== undefined)
@@ -44,19 +30,23 @@ function parseAddress(formData: FormData): AddressDto | undefined {
 }
 
 function parseCompanyPayload(formData: FormData): CreateCompanyDto {
-  const name = emptyToUndefined(formData.get("name"))
+  const name = text(formData, "name")
   if (!name) {
     throw new Error("Company name is required")
   }
 
   return {
     name,
-    taxId: emptyToUndefined(formData.get("taxId")),
-    email: emptyToUndefined(formData.get("email")),
-    phone: emptyToUndefined(formData.get("phone")),
-    website: emptyToUndefined(formData.get("website")),
-    description: emptyToUndefined(formData.get("description")),
-    tags: parseTags(formData.get("tags")),
+    taxId: clearableText(formData, "taxId"),
+    email: clearableText(formData, "email"),
+    phone: clearableText(formData, "phone"),
+    website: clearableText(formData, "website"),
+    description: clearableText(formData, "description"),
+    billingName: clearableText(formData, "billingName"),
+    registrationNumber: clearableText(formData, "registrationNumber"),
+    // A blank date clears it on update; on create it's simply omitted.
+    startDate: text(formData, "startDate"),
+    tags: tags(formData),
     billingAddress: parseAddress(formData),
   }
 }
@@ -68,13 +58,10 @@ export async function createCompanyAction(
   try {
     const data = parseCompanyPayload(formData)
     await createCompany(data)
-    revalidatePath("/community/companies")
+    revalidate()
     return { success: true }
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to create company",
-    }
+    return problem(error, "Failed to create company")
   }
 }
 
@@ -88,14 +75,15 @@ export async function updateCompanyAction(
       return { success: false, error: "Company id is required" }
     }
 
-    const data: UpdateCompanyDto = parseCompanyPayload(formData)
+    const data: UpdateCompanyDto = {
+      ...parseCompanyPayload(formData),
+      // A blank date clears it; the DTO takes `null` for that, not "".
+      startDate: clearableText(formData, "startDate") || null,
+    }
     await updateCompany(id, data)
-    revalidatePath("/community/companies")
+    revalidate(id)
     return { success: true }
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to update company",
-    }
+    return problem(error, "Failed to update company")
   }
 }

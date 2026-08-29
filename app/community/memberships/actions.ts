@@ -1,25 +1,23 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { createMembership, updateMembership, cancelMembership, renewMembership } from "@/lib/service"
-import type { CreateMembershipDto, UpdateMembershipDto } from "@/lib/service/HsService"
+import {
+  createMembership,
+  updateMembership,
+  cancelMembership,
+  renewMembership,
+  pauseMembership,
+  resumeMembership,
+} from "@/lib/service"
+import type {
+  CreateMembershipDto,
+  CreateMembershipPauseDto,
+  ResumeMembershipDto,
+  UpdateMembershipDto,
+} from "@/lib/service/HsService"
+import { type ActionState, problem, text, num } from "@/lib/action-state"
 
-export type ActionState = {
-  success?: boolean
-  error?: string
-}
-
-function text(formData: FormData, field: string): string | undefined {
-  const value = formData.get(field)
-  return typeof value === "string" && value.trim() ? value.trim() : undefined
-}
-
-function num(formData: FormData, field: string): number | undefined {
-  const raw = text(formData, field)
-  if (raw === undefined) return undefined
-  const value = Number(raw)
-  return Number.isFinite(value) ? value : undefined
-}
+export type { ActionState }
 
 function revalidate() {
   revalidatePath("/community/memberships")
@@ -64,10 +62,7 @@ export async function createMembershipAction(
     revalidate()
     return { success: true }
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to create membership",
-    }
+    return problem(error, "Failed to create membership")
   }
 }
 
@@ -92,10 +87,7 @@ export async function updateMembershipAction(
     revalidate()
     return { success: true }
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to update membership",
-    }
+    return problem(error, "Failed to update membership")
   }
 }
 
@@ -111,10 +103,7 @@ export async function cancelMembershipAction(
     revalidate()
     return { success: true }
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to cancel membership",
-    }
+    return problem(error, "Failed to cancel membership")
   }
 }
 
@@ -130,9 +119,40 @@ export async function renewMembershipAction(
     revalidate()
     return { success: true }
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to renew membership",
+    return problem(error, "Failed to renew membership")
+  }
+}
+
+export async function pauseMembershipAction(prevState: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const id = text(formData, "id")
+    const startsAt = text(formData, "startsAt")
+    if (!id) return { success: false, error: "Membership ID is required" }
+    if (!startsAt) return { success: false, error: "A pause needs a start date" }
+
+    const data: CreateMembershipPauseDto = {
+      startsAt,
+      endsAt: text(formData, "endsAt"),
+      reason: text(formData, "reason"),
     }
+    await pauseMembership(id, data)
+    revalidate()
+    return { success: true }
+  } catch (error) {
+    return problem(error, "Failed to pause membership")
+  }
+}
+
+export async function resumeMembershipAction(prevState: ActionState, formData: FormData): Promise<ActionState> {
+  try {
+    const id = text(formData, "id")
+    if (!id) return { success: false, error: "Membership ID is required" }
+
+    const data: ResumeMembershipDto = { endsAt: text(formData, "endsAt") }
+    await resumeMembership(id, data)
+    revalidate()
+    return { success: true }
+  } catch (error) {
+    return problem(error, "Failed to resume membership")
   }
 }

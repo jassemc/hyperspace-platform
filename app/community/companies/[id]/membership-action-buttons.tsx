@@ -14,7 +14,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Ban, RefreshCw } from "lucide-react"
-import { cancelMembershipAction, renewMembershipAction } from "./actions"
+import { cancelCompanyMembershipAction as cancelMembershipAction, renewCompanyMembershipAction as renewMembershipAction } from "./actions"
 import { toast } from "sonner"
 import { useRouter } from "next/navigation"
 
