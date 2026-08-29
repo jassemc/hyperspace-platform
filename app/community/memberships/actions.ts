@@ -54,6 +54,7 @@ export async function createMembershipAction(
       // Both override the plan's catalog values for this membership only.
       priceHt: num(formData, "priceHt"),
       deposit: num(formData, "deposit"),
+      setupFee: num(formData, "setupFee"),
       extraIds: formData.getAll("extraIds").map(String).filter(Boolean),
       discountId: text(formData, "discountId"),
     }

@@ -4,7 +4,7 @@ import { useState } from "react"
 import { DataTable } from "@/components/data-table"
 import type { MembershipDto, MembershipStatus, PlanDto } from "@/lib/service/HsService"
 import { createColumns } from "./columns"
-import { AddMembershipForm } from "./add-membership-form"
+import { MembershipFormDialog } from "./membership-form-dialog"
 import { MembershipDetailsDialog } from "./membership-details-dialog"
 import { MEMBERSHIP_STATUS_TABS } from "./membership-status"
 
@@ -64,7 +64,7 @@ export function MembershipTable({
         searchPlaceholder="Search memberships..."
       />
       {isFormOpen && (
-        <AddMembershipForm
+        <MembershipFormDialog
           key={editingMembership?.id || "create"}
           isOpen
           onClose={handleClose}
