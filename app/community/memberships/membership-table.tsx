@@ -1,23 +1,28 @@
 "use client"
 
 import { useState } from "react"
-import { DataTable } from "@/components/data-table"
-import type { MembershipDto, MembershipStatus } from "@/lib/service/HsService"
+import { DataTable, type TableFilter } from "@/components/data-table"
+import type { MembershipDto, MembershipStatsDto, MembershipStatus } from "@/lib/service/HsService"
 import { createColumns } from "./columns"
 import { MembershipFormDialog } from "./membership-form-dialog"
 import { MembershipDetailsDialog } from "./membership-details-dialog"
 import { MEMBERSHIP_STATUS_TABS } from "./membership-status"
+import { membershipTotals } from "./stats"
 
 interface MembershipTableProps {
   data: MembershipDto[]
   totalCount?: number
+  stats?: MembershipStatsDto | null
   activeStatus?: MembershipStatus
+  activePlanId?: string
 }
 
 export function MembershipTable({
   data,
   totalCount,
+  stats,
   activeStatus,
+  activePlanId,
 }: Readonly<MembershipTableProps>) {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingMembership, setEditingMembership] = useState<MembershipDto | null>(null)
@@ -44,17 +49,38 @@ export function MembershipTable({
 
   const columns = createColumns({ onDetails: setDetailsMembership, onEdit: handleEdit })
 
+  const totals = membershipTotals(stats ?? null)
+
+  const filters: TableFilter[] = [
+    {
+      key: "planId",
+      label: "Plan",
+      value: activePlanId,
+      options: totals.plans.map((plan) => ({
+        value: plan.planId,
+        label: plan.name,
+        count: plan.count,
+      })),
+    },
+  ]
+
   return (
     <>
       {/* Remount on filter change so pagination is re-read from the URL. */}
       <DataTable
-        key={activeStatus ?? "all"}
+        key={`${activeStatus ?? "all"}-${activePlanId ?? "any"}`}
         columns={columns}
         data={data}
         totalCount={typeof totalCount === "number" ? totalCount : undefined}
+        filters={filters}
         showStatusTabs={true}
-        statusTabOptions={MEMBERSHIP_STATUS_TABS}
+        statusTabOptions={MEMBERSHIP_STATUS_TABS.map((tab) => ({
+          ...tab,
+          count: totals.countFor(tab.value),
+        }))}
+        statusAllCount={totals.total}
         serverSearch
+        inlineFilters
         searchPlaceholder="Search memberships..."
       />
       {isFormOpen && (
