@@ -25,6 +25,11 @@ export const MEMBER_STATUS_CLASSES: Record<MemberStatus, string> = {
 
 export const MEMBER_STATUS_VALUES = Object.keys(MEMBER_STATUS_LABELS) as MemberStatus[]
 
+export const MEMBER_STATUS_TABS = MEMBER_STATUS_VALUES.map((value) => ({
+    value,
+    label: MEMBER_STATUS_LABELS[value],
+}))
+
 /** The values PUT /members/:id/status accepts. */
 export const MEMBER_STATUS_OVERRIDE_OPTIONS: { value: MemberStatusUpdate; label: string; hint: string }[] = [
     { value: "auto", label: "Automatic", hint: "Derive from membership activity" },
