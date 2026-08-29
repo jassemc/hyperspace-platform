@@ -16,7 +16,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { NativeSelect } from "@/components/ui/native-select"
-import type { BookingDto, ResourceDto } from "@/lib/service/HsService"
+import type { BookingDto, CompanyDto, MemberDto, ResourceDto } from "@/lib/service/HsService"
 import { formatPriceHt } from "@/lib/format"
 import { toWallClock } from "@/lib/slots"
 import {
@@ -35,7 +35,10 @@ interface BookingFormDialogProps {
   isOpen: boolean
   onClose: () => void
   editingBooking?: BookingDto | null
+  /** Seeds for the customer fields (see lookups.ts); absent = fetched there. */
   resources?: ResourceDto[]
+  members?: MemberDto[]
+  companies?: CompanyDto[]
   /** Set when opened from a calendar cell. */
   prefill?: {
     resourceId: string
@@ -124,6 +127,8 @@ export function BookingFormDialog({
   onClose,
   editingBooking,
   resources: seedResources,
+  members,
+  companies,
   prefill,
   timeZone,
 }: Readonly<BookingFormDialogProps>) {
@@ -362,6 +367,8 @@ export function BookingFormDialog({
 
           <BookingCustomerFields
             resources={seedResources}
+            members={members}
+            companies={companies}
             resourceId={resourceId}
             onResourceChange={(id) => {
               setResourceId(id)

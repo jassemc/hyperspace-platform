@@ -7,6 +7,8 @@ import type {
   BookingSource,
   BookingStatsDto,
   BookingStatus,
+  CompanyDto,
+  MemberDto,
   ResourceDto,
 } from "@/lib/service/HsService"
 import { createColumns } from "./columns"
@@ -19,6 +21,8 @@ interface BookingTableProps {
   data: BookingDto[]
   totalCount?: number
   resources?: ResourceDto[]
+  members?: MemberDto[]
+  companies?: CompanyDto[]
   timeZone: string
   stats?: BookingStatsDto | null
   activeStatus?: BookingStatus
@@ -32,6 +36,8 @@ export function BookingTable({
   data,
   totalCount,
   resources = [],
+  members,
+  companies,
   timeZone,
   stats,
   activeStatus,
@@ -118,14 +124,24 @@ export function BookingTable({
         inlineFilters
         searchPlaceholder="Search title, notes or customer..."
       />
-      <BookingFormDialog
-        key={editingBooking?.id || "create"}
-        isOpen={isDrawerOpen}
-        onClose={handleClose}
-        editingBooking={editingBooking}
-        resources={resources}
-        timeZone={timeZone}
-      />
+      {/* Mounted only while open, like add-booking-button.tsx and the
+          calendar: the form's children fetch their lookups (members,
+          companies, availability) in mount effects, so a permanently
+          mounted dialog fired those on page load, on every server
+          re-render of the table, and again each time an edit closed and
+          the key flipped back to "create" — none of it visible. */}
+      {isDrawerOpen && (
+        <BookingFormDialog
+          key={editingBooking?.id || "create"}
+          isOpen={isDrawerOpen}
+          onClose={handleClose}
+          editingBooking={editingBooking}
+          resources={resources}
+          members={members}
+          companies={companies}
+          timeZone={timeZone}
+        />
+      )}
     </>
   )
 }

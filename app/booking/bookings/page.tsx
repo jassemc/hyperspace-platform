@@ -8,13 +8,14 @@ import { BookingCalendarSection } from "./calendar-section"
 import { CalendarSkeleton } from "@/components/booking/calendar/calendar-skeleton"
 import { firstParam } from "@/lib/search-params"
 import { primaryTimeZone } from "@/lib/locations"
+import { bookingLookups } from "./lookups"
 
 export default async function BookingsPage({
     searchParams,
 }: Readonly<{ searchParams?: Promise<Record<string, string | string[] | undefined>> }>) {
     const resolvedSearchParams = await searchParams
     const isCalendar = firstParam(resolvedSearchParams?.view) === "calendar"
-    const timeZone = await primaryTimeZone()
+    const [timeZone, lookups] = await Promise.all([primaryTimeZone(), bookingLookups()])
 
     return (
         // Calendar mode is a viewport-fit column: the page itself never
@@ -35,7 +36,7 @@ export default async function BookingsPage({
                 <h1 className="text-4xl font-semibold">Bookings</h1>
                 <div className="flex items-center gap-3">
                     <ViewToggle />
-                    <AddBookingButton timeZone={timeZone} />
+                    <AddBookingButton timeZone={timeZone} lookups={lookups} />
                 </div>
             </div>
             {/* The cards read the table's filters; the calendar's date

@@ -3,6 +3,7 @@ import type { BookingCalendarDto, ResourceTypeDto } from "@/lib/service/HsServic
 import { firstParam, resolveSearchParams, type SearchParamsInput } from "@/lib/search-params"
 import { rangeFor, todayIn, type CalendarView } from "@/components/booking/calendar/types"
 import { CalendarViews } from "@/components/booking/calendar/calendar-views"
+import { bookingLookups } from "./lookups"
 
 export async function BookingCalendarSection({
   searchParams,
@@ -33,11 +34,11 @@ export async function BookingCalendarSection({
 
   // canBook is the flag, not bookingMode, which describes pricing rather
   // than whether a thing can be booked at all.
-  const typePage = await getListResourceTypes({
-    limit: 100,
-    offset: 0,
-    sort: "ASC",
-  }).catch(() => null)
+  const [typePage, lookups] = await Promise.all([
+    getListResourceTypes({ limit: 100, offset: 0, sort: "ASC" }).catch(() => null),
+    // Seeds the cell-click booking dialog, so opening it fetches nothing.
+    bookingLookups(),
+  ])
   const bookableTypes = ((typePage?.results ?? []) as ResourceTypeDto[]).filter(
     (type) => type.canBook
   )
@@ -73,6 +74,11 @@ export async function BookingCalendarSection({
   }
 
   return (
-    <CalendarViews calendar={calendar!} state={state} bookableTypes={bookableTypes} />
+    <CalendarViews
+      calendar={calendar!}
+      state={state}
+      bookableTypes={bookableTypes}
+      lookups={lookups}
+    />
   )
 }

@@ -9,12 +9,22 @@ import { ExtraTagPicker } from "@/components/extra-tag-picker"
 
 type CustomerKind = "member" | "company"
 
+/** id → display name, the shape the selects iterate. */
+function namesOf(rows: readonly { id: string; fullName: string }[] | readonly { id: string; name: string }[] | undefined) {
+  return Object.fromEntries(
+    (rows ?? []).map((row) => [row.id, "fullName" in row ? row.fullName : row.name])
+  )
+}
+
 interface BookingCustomerFieldsProps {
   /** SEED, not the whole list: when empty this component fetches
    *  `getListResources({ canBook: true })` itself, exactly as the old
    *  form did. Callers that already hold resources pass them to skip a
    *  request; the page-header button passes nothing. */
   resources?: ResourceDto[]
+  /** Same deal: seeded by the page, fetched here only when absent. */
+  members?: MemberDto[]
+  companies?: CompanyDto[]
   resourceId: string
   onResourceChange: (id: string) => void
   /** Read off the calendar payload so the select never flashes blank. */
@@ -39,6 +49,8 @@ interface BookingCustomerFieldsProps {
  */
 export function BookingCustomerFields({
   resources: seedResources,
+  members: seedMembers,
+  companies: seedCompanies,
   resourceId,
   onResourceChange,
   prefillResourceName,
@@ -47,60 +59,60 @@ export function BookingCustomerFields({
   initialExtraIds = [],
 }: Readonly<BookingCustomerFieldsProps>) {
   const [resources, setResources] = useState<ResourceDto[]>(seedResources ?? [])
-  const [memberNames, setMemberNames] = useState<Record<string, string>>({})
-  const [companyNames, setCompanyNames] = useState<Record<string, string>>({})
+  const [memberNames, setMemberNames] = useState<Record<string, string>>(() =>
+    namesOf(seedMembers)
+  )
+  const [companyNames, setCompanyNames] = useState<Record<string, string>>(() =>
+    namesOf(seedCompanies)
+  )
   const [customerKind, setCustomerKind] = useState<CustomerKind>("member")
   // Controlled so the tags know their own state; the picker posts the
   // selection as hidden `extraIds` inputs, which is what the action reads.
   const [extraIds, setExtraIds] = useState<string[]>(initialExtraIds)
 
-  // The page-level Add button renders this form with no seed data, so
-  // resources are fetched here rather than threaded through every caller.
-  // Members and companies are fetched independently of that seed — the
-  // create branch's Member/Company selects need them regardless of whether
-  // resources happened to arrive pre-seeded, so seeding resources must not
-  // silently starve the other two lookups — but they are still gated on
-  // `disabled`, because in edit mode those selects are not rendered at all
-  // and the two requests would be pure waste on every dialog open.
+  // Every caller on the bookings page seeds all three lists from the
+  // server (see lookups.ts), so nothing below runs there. The fetches stay
+  // as a fallback for a caller that has no seed, keyed on whether the seed
+  // EXISTS rather than on array identity: a server-component prop arrives
+  // as a fresh array on every server re-render of the page, and an identity
+  // dependency re-ran these on every filter change and revalidation.
+  const hasResourceSeed = (seedResources ?? []).length > 0
   useEffect(() => {
+    if (hasResourceSeed) return
     let cancelled = false
-
-    if ((seedResources ?? []).length === 0) {
-      // A resource whose type cannot be booked would be refused by the
-      // API, so it is never offered.
-      getListResources({ limit: 100, offset: 0, sort: "ASC", canBook: true })
-        .then((resourcePage) => {
-          if (cancelled) return
-          setResources((resourcePage.results ?? []) as ResourceDto[])
-        })
-        .catch((error) => console.error("Failed to load resources", error))
-    }
-
-    if (!disabled) {
-      Promise.all([
-        getListMembers({ limit: 100, offset: 0, sort: "ASC" }),
-        getListCompanies({ limit: 100, offset: 0, sort: "ASC" }),
-      ])
-        .then(([memberPage, companyPage]) => {
-          if (cancelled) return
-          setMemberNames(
-            Object.fromEntries(
-              ((memberPage.results ?? []) as MemberDto[]).map((m) => [m.id, m.fullName])
-            )
-          )
-          setCompanyNames(
-            Object.fromEntries(
-              ((companyPage.results ?? []) as CompanyDto[]).map((c) => [c.id, c.name])
-            )
-          )
-        })
-        .catch((error) => console.error("Failed to load booking options", error))
-    }
-
+    // A resource whose type cannot be booked would be refused by the
+    // API, so it is never offered.
+    getListResources({ limit: 100, offset: 0, sort: "ASC", canBook: true })
+      .then((resourcePage) => {
+        if (cancelled) return
+        setResources((resourcePage.results ?? []) as ResourceDto[])
+      })
+      .catch((error) => console.error("Failed to load resources", error))
     return () => {
       cancelled = true
     }
-  }, [seedResources, disabled])
+  }, [hasResourceSeed])
+
+  // Gated on `disabled` too: in edit mode the Member/Company selects are
+  // not rendered at all, and the two requests would be pure waste.
+  const hasCustomerSeed = seedMembers !== undefined && seedCompanies !== undefined
+  useEffect(() => {
+    if (disabled || hasCustomerSeed) return
+    let cancelled = false
+    Promise.all([
+      getListMembers({ limit: 100, offset: 0, sort: "ASC" }),
+      getListCompanies({ limit: 100, offset: 0, sort: "ASC" }),
+    ])
+      .then(([memberPage, companyPage]) => {
+        if (cancelled) return
+        setMemberNames(namesOf(memberPage.results as MemberDto[] | undefined))
+        setCompanyNames(namesOf(companyPage.results as CompanyDto[] | undefined))
+      })
+      .catch((error) => console.error("Failed to load booking options", error))
+    return () => {
+      cancelled = true
+    }
+  }, [disabled, hasCustomerSeed])
 
   const selectedResource = resources.find((resource) => resource.id === resourceId)
 
@@ -211,6 +223,7 @@ export function BookingCustomerFields({
               </NativeSelect>
             </div>
           )}
+
         </>
       )}
 
