@@ -15,6 +15,7 @@ import type {
   CreateCheckinDto,
   CreateCompanyDto,
   CreateContactRequestDto,
+  CreateDiscountDto,
   CreateExtraDto,
   CreateInvoiceDto,
   CreateLocationDto,
@@ -44,6 +45,7 @@ import type {
   ListCheckinsParams,
   ListCompaniesParams,
   ListCreditsParams,
+  ListDiscountsParams,
   ListExtrasParams,
   ListInvoicesParams,
   ListLocationsParams,
@@ -66,6 +68,7 @@ import type {
   UpdateBookingDto,
   UpdateCompanyDto,
   UpdateCreditDto,
+  UpdateDiscountDto,
   UpdateExtraDto,
   UpdateLocationDto,
   UpdateMemberCompanyDto,
@@ -260,6 +263,26 @@ export async function updateExtra(id: string, data: UpdateExtraDto, params?: Req
   return hsService.api.updateExtra(id, data, params);
 }
 
+export async function getListDiscounts(query: ListDiscountsParams, params?: RequestParams) {
+  return hsService.api.listDiscounts(query, params);
+}
+
+export async function createDiscount(data: CreateDiscountDto, params?: RequestParams) {
+  return hsService.api.createDiscount(data, params);
+}
+
+export async function getDiscount(id: string, params?: RequestParams) {
+  return hsService.api.getDiscount(id, params);
+}
+
+export async function updateDiscount(id: string, data: UpdateDiscountDto, params?: RequestParams) {
+  return hsService.api.updateDiscount(id, data, params);
+}
+
+export async function archiveDiscount(id: string, params?: RequestParams) {
+  return hsService.api.archiveDiscount(id, params);
+}
+
 export async function getListCharges(query: ListChargesParams, params?: RequestParams) {
   return hsService.api.listCharges(query, params);
 }
@@ -424,7 +447,7 @@ export async function cancelBooking(id: string, params?: RequestParams) {
   return hsService.api.cancelBooking(id, params);
 }
 
-export async function confirmBooking(id: string, data: ConfirmBookingDto = {}, params?: RequestParams) {
+export async function confirmBooking(id: string, data?: ConfirmBookingDto, params?: RequestParams) {
   return hsService.api.confirmBooking(id, data, params);
 }
 
