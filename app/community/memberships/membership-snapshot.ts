@@ -18,6 +18,7 @@ export interface SnapshotPlan {
     priceHt?: number | null
     vatRate?: number | null
     deposit?: number | null
+    setupFee?: number | null
     cycleMonths?: number | null
     cancellationDays?: number | null
 }

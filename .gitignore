@@ -46,3 +46,6 @@ swagger.json
 .cursor
 
 .mcp.json
+
+# Claude Code worktrees
+.claude/worktrees/

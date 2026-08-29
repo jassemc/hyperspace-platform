@@ -4,7 +4,8 @@ import { useState } from "react"
 import { DataTable } from "@/components/data-table"
 import type { MembershipDto, MembershipStatus, PlanDto } from "@/lib/service/HsService"
 import { createColumns } from "./columns"
-import { AddMembershipForm } from "./add-membership-form"
+import { MembershipFormDialog } from "./membership-form-dialog"
+import { MembershipDetailsDialog } from "./membership-details-dialog"
 import { MEMBERSHIP_STATUS_TABS } from "./membership-status"
 
 interface MembershipTableProps {
@@ -24,20 +25,30 @@ export function MembershipTable({
   plans = [],
   activeStatus,
 }: Readonly<MembershipTableProps>) {
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingMembership, setEditingMembership] = useState<MembershipDto | null>(null)
+  const [detailsMembership, setDetailsMembership] = useState<MembershipDto | null>(null)
 
   const handleEdit = (membership: MembershipDto) => {
     setEditingMembership(membership)
-    setIsDrawerOpen(true)
+    setIsFormOpen(true)
   }
 
   const handleClose = () => {
-    setIsDrawerOpen(false)
+    setIsFormOpen(false)
     setEditingMembership(null)
   }
 
-  const columns = createColumns({ onEdit: handleEdit, memberNames, companyNames })
+  // Handing over from the details dialog: it closes first, so the two are
+  // never stacked, and only reopens if the caller goes back to it.
+  const handOff = (run: (membership: MembershipDto) => void) => {
+    const membership = detailsMembership
+    if (!membership) return
+    setDetailsMembership(null)
+    run(membership)
+  }
+
+  const columns = createColumns({ onDetails: setDetailsMembership, onEdit: handleEdit, memberNames, companyNames })
 
   return (
     <>
@@ -49,16 +60,31 @@ export function MembershipTable({
         totalCount={typeof totalCount === "number" ? totalCount : undefined}
         showStatusTabs={true}
         statusTabOptions={MEMBERSHIP_STATUS_TABS}
+        serverSearch
+        searchPlaceholder="Search memberships..."
       />
-      <AddMembershipForm
-        key={editingMembership?.id || "create"}
-        isOpen={isDrawerOpen}
-        onClose={handleClose}
-        editingMembership={editingMembership}
-        memberNames={memberNames}
-        companyNames={companyNames}
-        plans={plans}
-      />
+      {isFormOpen && (
+        <MembershipFormDialog
+          key={editingMembership?.id || "create"}
+          isOpen
+          onClose={handleClose}
+          editingMembership={editingMembership}
+          memberNames={memberNames}
+          companyNames={companyNames}
+          plans={plans}
+        />
+      )}
+      {detailsMembership && (
+        <MembershipDetailsDialog
+          key={detailsMembership.id}
+          membership={detailsMembership}
+          open
+          onOpenChange={(next) => {
+            if (!next) setDetailsMembership(null)
+          }}
+          onEdit={() => handOff(handleEdit)}
+        />
+      )}
     </>
   )
 }

@@ -1,6 +1,8 @@
 import type { AddressDto, CompanyDto } from "@/lib/service/HsService"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { formatDate } from "@/lib/format"
+import { COMPANY_STATUS_CLASSES, COMPANY_STATUS_LABELS } from "../company-status"
 
 function formatAddress(address?: AddressDto | null): string | null {
   if (!address) return null
@@ -37,7 +39,18 @@ export function OverviewTab({ company }: Readonly<{ company: CompanyDto }>) {
         </CardHeader>
         <CardContent className="grid gap-4">
           <Field label="Name" value={company.name} />
+          <Field
+            label="Status"
+            value={
+              <Badge variant="secondary" className={`${COMPANY_STATUS_CLASSES[company.status] ?? ""} border-0`}>
+                {COMPANY_STATUS_LABELS[company.status] ?? company.status}
+              </Badge>
+            }
+          />
+          <Field label="Start date" value={formatDate(company.startDate)} />
           <Field label="Tax ID" value={company.taxId || "-"} />
+          <Field label="Billing name" value={company.billingName || "-"} />
+          <Field label="Registration number" value={company.registrationNumber || "-"} />
           <Field
             label="Description"
             value={company.description || "-"}

@@ -3,39 +3,27 @@
 import { Badge } from "@/components/ui/badge"
 import type { MembershipDto, MembershipStatus } from "@/lib/service/HsService"
 import type { ColumnDef } from "@tanstack/react-table"
-import { CancelMembershipButton, RenewMembershipButton } from "./membership-action-buttons"
-
-function statusBadgeClass(status: MembershipStatus) {
-  switch (status) {
-    case "active":
-      return "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900 dark:text-green-200"
-    case "pending":
-      return "bg-orange-100 text-orange-800 hover:bg-orange-200 dark:bg-orange-900 dark:text-orange-200"
-    case "paused":
-      return "bg-sky-100 text-sky-800 hover:bg-sky-200 dark:bg-sky-900 dark:text-sky-200"
-    case "ended":
-      return "bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900 dark:text-red-200"
-    default:
-      return "bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200"
-  }
-}
-
-function formatDate(value?: string | null) {
-  if (!value) return "-"
-  const date = new Date(value)
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleDateString()
-}
+import { formatDate } from "@/lib/format"
+import { MEMBERSHIP_STATUS_CLASSES, MEMBERSHIP_STATUS_LABELS } from "@/app/community/memberships/membership-status"
+import { MembershipRowActions } from "@/app/community/memberships/membership-row-actions"
+import type { MembershipActions } from "@/app/community/memberships/use-membership-mutations"
 
 interface ColumnsProps {
   companyId: string
   plansById: Record<string, string>
   subscribersById: Record<string, string>
+  onDetails: (membership: MembershipDto) => void
+  onEdit: (membership: MembershipDto) => void
+  actions?: MembershipActions
 }
 
 export const createPlanColumns = ({
   companyId,
   plansById,
   subscribersById,
+  onDetails,
+  onEdit,
+  actions,
 }: ColumnsProps): ColumnDef<MembershipDto>[] => [
   {
     id: "name",
@@ -86,8 +74,8 @@ export const createPlanColumns = ({
       if (!value) return <span>-</span>
 
       return (
-        <Badge variant="secondary" className={`${statusBadgeClass(value)} border-0 capitalize`}>
-          {value}
+        <Badge variant="secondary" className={`${MEMBERSHIP_STATUS_CLASSES[value] ?? ""} border-0`}>
+          {MEMBERSHIP_STATUS_LABELS[value] ?? value}
         </Badge>
       )
     },
@@ -115,25 +103,14 @@ export const createPlanColumns = ({
   {
     id: "actions",
     header: "Actions",
-    cell: ({ row }) => {
-      const membership = row.original
-      const planName = plansById[membership.planId] || membership.planId
-
-      return (
-        <div className="flex items-center gap-2">
-          <RenewMembershipButton
-            membershipId={membership.id}
-            planName={planName}
-            companyId={companyId}
-          />
-          <CancelMembershipButton
-            membershipId={membership.id}
-            planName={planName}
-            companyId={companyId}
-            isCancelled={Boolean(membership.cancelledAt)}
-          />
-        </div>
-      )
-    },
+    cell: ({ row }) => (
+      <MembershipRowActions
+        membership={row.original}
+        onDetails={onDetails}
+        onEdit={onEdit}
+        actions={actions}
+        companyId={companyId}
+      />
+    ),
   },
 ]

@@ -1,4 +1,4 @@
-import type { MemberStatus, MemberStatusUpdate } from "@/lib/service/HsService"
+import type { MemberKindHint, MemberStatus, MemberStatusUpdate } from "@/lib/service/HsService"
 
 /**
  * `status` is derived by the API on read from the member's lifecycle. Staff can
@@ -25,14 +25,22 @@ export const MEMBER_STATUS_CLASSES: Record<MemberStatus, string> = {
 
 export const MEMBER_STATUS_VALUES = Object.keys(MEMBER_STATUS_LABELS) as MemberStatus[]
 
-export const MEMBER_STATUS_TABS = MEMBER_STATUS_VALUES.map((value) => ({
-    value,
-    label: MEMBER_STATUS_LABELS[value],
-}))
-
 /** The values PUT /members/:id/status accepts. */
 export const MEMBER_STATUS_OVERRIDE_OPTIONS: { value: MemberStatusUpdate; label: string; hint: string }[] = [
     { value: "auto", label: "Automatic", hint: "Derive from membership activity" },
     { value: "former", label: "Former", hint: "Pin as a past member" },
     { value: "contact", label: "Contact", hint: "Pin as a non-member contact" },
+]
+
+export const MEMBER_KIND_HINT_VALUES: MemberKindHint[] = ["lead", "visitor", "member"]
+
+/**
+ * These tabs filter by `kindHint`, the only lifecycle-ish filter the list
+ * endpoint accepts. `status` is derived server-side and not filterable, so it
+ * stays a display-only column.
+ */
+export const MEMBER_KIND_TABS = [
+    { value: "lead", label: "Lead" },
+    { value: "visitor", label: "Visitor" },
+    { value: "member", label: "Member" },
 ]

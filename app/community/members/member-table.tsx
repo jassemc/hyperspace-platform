@@ -2,20 +2,11 @@
 
 import { useState } from "react"
 import { DataTable } from "@/components/data-table"
-import { AddMemberForm } from "./add-member-form"
+import { MemberFormDialog } from "./member-form-dialog"
 import type { MemberDto } from "@/lib/service/HsService"
 import { createColumns } from "./columns"
-
-/**
- * These tabs filter by `kindHint`, the only lifecycle-ish filter the list
- * endpoint accepts. `status` is derived server-side and not filterable, so it
- * stays a display-only column.
- */
-const MEMBER_KIND_TABS = [
-  { value: "lead", label: "Lead" },
-  { value: "visitor", label: "Visitor" },
-  { value: "member", label: "Member" },
-]
+import { MemberDetailsDialog } from "./member-details-dialog"
+import { MEMBER_KIND_TABS } from "./member-status"
 
 interface MemberTableProps {
   data: MemberDto[]
@@ -30,23 +21,30 @@ export function MemberTable({
   companyNames = {},
   activeKindHint,
 }: Readonly<MemberTableProps>) {
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [editingMember, setEditingMember] = useState<MemberDto | null>(null)
+  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [detailsMember, setDetailsMember] = useState<MemberDto | null>(null)
 
   const handleEdit = (member: MemberDto) => {
     setEditingMember(member)
-    setIsDrawerOpen(true)
+    setIsFormOpen(true)
   }
 
   const handleClose = () => {
-    setIsDrawerOpen(false)
+    setIsFormOpen(false)
     setEditingMember(null)
   }
 
-  const columns = createColumns({
-    onEdit: handleEdit,
-    companyNames,
-  })
+  // Handing over from the details dialog: it closes first, so the two are
+  // never stacked, and only reopens if the caller goes back to it.
+  const handOff = (run: (member: MemberDto) => void) => {
+    const member = detailsMember
+    if (!member) return
+    setDetailsMember(null)
+    run(member)
+  }
+
+  const columns = createColumns({ onDetails: setDetailsMember, onEdit: handleEdit, companyNames })
 
   return (
     <>
@@ -58,14 +56,29 @@ export function MemberTable({
         totalCount={typeof totalCount === "number" ? totalCount : undefined}
         showStatusTabs={true}
         statusTabOptions={MEMBER_KIND_TABS}
+        serverSearch
+        searchPlaceholder="Search members..."
       />
-      <AddMemberForm
-        key={editingMember?.id || "create"}
-        isOpen={isDrawerOpen}
-        onClose={handleClose}
-        editingMember={editingMember}
-        companyNames={companyNames}
-      />
+      {isFormOpen && (
+        <MemberFormDialog
+          key={editingMember?.id || "create"}
+          isOpen
+          onClose={handleClose}
+          editingMember={editingMember}
+          companyNames={companyNames}
+        />
+      )}
+      {detailsMember && (
+        <MemberDetailsDialog
+          key={detailsMember.id}
+          member={detailsMember}
+          open
+          onOpenChange={(next) => {
+            if (!next) setDetailsMember(null)
+          }}
+          onEdit={() => handOff(handleEdit)}
+        />
+      )}
     </>
   )
 }
