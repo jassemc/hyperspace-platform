@@ -105,6 +105,34 @@ export const createColumns = ({ onEdit, timeZone }: ColumnsProps): ColumnDef<Boo
     },
   },
   {
+    id: "discount",
+    header: "Discount",
+    cell: ({ row }) => {
+      const booking = row.original
+      // A pending booking shows the visitor-typed code (even once a
+      // discount is later applied on confirm), so staff always see what
+      // was actually requested until the booking is decided.
+      const requested = booking.status === "pending" ? booking.requestedDiscountCode : null
+      if (requested) {
+        return (
+          <div className="flex flex-col">
+            <code className="w-fit rounded bg-muted px-1 text-xs">{requested}</code>
+            <span className="text-xs text-muted-foreground">requested</span>
+          </div>
+        )
+      }
+      if (booking.discount) {
+        return (
+          <div className="flex flex-col">
+            <code className="w-fit rounded bg-muted px-1 text-xs">{booking.discount.code}</code>
+            <span className="text-xs text-muted-foreground">applied</span>
+          </div>
+        )
+      }
+      return <span className="text-muted-foreground">-</span>
+    },
+  },
+  {
     id: "actions",
     header: "Actions",
     cell: ({ row }) => (

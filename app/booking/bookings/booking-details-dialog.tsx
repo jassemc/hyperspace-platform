@@ -389,13 +389,17 @@ export function BookingDetailsDialog({
                 </div>
               ) : (
                 <>
-                  {booking.status === "pending" && booking.requestedDiscountCode && (
+                  {booking.requestedDiscountCode && (
                     <div className="flex justify-between px-3 py-2">
                       <dt className="text-muted-foreground">Requested code</dt>
                       <dd className="flex items-center gap-2">
                         <code className="rounded bg-muted px-1">{booking.requestedDiscountCode}</code>
                         <Badge variant="outline" className="font-normal text-muted-foreground">
-                          awaiting confirmation
+                          {booking.status === "pending"
+                            ? "awaiting confirmation"
+                            : booking.discount
+                              ? "applied"
+                              : "not applied"}
                         </Badge>
                       </dd>
                     </div>
