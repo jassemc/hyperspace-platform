@@ -16,33 +16,49 @@ export async function SectionCards({
 
   const totals = membershipTotals(stats)
   const figure = (value: number | undefined) => (value === undefined ? "–" : value)
+  const thisWeek = totals.weeks.at(-1)
+  const filtered = Boolean(q || planId)
 
   return (
     <StatCards
       cards={[
         {
-          label: "Total memberships",
-          value: figure(totals.total),
-          badge: "All",
+          // The series plots what the figure counts: memberships created, by week.
+          label: "New memberships",
+          value: figure(thisWeek?.created),
+          unit: "this week",
           icon: BadgeCheckIcon,
           delta: totals.changeIn("created"),
           series: totals.weeks.map((entry) => entry.created),
           seriesLabels: weekLabels(totals.weeks),
-          footer: totals.topPlan ? `Most held: ${totals.topPlan.name}` : "Every membership on record",
+          footer: filtered
+            ? `${figure(totals.total)} matching the current filters`
+            : `${figure(totals.total)} memberships in total`,
         },
         {
           label: "Active",
           value: figure(totals.countFor("active")),
           badge: "Live",
           icon: BadgeCheckIcon,
-          footer: "Currently running",
+          footer: totals.topPlan ? `Most held: ${totals.topPlan.name}` : "Currently running",
         },
         {
+          // The headline is what is queued; the trend behind it is when
+          // terms actually begin, week by week — including weeks ahead,
+          // since a pending start sits in the future by definition.
           label: "Pending",
           value: figure(totals.countFor("pending")),
           badge: "Upcoming",
           icon: ClockIcon,
-          footer: "Starting in the future",
+          delta: totals.changeIn("starting"),
+          series: totals.weeks.map((entry) => entry.starting),
+          seriesLabels: weekLabels(totals.weeks),
+          footer:
+            thisWeek === undefined
+              ? "Starting in the future"
+              : thisWeek.starting === 0
+                ? "No term starts this week"
+                : `${thisWeek.starting} term${thisWeek.starting === 1 ? "" : "s"} starting this week`,
         },
         {
           label: "Ended",
