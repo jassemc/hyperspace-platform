@@ -2159,6 +2159,15 @@ export interface UpdateMembershipDto {
    * @format uuid
    */
   discountId?: string | null;
+  /**
+   * Move the INCLUSIVE last active day, or `null` to make the membership
+   * open-ended again. Unlike cancel, no notice period applies — today (or
+   * a past date) ends it at once. Open assignments are capped at
+   * endsAt + 1 in the same transaction; a later end never re-extends
+   * assignments that were capped earlier.
+   * @example "2027-01-31"
+   */
+  endsAt?: string | null;
 }
 
 export interface MembershipPauseDto {
@@ -6745,10 +6754,10 @@ export namespace Api {
   }
 
   /**
-   * @description Cosmetic fields (name/notes) plus discountId — the only contractual field editable post-creation: set to replace the snapshotted discount, or null to clear it. Affects future, non-invoiced cycles only; other contractual terms are frozen in planSnapshot.
+   * @description Cosmetic fields (name/notes) plus the two contractual levers editable post-creation. discountId: set to replace the snapshotted discount, or null to clear it — affects future, non-invoiced cycles only. endsAt: move the INCLUSIVE last active day with no notice period (today or a past date ends the membership at once), or null to make it open-ended; open assignments are capped at endsAt + 1 in the same transaction, and a later end never re-extends assignments capped earlier. Other contractual terms (startsAt included) are frozen in planSnapshot.
    * @tags Memberships
    * @name UpdateMembership
-   * @summary Update a membership label/notes/discount
+   * @summary Update a membership label/notes/discount/end date
    * @request PATCH:/api/v1/memberships/{id}
    * @secure
    * @response `200` `(MembershipDto)` 200
@@ -10585,11 +10594,11 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Cosmetic fields (name/notes) plus discountId — the only contractual field editable post-creation: set to replace the snapshotted discount, or null to clear it. Affects future, non-invoiced cycles only; other contractual terms are frozen in planSnapshot.
+     * @description Cosmetic fields (name/notes) plus the two contractual levers editable post-creation. discountId: set to replace the snapshotted discount, or null to clear it — affects future, non-invoiced cycles only. endsAt: move the INCLUSIVE last active day with no notice period (today or a past date ends the membership at once), or null to make it open-ended; open assignments are capped at endsAt + 1 in the same transaction, and a later end never re-extends assignments capped earlier. Other contractual terms (startsAt included) are frozen in planSnapshot.
      *
      * @tags Memberships
      * @name UpdateMembership
-     * @summary Update a membership label/notes/discount
+     * @summary Update a membership label/notes/discount/end date
      * @request PATCH:/api/v1/memberships/{id}
      * @secure
      * @response `200` `(MembershipDto)` 200
