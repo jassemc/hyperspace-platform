@@ -32,41 +32,39 @@ export function CompanyMemberRowActions({
   onDetach,
 }: Readonly<CompanyMemberRowActionsProps>) {
   return (
-    <>
-      {/* Non-modal: a modal menu that hands off to a dialog races on the
-          body's pointer-events lock and can leave the whole page unclickable
-          once the dialog closes. */}
-      <DropdownMenu modal={false}>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <MoreHorizontal className="h-4 w-4" />
-            <span className="sr-only">Open actions for {member.fullName}</span>
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => onDetails(member)}>
-            <Eye />
-            Details
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => onEdit(member)}>
-            <Edit />
-            Edit
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem title="Move to another company" onSelect={() => onReassign(member)}>
-            <ArrowLeftRight />
-            Reassign
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            variant="destructive"
-            title="Make this member solo"
-            onSelect={() => onDetach(member)}
-          >
-            <UserMinus />
-            Detach
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </>
+    // Non-modal: a modal menu that hands off to a dialog races on the
+    // body's pointer-events lock and can leave the whole page unclickable
+    // once the dialog closes.
+    <DropdownMenu modal={false}>
+      <DropdownMenuTrigger asChild>
+        <Button variant="ghost" size="icon" className="h-8 w-8">
+          <MoreHorizontal className="h-4 w-4" />
+          <span className="sr-only">Open actions for {member.fullName}</span>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onSelect={() => onDetails(member)}>
+          <Eye />
+          Details
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => onEdit(member)}>
+          <Edit />
+          Edit
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem title="Move to another company" onSelect={() => onReassign(member)}>
+          <ArrowLeftRight />
+          Reassign
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          variant="destructive"
+          title="Make this member solo"
+          onSelect={() => onDetach(member)}
+        >
+          <UserMinus />
+          Detach
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }

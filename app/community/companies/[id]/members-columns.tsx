@@ -10,7 +10,6 @@ import { MEMBER_STATUS_CLASSES, MEMBER_STATUS_LABELS } from "@/app/community/mem
 import { CompanyMemberRowActions } from "./company-member-row-actions"
 
 interface ColumnsProps {
-  companyId: string
   onDetails: (member: MemberDto) => void
   onEdit: (member: MemberDto) => void
   onReassign: (member: MemberDto) => void
@@ -18,7 +17,6 @@ interface ColumnsProps {
 }
 
 export const createMemberColumns = ({
-  companyId,
   onDetails,
   onEdit,
   onReassign,

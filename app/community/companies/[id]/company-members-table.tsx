@@ -46,7 +46,6 @@ export function CompanyMembersTable({
   }
 
   const columns = createMemberColumns({
-    companyId,
     onDetails: setDetailsMember,
     onEdit: handleEdit,
     onReassign: (member) => setReassign({ member, detach: false }),
