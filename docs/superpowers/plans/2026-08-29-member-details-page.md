@@ -17,7 +17,7 @@
 - Backend: RFC 9457 errors with existing codes (`member_not_found`, `member_access_denied`); no migration; `@ProtectedWith` only; path-alias imports only; controllers return DTOs.
 - Direct data only: every list call passes `memberId: member.id`; never `forCompanyId`/`companyId`.
 - No Opportunities tab.
-- No backend changes; no new API client generation.
+- Backend change is limited to `GET /members/{id}` (Task B1); the client is regenerated once (Task B2).
 - Valid tabs, in this order: `overview | memberships | bookings | checkins | credits | charges | invoices`.
 - No test runner exists in the repo. Every task's verification is `npm run lint` and `npx tsc --noEmit` (both must exit 0) plus the manual check listed in the task, against a running local backend (`npm run dev` in `hyperspace-platform`).
 - Follow the house style already in `app/community/companies/[id]/`: `Readonly<...>` props, `console.warn` + graceful empty state on failed fetches, `formatDate`/`formatDateTime` from `@/lib/format`.
