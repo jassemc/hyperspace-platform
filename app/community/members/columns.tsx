@@ -33,12 +33,12 @@ export const createColumns = ({ onDetails, onEdit }: ColumnsProps): ColumnDef<Me
           <button
             type="button"
             onClick={() => onDetails(member)}
-            className="text-left font-medium hover:underline"
+            className="rounded-sm text-left font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {member.fullName}
           </button>
           {member.segment && (
-            <span className="text-xs text-muted-foreground">
+            <span className="text-xs capitalize text-muted-foreground">
               {formatEnumLabel(member.segment)}
             </span>
           )}
@@ -56,14 +56,14 @@ export const createColumns = ({ onDetails, onEdit }: ColumnsProps): ColumnDef<Me
       return (
         <div className="flex flex-col">
           {email && (
-            <a href={`mailto:${email}`} className="hover:underline">
+            <a href={`mailto:${email}`} className="text-primary hover:underline">
               {email}
             </a>
           )}
           {phone && (
             <a
-              href={`tel:${phone}`}
-              className={email ? "text-xs text-muted-foreground hover:underline" : "hover:underline"}
+              href={`tel:${phone.replace(/\s+/g, "")}`}
+              className={email ? "text-xs text-muted-foreground hover:underline" : "text-primary hover:underline"}
             >
               {phone}
             </a>
