@@ -5,6 +5,7 @@ import { DataTable } from "@/components/data-table"
 import type { MembershipDto, MembershipStatus, PlanDto } from "@/lib/service/HsService"
 import { createColumns } from "./columns"
 import { AddMembershipForm } from "./add-membership-form"
+import { MembershipDetailsDialog } from "./membership-details-dialog"
 import { MEMBERSHIP_STATUS_TABS } from "./membership-status"
 
 interface MembershipTableProps {
@@ -40,7 +41,6 @@ export function MembershipTable({
 
   // Handing over from the details dialog: it closes first, so the two are
   // never stacked, and only reopens if the caller goes back to it.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- wired by the details dialog (next task)
   const handOff = (run: (membership: MembershipDto) => void) => {
     const membership = detailsMembership
     if (!membership) return
@@ -72,6 +72,17 @@ export function MembershipTable({
           memberNames={memberNames}
           companyNames={companyNames}
           plans={plans}
+        />
+      )}
+      {detailsMembership && (
+        <MembershipDetailsDialog
+          key={detailsMembership.id}
+          membership={detailsMembership}
+          open
+          onOpenChange={(next) => {
+            if (!next) setDetailsMembership(null)
+          }}
+          onEdit={() => handOff(handleEdit)}
         />
       )}
     </>
