@@ -2441,6 +2441,16 @@ export interface CreateBookingDto {
    */
   isFree?: boolean;
   freeReason?: BookingFreeReason;
+  /**
+   * Staff-picked discount (docs/superpowers/plans/2026-08-29-booking-
+   * discount-select.md): must resolve to an active, in-window,
+   * kind=resource_rate discount, else 404 discount_not_found (unknown id)
+   * or 422 discount_not_eligible (wrong kind/archived/out of window, or
+   * one that does not target this booking's winning rate). Also accepted
+   * by POST /bookings/validate (same DTO).
+   * @format uuid
+   */
+  discountId?: string;
 }
 
 export interface QuoteConsumptionDto {
@@ -2568,10 +2578,23 @@ export interface ConfirmBookingDto {
   isFree?: boolean;
   freeReason?: BookingFreeReason;
   /**
+   * Staff-picked discount (docs/superpowers/plans/2026-08-29-booking-
+   * discount-select.md): must resolve to an active, in-window,
+   * kind=resource_rate discount, else 404 discount_not_found (unknown id)
+   * or 422 discount_not_eligible (wrong kind/archived/out of window, or
+   * one that does not target this booking's winning rate). Also accepted
+   * by POST /bookings/validate (same DTO).
+   * @format uuid
+   */
+  discountId?: string;
+  /**
    * Discount code to apply (spec §5.4): send the requested code to KEEP it,
    * another code to replace it, null/omit to DROP it. Only an active,
    * in-window resource_rate discount code is accepted → 422
-   * discount_code_invalid.
+   * discount_code_invalid. Ignored when `discountId` is also sent —
+   * `discountId` (a staff pick, docs/superpowers/plans/2026-08-29-booking-
+   * discount-select.md) takes precedence over `discountCode` (a
+   * visitor-typed code kept/replaced/dropped by staff).
    * @example "ROOM10"
    */
   discountCode?: string | null;
@@ -6763,6 +6786,7 @@ export namespace Api {
    * @response `201` `(BookingDto)` 201
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
    * @response `409` `(ResponseErrorDto)` Conflict
    * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
@@ -6925,6 +6949,7 @@ export namespace Api {
    * @response `200` `(BookingQuoteDto)` 200
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
    * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
@@ -6974,7 +6999,7 @@ export namespace Api {
    * @response `200` `(BookingDto)` 200
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
-   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `404` `((ResponseErrorDto))` 404
    * @response `409` `(ResponseErrorDto)` Conflict
    * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
@@ -10468,6 +10493,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `201` `(BookingDto)` 201
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
      * @response `409` `(ResponseErrorDto)` Conflict
      * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
@@ -10604,6 +10630,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `200` `(BookingQuoteDto)` 200
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
      * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
@@ -10657,7 +10684,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `200` `(BookingDto)` 200
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
-     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `404` `((ResponseErrorDto))` 404
      * @response `409` `(ResponseErrorDto)` Conflict
      * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
