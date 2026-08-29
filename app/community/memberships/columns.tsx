@@ -12,16 +12,9 @@ import { MembershipRowActions } from "./membership-row-actions"
 interface ColumnsProps {
   onDetails: (membership: MembershipDto) => void
   onEdit: (membership: MembershipDto) => void
-  memberNames?: Record<string, string>
-  companyNames?: Record<string, string>
 }
 
-export const createColumns = ({
-  onDetails,
-  onEdit,
-  memberNames = {},
-  companyNames = {},
-}: ColumnsProps): ColumnDef<MembershipDto>[] => [
+export const createColumns = ({ onDetails, onEdit }: ColumnsProps): ColumnDef<MembershipDto>[] => [
   {
     accessorKey: "name",
     header: ({ column }) => (
@@ -30,16 +23,21 @@ export const createColumns = ({
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
+    cell: ({ row }) => {
+      const membership = row.original
+      const planName = membership.plan?.name
+      return (
+        <div className="flex flex-col">
+          <span>{membership.name}</span>
+          {planName && <span className="text-xs text-muted-foreground">{planName}</span>}
+        </div>
+      )
+    },
   },
   {
     id: "customer",
     // A membership belongs to a member XOR a company.
-    accessorFn: (membership) =>
-      membership.memberId
-        ? memberNames[membership.memberId] ?? ""
-        : membership.companyId
-          ? companyNames[membership.companyId] ?? ""
-          : "",
+    accessorFn: (membership) => membership.member?.fullName ?? membership.company?.name ?? "",
     header: "Customer",
     cell: ({ row }) => {
       const membership = row.original

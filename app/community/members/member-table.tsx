@@ -1,24 +1,29 @@
 "use client"
 
 import { useState } from "react"
-import { DataTable } from "@/components/data-table"
+import { DataTable, type TableFilter } from "@/components/data-table"
 import { MemberFormDialog } from "./member-form-dialog"
-import type { MemberDto } from "@/lib/service/HsService"
+import type { CompanyDto, MemberDto, MemberKindHint, MemberStatsDto, MemberStatus } from "@/lib/service/HsService"
 import { createColumns } from "./columns"
 import { MemberDetailsDialog } from "./member-details-dialog"
-import { MEMBER_KIND_TABS } from "./member-status"
+import { MEMBER_KIND_TABS, MEMBER_STATUS_TABS } from "./member-status"
+import { memberTotals } from "./stats"
 
 interface MemberTableProps {
   data: MemberDto[]
   totalCount?: number
-  companyNames?: Record<string, string>
-  activeKindHint?: string
+  companies?: CompanyDto[]
+  stats?: MemberStatsDto | null
+  activeStatus?: MemberStatus
+  activeKindHint?: MemberKindHint
 }
 
 export function MemberTable({
   data,
   totalCount,
-  companyNames = {},
+  companies = [],
+  stats,
+  activeStatus,
   activeKindHint,
 }: Readonly<MemberTableProps>) {
   const [editingMember, setEditingMember] = useState<MemberDto | null>(null)
@@ -44,19 +49,39 @@ export function MemberTable({
     run(member)
   }
 
-  const columns = createColumns({ onDetails: setDetailsMember, onEdit: handleEdit, companyNames })
+  const columns = createColumns({ onDetails: setDetailsMember, onEdit: handleEdit })
+
+  const totals = memberTotals(stats ?? null)
+
+  const filters: TableFilter[] = [
+    {
+      key: "kindHint",
+      label: "Kind",
+      value: activeKindHint,
+      options: MEMBER_KIND_TABS.map((tab) => ({
+        ...tab,
+        count: totals.kindCount(tab.value),
+      })),
+    },
+  ]
 
   return (
     <>
       {/* Remount on filter change so pagination is re-read from the URL. */}
       <DataTable
-        key={activeKindHint ?? "all"}
+        key={`${activeStatus ?? "all"}-${activeKindHint ?? "any"}`}
         columns={columns}
         data={data}
         totalCount={typeof totalCount === "number" ? totalCount : undefined}
+        filters={filters}
         showStatusTabs={true}
-        statusTabOptions={MEMBER_KIND_TABS}
+        statusTabOptions={MEMBER_STATUS_TABS.map((tab) => ({
+          ...tab,
+          count: totals.countFor(tab.value),
+        }))}
+        statusAllCount={totals.total}
         serverSearch
+        inlineFilters
         searchPlaceholder="Search members..."
       />
       {isFormOpen && (
@@ -65,7 +90,7 @@ export function MemberTable({
           isOpen
           onClose={handleClose}
           editingMember={editingMember}
-          companyNames={companyNames}
+          companies={companies}
         />
       )}
       {detailsMember && (

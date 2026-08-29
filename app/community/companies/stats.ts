@@ -1,50 +1,54 @@
 import { cache } from "react"
-import { getListCompanies, getListMembers, getListMemberships } from "@/lib/service"
-import { pageResult } from "@/lib/search-params"
+import { getCompanyStats } from "@/lib/service"
+import type { CompanyStatsDto } from "@/lib/service/HsService"
+import { pageQuery } from "@/lib/search-params"
+import { changeIn } from "@/lib/stats"
 
-export interface CompanyStats {
-    companies: number
-    members: number
-    activeMemberships: number
-    pendingMemberships: number
+/**
+ * The cards and the table both want these counts. Memoised per request, so
+ * rendering them side by side asks the API once — but only because the
+ * signature is positional primitives, not an options object. React's
+ * cache() keys primitive arguments by value (a Map, SameValueZero) and
+ * object/function arguments by reference (a WeakMap). Two call sites that
+ * each build their own `{ q }` literal would produce two distinct object
+ * references and therefore two cache misses, even with identical contents —
+ * so this stays positional on purpose. Resist folding it back into an
+ * options object; it would silently double the request.
+ */
+export const companyStats = cache(
+  async (q: string | undefined): Promise<CompanyStatsDto | null> => {
+    try {
+      return (await getCompanyStats({ q })) as CompanyStatsDto
+    } catch (error) {
+      console.warn("Failed to load company stats", error)
+      return null
+    }
+  }
+)
+
+/** Card counts, with `undefined` meaning "unknown" rather than "zero". */
+export function companyTotals(stats: CompanyStatsDto | null) {
+  const byStatus = new Map<string, number>(
+    (stats?.byStatus ?? []).map((row) => [row.status, row.count])
+  )
+  const weeks = stats?.byWeek ?? []
+
+  return {
+    weeks,
+    changeIn: (key: "created") => changeIn(weeks, key),
+    countFor: (status: string) => (stats ? (byStatus.get(status) ?? 0) : undefined),
+    total: stats?.total,
+    withMembers: stats?.withMembers,
+  }
 }
 
 /**
- * `cache()` keys primitives by value and objects by reference, so this takes
- * no options object — the same call from the cards and any future caller
- * shares one set of requests per render.
+ * Shared by the cards and the table so the two derive identical arguments:
+ * `companyStats` is a cache() keyed by positional primitives, so both call
+ * sites must land on the same value for `q` to hit one cache entry instead
+ * of firing the request twice.
  */
-export const companyStats = cache(async (): Promise<CompanyStats | null> => {
-    try {
-        const companiesRequest = getListCompanies({ limit: 1, offset: 0, sort: "ASC" })
-        const membersRequest = getListMembers({ limit: 1, offset: 0, sort: "ASC" })
-        const activeMembershipsRequest = getListMemberships({
-            limit: 1,
-            offset: 0,
-            sort: "ASC",
-            status: "active",
-        })
-        const pendingMembershipsRequest = getListMemberships({
-            limit: 1,
-            offset: 0,
-            sort: "ASC",
-            status: "pending",
-        })
-        const [companiesResult, membersResult, activeMembershipsResult, pendingMembershipsResult] =
-            await Promise.all([
-                companiesRequest,
-                membersRequest,
-                activeMembershipsRequest,
-                pendingMembershipsRequest,
-            ])
-        return {
-            companies: pageResult(companiesResult).total,
-            members: pageResult(membersResult).total,
-            activeMemberships: pageResult(activeMembershipsResult).total,
-            pendingMemberships: pageResult(pendingMembershipsResult).total,
-        }
-    } catch (error) {
-        console.warn("Failed to load company stats", error)
-        return null
-    }
-})
+export function companyStatsArgs(params: Record<string, string | string[] | undefined>) {
+  const { q } = pageQuery(params)
+  return { q }
+}

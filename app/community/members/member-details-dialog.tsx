@@ -15,8 +15,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { CopyId, Section } from "@/components/details-dialog-parts"
 import { Mail, Pencil, UserCog } from "lucide-react"
-import { getCompany, getListMemberships } from "@/lib/service"
-import type { CompanyDto, MemberDto, MembershipDto } from "@/lib/service/HsService"
+import { getListMemberships } from "@/lib/service"
+import type { MemberDto, MembershipDto } from "@/lib/service/HsService"
 import { pageResult } from "@/lib/search-params"
 import { formatDate, formatEnumLabel } from "@/lib/format"
 import { MEMBER_STATUS_CLASSES, MEMBER_STATUS_LABELS } from "./member-status"
@@ -37,9 +37,9 @@ const MEMBERSHIP_STATUS_RANK: Record<MembershipDto["status"], number> = {
 
 /**
  * Everything a member is made of, read-only. The row already names them, so
- * the identity renders without a request; their employer and memberships are
- * fetched per open — a table of fifty rows must not fire a hundred requests
- * for dialogs nobody opened.
+ * the identity — including their employer, off the summary — renders without
+ * a request; only memberships are fetched per open, since a table of fifty
+ * rows must not fire a hundred requests for dialogs nobody opened.
  */
 export function MemberDetailsDialog({
   member,
@@ -56,35 +56,26 @@ export function MemberDetailsDialog({
   /** Another drawer is already loading; the footer must not start a second. */
   busy?: boolean
 }>) {
-  const [company, setCompany] = useState<CompanyDto | null>(null)
   const [memberships, setMemberships] = useState<MembershipDto[] | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (!open) return
     let cancelled = false
-    setCompany(null)
     setMemberships(null)
     setLoading(true)
-    const companyLoad = member.companyId
-      ? getCompany(member.companyId)
-          .then((c) => {
-            if (!cancelled) setCompany(c as CompanyDto)
-          })
-          .catch(() => undefined)
-      : Promise.resolve()
-    const membershipsLoad = getListMemberships({ limit: 20, offset: 0, sort: "DESC", memberId: member.id })
+    getListMemberships({ limit: 20, offset: 0, sort: "DESC", memberId: member.id })
       .then((page) => {
         if (!cancelled) setMemberships(pageResult<MembershipDto>(page).results)
       })
       .catch(() => undefined)
-    Promise.all([companyLoad, membershipsLoad]).finally(() => {
-      if (!cancelled) setLoading(false)
-    })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
     return () => {
       cancelled = true
     }
-  }, [open, member.id, member.companyId])
+  }, [open, member.id])
 
   // Shared with the row menu so the status action cannot drift between the
   // two entry points. Applying a status here refreshes the table, but that
@@ -147,12 +138,10 @@ export function MemberDetailsDialog({
           <Section title="Employer">
             {!member.companyId ? (
               <span className="text-muted-foreground">Solo — no employer</span>
-            ) : loading ? (
-              <Skeleton className="h-6 w-40" />
-            ) : company ? (
+            ) : member.company ? (
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <Link href={`/community/companies/${company.id}`} className="text-primary hover:underline">
-                  {company.name}
+                <Link href={`/community/companies/${member.company.id}`} className="text-primary hover:underline">
+                  {member.company.name}
                 </Link>
                 {member.isBillingPerson && <Badge variant="outline">Billing person</Badge>}
                 {member.isContactPerson && <Badge variant="outline">Contact person</Badge>}

@@ -42,7 +42,7 @@ interface MemberFormDialogProps {
   isOpen: boolean
   onClose: () => void
   editingMember?: MemberDto | null
-  companyNames?: Record<string, string>
+  companies?: { id: string; name: string }[]
 }
 
 function messageFor(state: ActionState, fallback: string): string {
@@ -74,11 +74,21 @@ export function MemberFormDialog({
   isOpen,
   onClose,
   editingMember,
-  companyNames = {},
+  companies,
 }: Readonly<MemberFormDialogProps>) {
   const [createState, createFormAction] = useActionState(createMemberAction, {})
   const [updateState, updateFormAction] = useActionState(updateMemberAction, {})
   const [companyId, setCompanyId] = useState("")
+
+  const companyOptions = companies ?? []
+  const employerId = editingMember?.companyId
+  // An employer past the first hundred companies — or whose summary did not
+  // load — must still be selectable, or saving would silently detach the
+  // member.
+  const options =
+    employerId && !companyOptions.some((c) => c.id === employerId)
+      ? [{ id: employerId, name: editingMember?.company?.name || "Unknown company" }, ...companyOptions]
+      : companyOptions
 
   // The last state object each notify effect has already reacted to.
   // `useActionState` hands back a fresh object on every dispatch, so
@@ -198,9 +208,9 @@ export function MemberFormDialog({
                   onChange={(e) => setCompanyId(e.target.value)}
                 >
                   <option value="">Solo (no company)</option>
-                  {Object.entries(companyNames).map(([id, name]) => (
-                    <option key={id} value={id}>
-                      {name}
+                  {options.map((company) => (
+                    <option key={company.id} value={company.id}>
+                      {company.name}
                     </option>
                   ))}
                 </select>

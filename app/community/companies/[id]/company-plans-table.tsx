@@ -5,7 +5,9 @@ import { DataTable } from "@/components/data-table"
 import { MembershipDetailsDialog } from "@/app/community/memberships/membership-details-dialog"
 import { MembershipFormDialog } from "@/app/community/memberships/membership-form-dialog"
 import type { MembershipActions } from "@/app/community/memberships/use-membership-mutations"
-import type { MembershipDto } from "@/lib/service/HsService"
+import { MEMBERSHIP_STATUS_TABS } from "@/app/community/memberships/membership-status"
+import { membershipTotals } from "@/app/community/memberships/stats"
+import type { MembershipDto, MembershipStatsDto, MembershipStatus } from "@/lib/service/HsService"
 import { createPlanColumns } from "./plans-columns"
 import {
   cancelCompanyMembershipAction,
@@ -25,16 +27,16 @@ interface CompanyPlansTableProps {
   data: MembershipDto[]
   totalCount?: number
   companyId: string
-  plansById: Record<string, string>
-  subscribersById: Record<string, string>
+  activeStatus?: MembershipStatus
+  stats?: MembershipStatsDto | null
 }
 
 export function CompanyPlansTable({
   data,
   totalCount,
   companyId,
-  plansById,
-  subscribersById,
+  activeStatus,
+  stats,
 }: Readonly<CompanyPlansTableProps>) {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingMembership, setEditingMembership] = useState<MembershipDto | null>(null)
@@ -61,19 +63,29 @@ export function CompanyPlansTable({
 
   const columns = createPlanColumns({
     companyId,
-    plansById,
-    subscribersById,
     onDetails: setDetailsMembership,
     onEdit: handleEdit,
     actions: COMPANY_ACTIONS,
   })
 
+  const totals = membershipTotals(stats ?? null)
+
   return (
     <>
+      {/* Remount on status change so pagination is re-read from the URL. */}
       <DataTable
+        key={activeStatus ?? "all"}
         columns={columns}
         data={data}
         totalCount={typeof totalCount === "number" ? totalCount : undefined}
+        showStatusTabs
+        statusTabOptions={MEMBERSHIP_STATUS_TABS.map((tab) => ({
+          ...tab,
+          count: totals.countFor(tab.value),
+        }))}
+        statusAllCount={totals.total}
+        serverSearch
+        searchPlaceholder="Search memberships..."
       />
       {isFormOpen && (
         <MembershipFormDialog

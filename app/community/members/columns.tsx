@@ -12,10 +12,9 @@ import { MemberRowActions } from "./member-row-actions"
 interface ColumnsProps {
   onDetails: (member: MemberDto) => void
   onEdit: (member: MemberDto) => void
-  companyNames?: Record<string, string>
 }
 
-export const createColumns = ({ onDetails, onEdit, companyNames = {} }: ColumnsProps): ColumnDef<MemberDto>[] => [
+export const createColumns = ({ onDetails, onEdit }: ColumnsProps): ColumnDef<MemberDto>[] => [
   {
     id: "name",
     accessorKey: "fullName",
@@ -30,10 +29,8 @@ export const createColumns = ({ onDetails, onEdit, companyNames = {} }: ColumnsP
     ),
     cell: ({ row }) => {
       const member = row.original
-      // Employers are referenced by id only. One outside the looked-up page
-      // still reads as employed rather than silently as solo.
       const company = member.companyId
-        ? companyNames[member.companyId] ?? "Unknown company"
+        ? member.company?.name || "Unknown company"
         : null
 
       return (
@@ -64,8 +61,7 @@ export const createColumns = ({ onDetails, onEdit, companyNames = {} }: ColumnsP
   },
   {
     id: "company",
-    // Members reference their employer by id only.
-    accessorFn: (member) => (member.companyId ? companyNames[member.companyId] ?? "" : ""),
+    accessorFn: (member) => (member.companyId ? member.company?.name ?? "" : ""),
     header: "Company",
     cell: ({ row }) => {
       const member = row.original

@@ -67,10 +67,12 @@ export function CompanyTabs({
 
     const params = new URLSearchParams(searchParams.toString())
     params.set("tab", value)
-    // Table state belongs to the tab that was left behind.
+    // Table state belongs to the tab that was left behind — including
+    // `status`, which only the Plans tab owns.
     params.delete("page")
     params.delete("pageSize")
     params.delete("name")
+    params.delete("status")
 
     startTransition(() => {
       router.push(`?${params.toString()}`)

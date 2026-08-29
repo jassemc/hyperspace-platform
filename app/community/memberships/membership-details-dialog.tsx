@@ -15,14 +15,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { CopyId, Section } from "@/components/details-dialog-parts"
 import { Ban, Mail, Pause, Pencil, Play, RotateCw } from "lucide-react"
-import { getCompany, getListMembershipPauses, getMember, getPlan } from "@/lib/service"
-import type {
-  CompanyDto,
-  MemberDto,
-  MembershipDto,
-  MembershipPauseDto,
-  PlanDto,
-} from "@/lib/service/HsService"
+import { getListMembershipPauses } from "@/lib/service"
+import type { MembershipDto, MembershipPauseDto } from "@/lib/service/HsService"
 import { formatDate, formatEnumLabel, formatPriceHt, formatVatRate } from "@/lib/format"
 import { benefitLabel } from "@/lib/benefits"
 import { formatDiscountValue } from "@/app/billing/discounts/discount-meta"
@@ -47,10 +41,9 @@ function Term({ label, value }: Readonly<{ label: string; value: React.ReactNode
 
 /**
  * Everything a membership is made of, read-only. The row already names its
- * customer and plan, but the customer record, the live catalog plan (to
- * name it — the terms it actually runs on live in the snapshot below) and
- * any pauses are fetched per open, so a table of fifty rows never fires
- * fifty requests for dialogs nobody opened.
+ * customer and plan off the summaries carried on the dto, so only pauses
+ * are fetched per open — a table of fifty rows must not fire fifty requests
+ * for dialogs nobody opened.
  */
 export function MembershipDetailsDialog({
   membership,
@@ -73,54 +66,27 @@ export function MembershipDetailsDialog({
   /** Revalidates a company page instead of the memberships list. */
   companyId?: string
 }>) {
-  const [member, setMember] = useState<MemberDto | null>(null)
-  const [company, setCompany] = useState<CompanyDto | null>(null)
-  const [livePlan, setLivePlan] = useState<PlanDto | null>(null)
   const [pauses, setPauses] = useState<MembershipPauseDto[] | null>(null)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (!open) return
     let cancelled = false
-    setMember(null)
-    setCompany(null)
-    setLivePlan(null)
     setPauses(null)
     setLoading(true)
 
-    const customerLoad = membership.companyId
-      ? getCompany(membership.companyId)
-          .then((c) => {
-            if (!cancelled) setCompany(c as CompanyDto)
-          })
-          .catch(() => undefined)
-      : membership.memberId
-        ? getMember(membership.memberId)
-            .then((m) => {
-              if (!cancelled) setMember(m as MemberDto)
-            })
-            .catch(() => undefined)
-        : Promise.resolve()
-
-    const planLoad = getPlan(membership.planId)
-      .then((p) => {
-        if (!cancelled) setLivePlan(p as PlanDto)
-      })
-      .catch(() => undefined)
-
-    const pausesLoad = getListMembershipPauses(membership.id)
+    getListMembershipPauses(membership.id)
       .then((list) => {
         if (!cancelled) setPauses(list as MembershipPauseDto[])
       })
       .catch(() => undefined)
-
-    Promise.all([customerLoad, planLoad, pausesLoad]).finally(() => {
-      if (!cancelled) setLoading(false)
-    })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
     return () => {
       cancelled = true
     }
-  }, [open, membership.id, membership.memberId, membership.companyId, membership.planId])
+  }, [open, membership.id])
 
   const {
     pending,
@@ -164,7 +130,8 @@ export function MembershipDetailsDialog({
                 )}
               </div>
               <DialogDescription>
-                {isCompany ? "Company" : "Member"} · {snapshot.plan?.name ?? "Plan not in snapshot"}
+                {isCompany ? "Company" : "Member"} ·{" "}
+                {membership.plan?.name || snapshot.plan?.name || "Plan not in snapshot"}
               </DialogDescription>
             </div>
           </div>
@@ -208,34 +175,28 @@ export function MembershipDetailsDialog({
           </Section>
 
           <Section title="Customer">
-            {loading ? (
-              <Skeleton className="h-6 w-40" />
-            ) : isCompany ? (
-              company ? (
-                <Link
-                  href={`/community/companies/${company.id}`}
-                  className="text-sm text-primary hover:underline"
-                >
-                  {company.name}
-                </Link>
-              ) : (
-                <p className="text-sm text-muted-foreground">Could not load</p>
-              )
-            ) : member ? (
+            {membership.company ? (
+              <Link
+                href={`/community/companies/${membership.company.id}`}
+                className="text-sm text-primary hover:underline"
+              >
+                {membership.company.name}
+              </Link>
+            ) : membership.member ? (
               <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span>{member.fullName}</span>
-                {member.email && (
+                <span>{membership.member.fullName}</span>
+                {membership.member.email && (
                   <a
-                    href={`mailto:${member.email}`}
+                    href={`mailto:${membership.member.email}`}
                     className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
                   >
                     <Mail className="h-3 w-3" />
-                    {member.email}
+                    {membership.member.email}
                   </a>
                 )}
               </div>
             ) : (
-              <p className="text-sm text-muted-foreground">Could not load</p>
+              <p className="text-sm text-muted-foreground">—</p>
             )}
           </Section>
 
@@ -245,11 +206,9 @@ export function MembershipDetailsDialog({
           <Section
             title="Plan snapshot"
             aside={
-              loading ? (
-                <Skeleton className="h-4 w-24" />
-              ) : livePlan ? (
+              membership.plan?.name ? (
                 <Link href="/space/plan" className="text-xs text-primary hover:underline">
-                  Catalog: {livePlan.name}
+                  Catalog: {membership.plan.name}
                 </Link>
               ) : undefined
             }
@@ -312,19 +271,26 @@ export function MembershipDetailsDialog({
             </div>
           </Section>
 
-          {pauses && pauses.length > 0 && (
+          {loading ? (
             <Section title="Pauses">
-              <div className="rounded-lg border text-sm">
-                {pauses.map((p) => (
-                  <div key={p.id} className="border-b px-3 py-2 last:border-b-0">
-                    <p>
-                      {formatDate(p.startsAt)} → {p.endsAt ? formatDate(p.endsAt) : "open"}
-                    </p>
-                    {p.reason && <p className="text-xs text-muted-foreground">{p.reason}</p>}
-                  </div>
-                ))}
-              </div>
+              <Skeleton className="h-10 w-full" />
             </Section>
+          ) : (
+            pauses &&
+            pauses.length > 0 && (
+              <Section title="Pauses">
+                <div className="rounded-lg border text-sm">
+                  {pauses.map((p) => (
+                    <div key={p.id} className="border-b px-3 py-2 last:border-b-0">
+                      <p>
+                        {formatDate(p.startsAt)} → {p.endsAt ? formatDate(p.endsAt) : "open"}
+                      </p>
+                      {p.reason && <p className="text-xs text-muted-foreground">{p.reason}</p>}
+                    </div>
+                  ))}
+                </div>
+              </Section>
+            )
           )}
 
           {membership.notes && (

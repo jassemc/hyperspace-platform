@@ -25,7 +25,7 @@ export default async function MembershipsPage({
                     </div>
                 }
             >
-                <SectionCards />
+                <SectionCards searchParams={resolvedSearchParams} />
             </Suspense>
             <Suspense fallback={<TableSkeleton rows={10} columns={7} />}>
                 <MembershipTableSection searchParams={resolvedSearchParams} />
