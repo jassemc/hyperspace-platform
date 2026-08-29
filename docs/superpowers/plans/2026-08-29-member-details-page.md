@@ -62,13 +62,13 @@
 - Consumes: `MemberService.getByIdFor(caller, id): Promise<MemberDto>`; `MembershipService.list(MembershipPageOptionsDto)`; `MembershipStatsService.stats(MembershipStatsOptionsDto)` → `{ byStatus: {status,count}[] }`; `BookingService.list(caller, BookingPageOptionsDto)`; `CheckinService.list(CheckinPageOptionsDto)`; `CreditsService.balances(CreditBalancesQueryDto)` + `.list(CreditPageOptionsDto)`; `ChargesService.list(ChargePageOptionsDto)`; `InvoicesService.list(caller, InvoicePageOptionsDto)`; `PageDto<T>` = `{ results, meta: { totalItems } }`; `Sort` enum from `@common/pagination/constants/sort`; `roundMoney` from `@common/base/money-column.transformer`.
 - Produces: `MemberDetailsDto` (+ `MemberMembershipsSummaryDto`, `MemberBookingsSummaryDto`, `MemberCheckinsSummaryDto`, `MemberCreditsSummaryDto`, `MemberChargesSummaryDto`, `MemberInvoicesSummaryDto`); `MemberOverviewService.getDetailsFor(caller: IUser, id: string): Promise<MemberDetailsDto>`; `InvoicesService.outstandingFor(memberId: string): Promise<number>`.
 
-- [ ] **Step 1: Branch**
+- [x] **Step 1: Branch**
 
 ```bash
 cd hscowork-backend-platform && git checkout -b feat/member-details feat/discounts
 ```
 
-- [ ] **Step 2: DTOs** — `dtos/member-details.dto.ts`
+- [x] **Step 2: DTOs** — `dtos/member-details.dto.ts`
 
 ```typescript
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
@@ -124,7 +124,7 @@ export class MemberDetailsDto extends MemberDto {
 
 (Format with one decorator per line as prettier dictates; the hook does it.)
 
-- [ ] **Step 3: `InvoicesService.outstandingFor`** — write the failing spec first in `invoices.service.spec.ts`:
+- [x] **Step 3: `InvoicesService.outstandingFor`** — write the failing spec first in `invoices.service.spec.ts`:
 
 ```typescript
 describe('outstandingFor', () => {
@@ -156,7 +156,7 @@ async outstandingFor(memberId: string): Promise<number> {
 
 (Confirm the repository field name and the `paid` column name in `invoice.entity.ts` before writing.) Run again → passes.
 
-- [ ] **Step 4: Service + failing spec** — `services/member-overview.service.spec.ts` mocks every domain service (`{ list: jest.fn(), stats: jest.fn(), balances: jest.fn(), outstandingFor: jest.fn(), getByIdFor: jest.fn() }`) and asserts:
+- [x] **Step 4: Service + failing spec** — `services/member-overview.service.spec.ts` mocks every domain service (`{ list: jest.fn(), stats: jest.fn(), balances: jest.fn(), outstandingFor: jest.fn(), getByIdFor: jest.fn() }`) and asserts:
   - `getByIdFor` is called with `(caller, id)` and its 404/403 propagate (mock rejects → `rejects.toThrow`).
   - every `list`/`stats`/`balances` call receives an options object with `memberId: MEMBER_ID`, `limit: 5`, `offset: 0`, and **no** `companyId`/`forCompanyId` key.
   - bookings options: `status: 'confirmed'`, `sort: 'ASC'`, `from` is an ISO string ≤ now + 1s.
@@ -222,7 +222,7 @@ function opts<T>(cls: new () => T, values: Partial<T>): T {
 
 Run `pnpm test -- member-overview` → passes.
 
-- [ ] **Step 5: Docs, controller, module**
+- [x] **Step 5: Docs, controller, module**
 
 `docs/member-overview.doc.ts`: `DocGetMember()` = `Doc({ operationId: 'getMember', summary: 'Get a member with their overview', description: '…staff/admin any member; member-role own record. Blocks list direct holdings only (memberId filter), five newest each.' })`, `DocRequest({ params: [{ name: 'id', type: 'string' }] })`, `DocResponse(MemberDetailsDto)`, `DocErrorResponse(HttpStatus.FORBIDDEN, MEMBER_ACCESS_DENIED)`, `DocErrorResponse(HttpStatus.NOT_FOUND, MEMBER_NOT_FOUND)` — import the two problem constants from `@modules/member/docs/member.doc` (export them there).
 
@@ -234,11 +234,11 @@ Run `pnpm test -- member-overview` → passes.
 
 `app.module.ts`: add `MemberOverviewModule` after `BookingModule`.
 
-- [ ] **Step 6: Verify**
+- [x] **Step 6: Verify**
 
 `pnpm lint:check && pnpm format:check && pnpm type-check && pnpm test` → green. Boot: `pnpm start:dev`; `GET /api/v1/members/<seeded id>` as admin returns the member fields plus six blocks; Swagger `/docs` shows one `getMember` with `MemberDetailsDto`; `GET /api/v1/members/<uuid-not-existing>` → 404 `member_not_found`.
 
-- [ ] **Step 7: DECISIONS + commit**
+- [x] **Step 7: DECISIONS + commit**
 
 Append to `docs/DECISIONS.md` under a new `## 2026-08-29 — Member overview` heading, next number: the route moved into `member-overview` to break the module cycle; direct-only `memberId` filter and why; five-row blocks; no partial payloads.
 
@@ -253,9 +253,9 @@ git commit -m "feat(members): return an overview with GET /members/:id"
 
 **Files (hyperspace-platform):** `swagger.json`, `lib/service/*` (generated; `lib/service/http-client.ts` is never overwritten).
 
-- [ ] **Step 1:** With the backend running locally: `cd hyperspace-platform && npm run generate` (default `HS_SWAGGER_URL=http://localhost:3000/_docs/json`).
-- [ ] **Step 2:** `git diff --stat swagger.json lib/service` — expect `MemberDetailsDto` and the six summary DTOs in `HsService.ts`, `getMember` returning `MemberDetailsDto`. `npx tsc --noEmit` passes (existing callers accept the subtype).
-- [ ] **Step 3:** `git add swagger.json lib/service && git commit -m "chore: regenerate client for the member overview"`.
+- [x] **Step 1:** With the backend running locally: `cd hyperspace-platform && npm run generate` (default `HS_SWAGGER_URL=http://localhost:3000/_docs/json`).
+- [x] **Step 2:** `git diff --stat swagger.json lib/service` — expect `MemberDetailsDto` and the six summary DTOs in `HsService.ts`, `getMember` returning `MemberDetailsDto`. `npx tsc --noEmit` passes (existing callers accept the subtype).
+- [x] **Step 3:** `git add swagger.json lib/service && git commit -m "chore: regenerate client for the member overview"`.
 
 ---
 
@@ -277,7 +277,7 @@ git commit -m "feat(members): return an overview with GET /members/:id"
 **Interfaces:**
 - Produces: `memberPath(id: string, tab?: MemberTab): string`, `MEMBER_TABS`, `type MemberTab`, `<MemberTabs activeTab>`, `<IdentityCard member>`.
 
-- [ ] **Step 1: Route helper**
+- [x] **Step 1: Route helper**
 
 `app/community/members/[id]/member-route.ts`:
 
@@ -314,7 +314,7 @@ export function memberPath(id: string, tab?: MemberTab): string {
 export const MEMBER_ROUTE_PATTERN = "/community/members/[id]"
 ```
 
-- [ ] **Step 2: Tabs component**
+- [x] **Step 2: Tabs component**
 
 `app/community/members/[id]/member-tabs.tsx` — copy `app/community/companies/[id]/company-tabs.tsx` verbatim, then:
 - rename `CompanyTabs` → `MemberTabs`;
@@ -322,7 +322,7 @@ export const MEMBER_ROUTE_PATTERN = "/community/members/[id]"
 - in `onValueChange`, also `params.delete("kind")` and `params.delete("from")`, `params.delete("to")` (credits and bookings own those);
 - `OverviewSkeleton` renders 5 `h-56` skeletons in `md:grid-cols-2 xl:grid-cols-3`.
 
-- [ ] **Step 3: Identity card**
+- [x] **Step 3: Identity card**
 
 `app/community/members/[id]/identity-card.tsx`:
 
@@ -480,7 +480,7 @@ export function IdentityCard({ member }: Readonly<{ member: MemberDto }>) {
 }
 ```
 
-- [ ] **Step 4: Page and loading**
+- [x] **Step 4: Page and loading**
 
 `app/community/members/[id]/page.tsx`:
 
@@ -559,7 +559,7 @@ For this task only, create the six tab files and `overview-tab.tsx` as placehold
 
 `app/community/members/[id]/loading.tsx`: back-button skeleton, then the same grid with a `h-[520px]` skeleton on the left and a `h-10` tab-strip skeleton plus 5 `h-56` card skeletons on the right.
 
-- [ ] **Step 5: Entry links**
+- [x] **Step 5: Entry links**
 
 `app/community/members/columns.tsx` name cell: replace the `<button>` with
 
@@ -588,16 +588,16 @@ with `const router = useRouter()` from `next/navigation`.
 
 Delete `app/community/members/member-details-dialog.tsx`. Run `grep -rn "MemberDetailsDialog" app components` — must be empty.
 
-- [ ] **Step 6: Revalidate the member route on member mutations**
+- [x] **Step 6: Revalidate the member route on member mutations**
 
 `app/community/members/actions.ts` `revalidate()`: add `revalidatePath(MEMBER_ROUTE_PATTERN, "page")` importing from `./[id]/member-route`.
 
-- [ ] **Step 7: Verify**
+- [x] **Step 7: Verify**
 
 Run: `npm run lint && npx tsc --noEmit` → both exit 0.
 Manual: open `/community/members`, click a name → page renders card, tab strip, placeholder body; Edit and Set status work and the card updates after refresh; `/community/members/not-a-real-id` → 404 page; company page → Members tab → name links here.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add app/community/members app/community/companies/[id]/members-columns.tsx
@@ -632,7 +632,7 @@ git commit -m "feat(members): member details route with identity card and tabs"
 **Interfaces:**
 - Produces: every `Add*Button` and form accepts `defaultMemberId?: string`; `AddBookingButton` additionally still needs `lookups` + `timeZone`. `BookingFormDialogProps["prefill"]` gains `memberId?: string`.
 
-- [ ] **Step 1: Membership form**
+- [x] **Step 1: Membership form**
 
 - `MembershipFormDialogProps` += `defaultMemberId?: string`.
 - `useState<CustomerKind>("member")` unchanged; in the open-reset effect: `setCustomerKind(editingMembership?.companyId ? "company" : "member")` stays.
@@ -640,20 +640,20 @@ git commit -m "feat(members): member details route with identity card and tabs"
 - `AddMembershipButton({ defaultMemberId }: Readonly<{ defaultMemberId?: string }>)` forwards it.
 - `actions.ts` `revalidate()` += `revalidatePath(MEMBER_ROUTE_PATTERN, "page")` (import from `@/app/community/members/[id]/member-route`).
 
-- [ ] **Step 2: Booking form**
+- [x] **Step 2: Booking form**
 
 - `BookingCustomerFieldsProps` += `defaultMemberId?: string`; the member `NativeSelect` gets `defaultValue={defaultMemberId ?? ""}`.
 - `BookingFormDialogProps.prefill` += `memberId?: string`; make `resourceId`, `startsAt`, `endsAt` optional (`prefill?: { resourceId?: string; startsAt?: string; endsAt?: string; resourceName?: string; memberId?: string }`) and guard `seedSlot`: only build a slot when `prefill.startsAt && prefill.endsAt`. Pass `defaultMemberId={prefill?.memberId}` to `<BookingCustomerFields>`.
 - `AddBookingButton` += `defaultMemberId?: string`, rendered as `prefill={defaultMemberId ? { memberId: defaultMemberId } : undefined}`.
 - `actions.ts` `revalidate()` += member route.
 
-- [ ] **Step 3: Check-in form**
+- [x] **Step 3: Check-in form**
 
 - `AddCheckinFormProps` += `defaultMemberId?: string`; `<select id="memberId">` gets `defaultValue={defaultMemberId ?? ""}`. Because options load async and a `defaultValue` on an empty select is lost, render it as a controlled select: `const [memberId, setMemberId] = useState(defaultMemberId ?? "")`, `value={memberId} onChange={(e) => setMemberId(e.target.value)}`.
 - `AddCheckinButton` forwards `defaultMemberId`.
 - `actions.ts`: both `revalidatePath("/booking/checkins")` calls followed by `revalidatePath(MEMBER_ROUTE_PATTERN, "page")`.
 
-- [ ] **Step 4: Credit form**
+- [x] **Step 4: Credit form**
 
 Credits are granted to a *membership*, so `defaultMemberId` narrows the membership list:
 - `AddCreditFormProps` += `defaultMemberId?: string`.
@@ -662,22 +662,22 @@ Credits are granted to a *membership*, so `defaultMemberId` narrows the membersh
 - Drawer description when `defaultMemberId` is set: "Only this member's memberships are listed."
 - `AddCreditButton` forwards; `actions.ts` `revalidate()` += member route.
 
-- [ ] **Step 5: Charge form**
+- [x] **Step 5: Charge form**
 
 - `AddChargeFormProps` += `defaultMemberId?: string`; `useState<CustomerKind>("member")` unchanged; the customer `<select id="customerId">` gets `defaultValue={customerKind === "member" ? defaultMemberId ?? "" : ""}` and `key={customerKind}` so switching kind resets it.
 - `AddChargeButton` forwards; `actions.ts` += member route after the two existing `revalidatePath` calls.
 
-- [ ] **Step 6: Invoice form**
+- [x] **Step 6: Invoice form**
 
 - `AddInvoiceFormProps` += `defaultMemberId?: string`; `useState(customerId)` initial value `defaultMemberId ?? ""`; in the `!isOpen` reset branch keep `setCustomerId("")`; in the open branch before fetching options add `setCustomerId(defaultMemberId ?? "")`.
 - `AddInvoiceButton` forwards; `actions.ts` `revalidate()` += member route.
 
-- [ ] **Step 7: Verify**
+- [x] **Step 7: Verify**
 
 Run: `npm run lint && npx tsc --noEmit` → exit 0.
 Manual: on each global page (`/community/memberships`, `/booking/bookings`, `/booking/checkins`, `/billing/credits`, `/billing/charges`, `/billing/invoices`) open the add form — behaviour identical to before (no member preselected, all options listed).
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add app/community/memberships app/booking/bookings app/booking/checkins app/billing/credits app/billing/charges app/billing/invoices
@@ -700,17 +700,17 @@ git commit -m "feat(forms): accept a default member and revalidate the member pa
 - Consumes: `AddMembershipButton({ defaultMemberId })`, `AddBookingButton({ lookups, timeZone, defaultMemberId })`, `bookingLookups()`, `primaryTimeZone()`.
 - Produces: `createColumns({ ..., hideCustomer?: boolean })` in both column files; `MembershipTable` and `BookingTable` accept `hideCustomer?: boolean` and `defaultMemberId?: string` (forwarded to their edit/create dialogs as `defaultMemberId` / `prefill.memberId`).
 
-- [ ] **Step 1: `hideCustomer` in both column factories**
+- [x] **Step 1: `hideCustomer` in both column factories**
 
 In each `createColumns`, build the array then `return hideCustomer ? columns.filter((c) => c.id !== "customer") : columns`. Both files already give the customer column `id: "customer"`.
 
-- [ ] **Step 2: Table props**
+- [x] **Step 2: Table props**
 
 `MembershipTable` += `hideCustomer?: boolean`, `defaultMemberId?: string`, `showStatusTabs?: boolean` (default `true`), `showPlanFilter?: boolean` (default `true`, `filters={showPlanFilter ? filters : []}`). Forward `defaultMemberId` to `<MembershipFormDialog>`.
 
 `BookingTable` += `hideCustomer?: boolean`, `defaultMemberId?: string`, `showFilters?: boolean` (default `true`; when false pass `filters={[]}`). Forward `prefill={defaultMemberId ? { memberId: defaultMemberId } : undefined}` to `<BookingFormDialog>`.
 
-- [ ] **Step 3: Memberships tab**
+- [x] **Step 3: Memberships tab**
 
 ```tsx
 import { getListMemberships, getMembershipStats } from "@/lib/service"
@@ -760,16 +760,16 @@ export async function MembershipsTab({
 }
 ```
 
-- [ ] **Step 4: Bookings tab**
+- [x] **Step 4: Bookings tab**
 
 Same shape. Fetch `getListBookings({ limit, offset, sort: "DESC", q, status, memberId: member.id })` with `status` narrowed via `BOOKING_STATUS_VALUES`, plus `bookingLookups()` and `primaryTimeZone()` in the same `Promise.all`. Header button: `<AddBookingButton lookups={lookups} timeZone={timeZone} defaultMemberId={member.id} />`. Render `<BookingTable data totalCount resources={lookups.resources} members={lookups.members} companies={lookups.companies} timeZone activeStatus hideCustomer showFilters={false} defaultMemberId={member.id} />` (no `stats` → status tab counts are omitted, which `bookingTotals(null)` already tolerates).
 
-- [ ] **Step 5: Verify**
+- [x] **Step 5: Verify**
 
 Run: `npm run lint && npx tsc --noEmit` → exit 0.
 Manual: member with memberships/bookings → tabs list only that member's rows, no Customer column; paging/search work; "Add Membership" and "Add Booking" open with the member preselected and the tab refreshes after create; the global `/community/memberships` and `/booking/bookings` pages look unchanged.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add app/community/members/[id]/memberships-tab.tsx app/community/members/[id]/bookings-tab.tsx app/community/memberships app/booking/bookings
@@ -790,30 +790,30 @@ git commit -m "feat(members): memberships and bookings tabs on the member page"
 - Consumes: `AddCheckinButton`, `AddCreditButton`, `AddChargeButton`, `AddInvoiceButton` (all `{ defaultMemberId }`), `CheckinTable`, `CreditTable`, `ChargeTable`, `InvoiceTable`.
 - Produces: `hideMember?: boolean` on `createColumns`/`CheckinTable`; `hideCustomer?: boolean` on charge and invoice `createColumns`/tables.
 
-- [ ] **Step 1: Column flags** — same filter-by-id technique as Task 3 (`"member"`, `"customer"`, `"billedTo"`), forwarded from each table's props.
+- [x] **Step 1: Column flags** — same filter-by-id technique as Task 3 (`"member"`, `"customer"`, `"billedTo"`), forwarded from each table's props.
 
-- [ ] **Step 2: Check-ins tab**
+- [x] **Step 2: Check-ins tab**
 
 Fetch `getListCheckins({ limit, offset, sort: "DESC", q, memberId: member.id })` and `getListLocations({ limit: 100, offset: 0, sort: "ASC" })` in parallel; build `locationNames`; `memberNames={{ [member.id]: member.fullName }}` (the checkout button needs the name). Header button `<AddCheckinButton defaultMemberId={member.id} />`. Render `<CheckinTable data totalCount memberNames locationNames hideMember />`.
 
-- [ ] **Step 3: Credits tab**
+- [x] **Step 3: Credits tab**
 
 Fetch `getListCredits({ limit, offset, sort: "DESC", q, memberId: member.id, kind })` (`kind` narrowed to `["grant","consumption"]`) and `getListResourceTypes(...)`; header `<AddCreditButton defaultMemberId={member.id} />`; render `<CreditTable data totalCount resourceTypeNames />`. (No member column exists in credits.)
 
-- [ ] **Step 4: Charges tab**
+- [x] **Step 4: Charges tab**
 
 Fetch `getListCharges({ limit, offset, sort: "DESC", q, memberId: member.id, uninvoiced })`; header `<AddChargeButton defaultMemberId={member.id} />`; render `<ChargeTable data totalCount memberNames={{ [member.id]: member.fullName }} hideCustomer />`.
 
-- [ ] **Step 5: Invoices tab**
+- [x] **Step 5: Invoices tab**
 
 Fetch `getListInvoices({ limit, offset, sort: "DESC", q, status, memberId: member.id })` (`status` via `INVOICE_STATUS_VALUES`); header `<AddInvoiceButton defaultMemberId={member.id} />`; render `<InvoiceTable data totalCount memberNames={{ [member.id]: member.fullName }} activeStatus={status} hideCustomer />`.
 
-- [ ] **Step 6: Verify**
+- [x] **Step 6: Verify**
 
 Run: `npm run lint && npx tsc --noEmit` → exit 0.
 Manual: each tab lists only the member's rows; Check out from the check-ins tab refreshes the tab; invoice status tabs filter; each add button opens preselected and the tab reflects the new row after submit; global pages unchanged.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add app/community/members/[id] app/booking/checkins app/billing/credits app/billing/charges app/billing/invoices
@@ -837,7 +837,7 @@ git commit -m "feat(members): check-ins, credits, charges and invoices tabs"
 - Consumes: `MemberDetailsDto` blocks (`memberships {total, active, items}`, `bookings {upcoming, items}`, `checkins {total, onSite, items}`, `credits {balances, recent}`, `charges {total, uninvoiced, items}`, `invoices {total, open, outstandingTtc, items}`), `memberPath`, the add buttons from Task 2, `CheckoutButton({ checkinId, memberName })`, `formatPriceHt`, `formatDate`, `formatDateTime`, `bookingLookups()`, `primaryTimeZone()`.
 - Produces: `<OverviewCard title viewAllHref action headline children>` and the `CardRows/CardRow/CardEmpty` helpers.
 
-- [ ] **Step 1: Card shell** — `overview-card.tsx` exactly as below:
+- [x] **Step 1: Card shell** — `overview-card.tsx` exactly as below:
 
 ```tsx
 import Link from "next/link"
@@ -892,17 +892,17 @@ export function CardEmpty({ children }: Readonly<{ children: ReactNode }>) {
 }
 ```
 
-- [ ] **Step 2: Memberships card** — plain component `({ member }: Readonly<{ member: MemberDetailsDto }>)`. Headline `member.memberships.active` with `<span className="text-sm font-normal text-muted-foreground"> active of {total}</span>`; rows = first 3 of `items` sorted active→pending→paused→ended (rank map `{active:0,pending:1,paused:2,ended:3}`), each `name`, `formatDate(startsAt) → endsAt|open-ended`, status badge via `MEMBERSHIP_STATUS_CLASSES/LABELS`; empty "No memberships yet"; action `<AddMembershipButton defaultMemberId={member.id} />`; `viewAllHref={memberPath(member.id, "memberships")}`.
+- [x] **Step 2: Memberships card** — plain component `({ member }: Readonly<{ member: MemberDetailsDto }>)`. Headline `member.memberships.active` with `<span className="text-sm font-normal text-muted-foreground"> active of {total}</span>`; rows = first 3 of `items` sorted active→pending→paused→ended (rank map `{active:0,pending:1,paused:2,ended:3}`), each `name`, `formatDate(startsAt) → endsAt|open-ended`, status badge via `MEMBERSHIP_STATUS_CLASSES/LABELS`; empty "No memberships yet"; action `<AddMembershipButton defaultMemberId={member.id} />`; `viewAllHref={memberPath(member.id, "memberships")}`.
 
-- [ ] **Step 3: Credits card** — headline = Σ `available` over `member.credits.balances.flatMap((b) => b.balances)`; secondary line lists up to 3 `creditType: available`; rows = `member.credits.recent.slice(0, 3)` (`creditType`, `formatDateTime(occurredAt)`, aside `delta > 0 ? "+" + delta : delta` tabular); empty "No credit activity"; action `<AddCreditButton defaultMemberId={member.id} />`.
+- [x] **Step 3: Credits card** — headline = Σ `available` over `member.credits.balances.flatMap((b) => b.balances)`; secondary line lists up to 3 `creditType: available`; rows = `member.credits.recent.slice(0, 3)` (`creditType`, `formatDateTime(occurredAt)`, aside `delta > 0 ? "+" + delta : delta` tabular); empty "No credit activity"; action `<AddCreditButton defaultMemberId={member.id} />`.
 
-- [ ] **Step 4: Bookings card** — async server component (needs `bookingLookups()` and `primaryTimeZone()` for the add button; wrap in `Suspense` in the tab). Headline `{member.bookings.upcoming} upcoming`; rows = `items.slice(0, 3)` (`title ?? resource.name`, `formatDateTime(startsAt, timeZone)`, status badge from `booking-status.ts`); empty "Nothing booked ahead"; action `<AddBookingButton lookups timeZone defaultMemberId={member.id} />`.
+- [x] **Step 4: Bookings card** — async server component (needs `bookingLookups()` and `primaryTimeZone()` for the add button; wrap in `Suspense` in the tab). Headline `{member.bookings.upcoming} upcoming`; rows = `items.slice(0, 3)` (`title ?? resource.name`, `formatDateTime(startsAt, timeZone)`, status badge from `booking-status.ts`); empty "Nothing booked ahead"; action `<AddBookingButton lookups timeZone defaultMemberId={member.id} />`.
 
-- [ ] **Step 5: Billing card** — headline `formatPriceHt(member.invoices.outstandingTtc)` + " outstanding"; secondary "{invoices.open} open invoices · {charges.uninvoiced} uninvoiced charges"; rows = `invoices.items.slice(0, 3)` (`number ?? "Draft"`, `due formatDate(dueAt)`, aside `formatPriceHt(totalTtc)`); empty "Nothing outstanding"; actions `<AddChargeButton defaultMemberId />` and `<AddInvoiceButton defaultMemberId />`; `viewAllHref` → invoices tab.
+- [x] **Step 5: Billing card** — headline `formatPriceHt(member.invoices.outstandingTtc)` + " outstanding"; secondary "{invoices.open} open invoices · {charges.uninvoiced} uninvoiced charges"; rows = `invoices.items.slice(0, 3)` (`number ?? "Draft"`, `due formatDate(dueAt)`, aside `formatPriceHt(totalTtc)`); empty "Nothing outstanding"; actions `<AddChargeButton defaultMemberId />` and `<AddInvoiceButton defaultMemberId />`; `viewAllHref` → invoices tab.
 
-- [ ] **Step 6: Check-ins card** — `const { onSite, items, total } = member.checkins`. Headline `onSite ? "On site" : items[0] ? \`Last visit ${formatDate(items[0].checkedInAt)}\` : "Never visited"`, secondary `${total} visits`; rows = `items.slice(0, 3)` (`formatDateTime(checkedInAt)`, secondary `checkedOutAt ? "→ " + formatDateTime(checkedOutAt) : "still inside"`); action `onSite ? <CheckoutButton checkinId={onSite.id} memberName={member.fullName} /> : <AddCheckinButton defaultMemberId={member.id} />`.
+- [x] **Step 6: Check-ins card** — `const { onSite, items, total } = member.checkins`. Headline `onSite ? "On site" : items[0] ? \`Last visit ${formatDate(items[0].checkedInAt)}\` : "Never visited"`, secondary `${total} visits`; rows = `items.slice(0, 3)` (`formatDateTime(checkedInAt)`, secondary `checkedOutAt ? "→ " + formatDateTime(checkedOutAt) : "still inside"`); action `onSite ? <CheckoutButton checkinId={onSite.id} memberName={member.fullName} /> : <AddCheckinButton defaultMemberId={member.id} />`.
 
-- [ ] **Step 7: Overview tab**
+- [x] **Step 7: Overview tab**
 
 ```tsx
 import { Suspense } from "react"
@@ -929,11 +929,11 @@ export function OverviewTab({ member }: Readonly<{ member: MemberDetailsDto }>) 
 }
 ```
 
-- [ ] **Step 8: Verify**
+- [x] **Step 8: Verify**
 
 `npm run lint && npx tsc --noEmit` → exit 0. Manual: Overview renders from the one payload (Network tab: only the page request plus the booking lookups); numbers match the tabs; "View all" lands on the right tab; each quick action opens preselected and the page reflects the change after submit; checking in flips the card to "On site" with Check out; a member with no data shows the empty lines.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add app/community/members/[id]
@@ -944,7 +944,7 @@ git commit -m "feat(members): overview cards from the member payload"
 
 ### Task 6: Final pass
 
-- [ ] **Step 1:** `npm run lint && npx tsc --noEmit && npm run build` → all exit 0.
+- [x] **Step 1:** `npm run lint && npx tsc --noEmit && npm run build` → all exit 0.
 - [ ] **Step 2:** Walk spec §7 end to end on a real member (company-attached and solo) and note any deviation in the PR description.
-- [ ] **Step 3:** `grep -rn "MemberDetailsDialog\|onDetails" app/community/members` → only company page references remain.
+- [x] **Step 3:** `grep -rn "MemberDetailsDialog\|onDetails" app/community/members` → only company page references remain.
 - [ ] **Step 4:** Commit any fixups by path, then hand off via `superpowers:finishing-a-development-branch`.
