@@ -158,7 +158,10 @@ export async function onboardLeadAction(
   try {
     const opportunityId = text(formData, "opportunityId")
     const startsAt = text(formData, "startsAt")
-    const codeMode = text(formData, "codeMode")
+    // The form always submits a codeMode when a code was requested (a
+    // hidden field covers the no-request case too); "replace" is only a
+    // fallback for a request that predates that field, or bypasses the form.
+    const codeMode = text(formData, "codeMode") ?? "replace"
 
     if (!opportunityId) return { success: false, error: "Opportunity is required" }
     if (!startsAt) return { success: false, error: "Start date is required" }

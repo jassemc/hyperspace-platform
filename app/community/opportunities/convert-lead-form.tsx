@@ -234,7 +234,12 @@ export function ConvertLeadForm({
                         </label>
                       </div>
                     </div>
-                  ) : null}
+                  ) : (
+                    // No radios rendered, so nothing else would submit a
+                    // codeMode — the action falls back to "replace" without
+                    // this, but the typed code would be silently dropped.
+                    <input type="hidden" name="codeMode" value="replace" />
+                  )}
                   {(codeMode === "replace" || !opportunity.requestedDiscountCode) && (
                     <Input
                       name="discountCodeInput"

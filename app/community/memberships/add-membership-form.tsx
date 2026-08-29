@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/drawer"
 import { X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { getListMembers, getListCompanies, getListPlans, getListDiscounts } from "@/lib/service"
+import { getListMembers, getListCompanies, getListPlans, getListDiscounts, getDiscount } from "@/lib/service"
 import type { CompanyDto, DiscountDto, MemberDto, MembershipDto, PlanDto } from "@/lib/service/HsService"
 import { formatDate, formatEnumLabel, formatPriceHt, formatVatRate } from "@/lib/format"
 import { benefitLabel } from "@/lib/benefits"
@@ -69,7 +69,10 @@ function Term({ label, value }: Readonly<{ label: string; value: React.ReactNode
   )
 }
 
-function SubmitButton({ editingMembership }: Readonly<{ editingMembership?: MembershipDto | null }>) {
+function SubmitButton({
+  editingMembership,
+  disabled,
+}: Readonly<{ editingMembership?: MembershipDto | null; disabled?: boolean }>) {
   const { pending } = useFormStatus()
 
   const getButtonText = () => {
@@ -78,7 +81,7 @@ function SubmitButton({ editingMembership }: Readonly<{ editingMembership?: Memb
   }
 
   return (
-    <Button type="submit" disabled={pending} className="flex-1">
+    <Button type="submit" disabled={pending || disabled} className="flex-1">
       {getButtonText()}
     </Button>
   )
@@ -101,6 +104,11 @@ export function AddMembershipForm({
   const [planId, setPlanId] = useState("")
   const [discounts, setDiscounts] = useState<DiscountDto[]>([])
   const [discountId, setDiscountId] = useState("")
+  // The membership's own discount, fetched by id when it isn't in the
+  // active/eligible list above (archived, expired, or unhooked from the
+  // plan) — without it the seeded discountId has no matching <option>.
+  const [assignedDiscount, setAssignedDiscount] = useState<DiscountDto | null>(null)
+  const [discountsLoading, setDiscountsLoading] = useState(false)
   const [selectedExtraIds, setSelectedExtraIds] = useState<string[]>([])
   const [priceOverride, setPriceOverride] = useState<number | undefined>(undefined)
 
@@ -116,24 +124,45 @@ export function AddMembershipForm({
       setDiscountId(editingMembership?.discountId ?? "")
       setSelectedExtraIds([])
       setPriceOverride(undefined)
+      setAssignedDiscount(null)
     }
   }, [isOpen, editingMembership])
 
   // Discounts are scoped to a plan (or promo window), so the whole active
   // catalog is fetched once per open and filtered client-side against
-  // whichever plan is selected.
+  // whichever plan is selected. An edit's own discount may have fallen out
+  // of that list (archived, expired, or detached from the plan) — it is
+  // fetched separately by id so the select always has a matching option,
+  // and Save stays disabled until both requests have settled.
   useEffect(() => {
     if (!isOpen) return
     let cancelled = false
+    const assignedId = editingMembership?.discountId ?? null
+
+    setDiscountsLoading(true)
     getListDiscounts({ limit: 200, offset: 0, sort: "ASC", status: "active" })
-      .then((page) => {
-        if (!cancelled) setDiscounts((page.results ?? []) as DiscountDto[])
+      .then(async (page) => {
+        if (cancelled) return
+        const list = (page.results ?? []) as DiscountDto[]
+        setDiscounts(list)
+
+        if (assignedId && !list.some((d) => d.id === assignedId)) {
+          try {
+            const discount = await getDiscount(assignedId)
+            if (!cancelled) setAssignedDiscount(discount as DiscountDto)
+          } catch (error) {
+            console.error("Failed to load the assigned discount", error)
+          }
+        }
       })
       .catch((error) => console.error("Failed to load discounts", error))
+      .finally(() => {
+        if (!cancelled) setDiscountsLoading(false)
+      })
     return () => {
       cancelled = true
     }
-  }, [isOpen])
+  }, [isOpen, editingMembership])
 
   // The page-level Add button renders this form with no seed data, so the
   // lookups are fetched here rather than threaded through every caller.
@@ -202,6 +231,16 @@ export function AddMembershipForm({
       (d.kind === "promo" && isInWindow(d))
   )
   const selectedDiscount = eligibleDiscounts.find((d) => d.id === discountId)
+
+  // Edit mode only: the membership's own discount, when it fell out of
+  // `eligibleDiscounts` above — rendered as its own option so the seeded
+  // discountId always has somewhere to land instead of silently resolving
+  // to whatever option a mismatched value happens to fall back to.
+  const assignedDiscountId = editingMembership?.discountId ?? null
+  const assignedFallback =
+    assignedDiscountId && !eligibleDiscounts.some((d) => d.id === assignedDiscountId)
+      ? assignedDiscount
+      : null
 
   // Mirrors the create-only preview below; edit mode never renders it since
   // the plan fee and extras are frozen in the snapshot already.
@@ -416,6 +455,12 @@ export function AddMembershipForm({
                         disabled={!selectedPlan}
                       >
                         <option value="">{selectedPlan ? "No discount" : "Select a plan first"}</option>
+                        {assignedFallback && (
+                          <option key={assignedFallback.id} value={assignedFallback.id}>
+                            {assignedFallback.code} — {formatDiscountValue(assignedFallback)} (no
+                            longer eligible)
+                          </option>
+                        )}
                         {eligibleDiscounts.map((d) => (
                           <option key={d.id} value={d.id}>
                             {d.code} — {formatDiscountValue(d)}
@@ -423,7 +468,7 @@ export function AddMembershipForm({
                           </option>
                         ))}
                       </select>
-                      {selectedPlan && eligibleDiscounts.length === 0 && (
+                      {selectedPlan && eligibleDiscounts.length === 0 && !assignedFallback && (
                         <p className="text-xs text-muted-foreground">
                           No discount is eligible for this plan.
                         </p>
@@ -660,7 +705,12 @@ export function AddMembershipForm({
 
             <DrawerFooter className="shrink-0 border-t pt-4 px-6 pb-6">
               <div className="flex gap-3">
-                <SubmitButton editingMembership={editingMembership} />
+                <SubmitButton
+                  editingMembership={editingMembership}
+                  // A save before this settles could submit a discountId
+                  // with no matching option — see the discount-fetch effect.
+                  disabled={Boolean(editingMembership) && discountsLoading}
+                />
                 <DrawerClose asChild>
                   <Button variant="outline" className="flex-1">
                     Cancel
