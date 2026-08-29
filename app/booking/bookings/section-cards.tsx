@@ -9,6 +9,7 @@ import {
   type SearchParamsInput,
 } from "@/lib/search-params"
 import type { BookingSource } from "@/lib/service/HsService"
+import { weekLabels } from "@/lib/stats"
 import { BOOKING_SOURCE_VALUES } from "./booking-status"
 import { bookingStats, bookingTotals } from "./stats"
 
@@ -47,10 +48,6 @@ export async function SectionCards({
   const totals = bookingTotals(stats)
   const count = (status: string) => totals.countFor(status) ?? 0
 
-  const weekLabels = totals.weeks.map((entry) =>
-    new Date(entry.week).toLocaleDateString(undefined, { day: "numeric", month: "short" })
-  )
-
   return (
     <StatCards
       cards={[
@@ -61,7 +58,7 @@ export async function SectionCards({
           icon: CalendarCheckIcon,
           delta: totals.changeIn("created"),
           series: totals.weeks.map((entry) => entry.created),
-          seriesLabels: weekLabels,
+          seriesLabels: weekLabels(totals.weeks),
           // The calendar scopes itself by date/calendarView, which this
           // total does not read — so in calendar view it must not claim
           // to match the filters shown, only give the true, wider count.
@@ -77,7 +74,7 @@ export async function SectionCards({
           icon: ClockIcon,
           delta: totals.changeIn("starting"),
           series: totals.weeks.map((entry) => entry.starting),
-          seriesLabels: weekLabels,
+          seriesLabels: weekLabels(totals.weeks),
           footer: totals.busiestResource
             ? `Busiest room: ${totals.busiestResource.name} (${totals.busiestResource.count})`
             : "No room booked yet",
@@ -96,7 +93,7 @@ export async function SectionCards({
           badge: "HT",
           icon: CoinsIcon,
           series: totals.weeks.map((entry) => entry.bookedValueHt),
-          seriesLabels: weekLabels,
+          seriesLabels: weekLabels(totals.weeks),
           footer: "Credit-covered bookings count as zero",
         },
       ]}

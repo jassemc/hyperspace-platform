@@ -7,6 +7,7 @@ import type {
 } from "@/lib/service/HsService"
 import { apiNumber } from "@/lib/api-value"
 import { formatPriceHt } from "@/lib/format"
+import { changeIn } from "@/lib/stats"
 
 export const OPPORTUNITY_STAGE_LABELS: Record<OpportunityStage, string> = {
     new: "New",
@@ -149,24 +150,12 @@ export function opportunityTotals(
 
     const weeks = stats?.byWeek ?? []
 
-    /**
-     * Two complete weeks, compared. From nothing to something has no percentage
-     * to report, so it goes unsaid rather than being called 100%.
-     */
-    const changeIn = (key: "created" | "won") => {
-        if (weeks.length < 2) return undefined
-        const previous = weeks[weeks.length - 2][key]
-        const latest = weeks[weeks.length - 1][key]
-        if (previous === 0) return undefined
-        return Math.round(((latest - previous) / previous) * 1000) / 10
-    }
-
     return {
         total,
         won,
         lost,
         weeks,
-        changeIn,
+        changeIn: (key: "created" | "won") => changeIn(weeks, key),
         open: total - won - lost,
         pipelineHt: openRows.reduce((sum, row) => sum + row.expectedValue, 0),
         engaged: lateRows.reduce((sum, row) => sum + row.count, 0),

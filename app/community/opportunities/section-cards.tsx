@@ -2,6 +2,7 @@ import { StatCards } from "@/components/stat-cards"
 import { opportunityTotals } from "./opportunity-meta"
 import { opportunityStats } from "./stats"
 import { formatPriceHt } from "@/lib/format"
+import { weekLabels } from "@/lib/stats"
 import { CoinsIcon, SparklesIcon, TrophyIcon, UsersIcon } from "lucide-react"
 import { OPPORTUNITY_STAGE_LABELS } from "./opportunity-meta"
 
@@ -15,10 +16,6 @@ export async function SectionCards() {
   const stats = await opportunityStats(undefined, undefined, undefined, undefined)
 
   const totals = opportunityTotals(stats)
-
-  const weekLabels = totals.weeks.map((entry) =>
-    new Date(entry.week).toLocaleDateString(undefined, { day: "numeric", month: "short" })
-  )
 
   return (
     <StatCards
@@ -42,7 +39,7 @@ export async function SectionCards() {
           icon: SparklesIcon,
           delta: totals.changeIn("created"),
           series: totals.weeks.map((entry) => entry.created),
-          seriesLabels: weekLabels,
+          seriesLabels: weekLabels(totals.weeks),
           footer: "Opened over the last eight weeks",
         },
         {
@@ -52,7 +49,7 @@ export async function SectionCards() {
           icon: TrophyIcon,
           delta: totals.changeIn("won"),
           series: totals.weeks.map((entry) => entry.won),
-          seriesLabels: weekLabels,
+          seriesLabels: weekLabels(totals.weeks),
           footer:
             totals.winRate === null
               ? "No lead closed yet"

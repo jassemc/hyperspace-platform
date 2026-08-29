@@ -1,6 +1,7 @@
 import { cache } from "react"
 import { getBookingStats } from "@/lib/service"
 import type { BookingSource, BookingStatsDto } from "@/lib/service/HsService"
+import { changeIn } from "@/lib/stats"
 
 /**
  * The tabs and the summary cards both want these counts. Memoised per
@@ -46,21 +47,9 @@ export function bookingTotals(stats: BookingStatsDto | null) {
   const weeks = stats?.byWeek ?? []
   const busiest = (stats?.byResource ?? [])[0]
 
-  /**
-   * Two complete weeks, compared. From nothing to something has no
-   * percentage to report, so it goes unsaid rather than being called 100%.
-   */
-  const changeIn = (key: "created" | "starting") => {
-    if (weeks.length < 2) return undefined
-    const previous = weeks[weeks.length - 2][key]
-    const latest = weeks[weeks.length - 1][key]
-    if (previous === 0) return undefined
-    return Math.round(((latest - previous) / previous) * 1000) / 10
-  }
-
   return {
     weeks,
-    changeIn,
+    changeIn: (key: "created" | "starting") => changeIn(weeks, key),
     countFor: (status: string) => (stats ? (byStatus.get(status) ?? 0) : undefined),
     valueFor: (status: string) => valueByStatus.get(status) ?? 0,
     total: stats?.total,
