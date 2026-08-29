@@ -6,7 +6,7 @@ import { NativeSelect } from "@/components/ui/native-select"
 import { getListResources, getListMembers, getListCompanies, getListDiscounts } from "@/lib/service"
 import type { BookingDiscountDto, CompanyDto, DiscountDto, MemberDto, ResourceDto } from "@/lib/service/HsService"
 import { ExtraTagPicker } from "@/components/extra-tag-picker"
-import { formatDiscountValue, isInWindow } from "@/app/billing/discounts/discount-meta"
+import { discountIneligibilityReason, formatDiscountValue, isInWindow } from "@/app/billing/discounts/discount-meta"
 
 type CustomerKind = "member" | "company"
 
@@ -92,6 +92,14 @@ export function BookingCustomerFields({
   // every room.
   const [discounts, setDiscounts] = useState<DiscountDto[]>([])
   const [discountId, setDiscountId] = useState(initialDiscountId)
+  // The requested code's own record, resolved against the UNFILTERED
+  // catalog — only once it isn't already covered by `eligibleDiscounts`
+  // (see the effect below) — purely to explain why it can't be picked.
+  // "not_found" means the code matches nothing at all; `null` means either
+  // no code was requested or the lookup hasn't settled yet.
+  const [requestedDiscountDetails, setRequestedDiscountDetails] = useState<DiscountDto | "not_found" | null>(
+    null
+  )
 
   // Every caller on the bookings page seeds all three lists from the
   // server (see lookups.ts), so nothing below runs there. The fetches stay
@@ -151,6 +159,34 @@ export function BookingCustomerFields({
       cancelled = true
     }
   }, [])
+
+  // Resolves the visitor-requested code against the FULL catalog (no
+  // kind/status/window filter) so a note can say *why* it can't be picked
+  // — expired, archived, plan-kind, or scoped to other rates — rather than
+  // the select silently offering nothing. Skipped once the code is already
+  // showing as a real option (see `eligibleDiscounts` below): fetching
+  // then would only re-confirm what the select already says. Depends on
+  // primitive strings only, not `eligibleDiscounts` itself — that array is
+  // rebuilt every render, and using it here would refire this on every
+  // render forever; the "already covered" re-check happens again at
+  // render time, right before the note is built.
+  useEffect(() => {
+    setRequestedDiscountDetails(null)
+    if (!requestedDiscountCode || requestedDiscountCode === initialDiscountSnapshot?.code) return
+    let cancelled = false
+    getListDiscounts({ q: requestedDiscountCode, limit: 5, offset: 0, sort: "ASC" })
+      .then((page) => {
+        if (cancelled) return
+        const match = ((page.results ?? []) as DiscountDto[]).find(
+          (discount) => discount.code === requestedDiscountCode
+        )
+        setRequestedDiscountDetails(match ?? "not_found")
+      })
+      .catch((error) => console.error("Failed to resolve the requested discount code", error))
+    return () => {
+      cancelled = true
+    }
+  }, [requestedDiscountCode, initialDiscountSnapshot?.code])
 
   // A discount picked for one room's rates means nothing on another —
   // reset rather than let a stale id ride along, silently narrowed to
@@ -223,6 +259,28 @@ export function BookingCustomerFields({
             : initialDiscountId,
         }
       : null
+
+  // What to tell staff about the visitor's requested code when it is
+  // neither a real option above (`eligibleDiscounts`) nor already what's
+  // applied — the two cases that need no explanation at all. Built at
+  // render time, not inside the resolution effect, so it always reflects
+  // the CURRENT resource/eligibility rather than whatever they were when
+  // the fetch fired.
+  let requestedNote: string | null = null
+  if (
+    requestedDiscountCode &&
+    requestedDiscountCode !== initialDiscountSnapshot?.code &&
+    !eligibleDiscounts.some((discount) => discount.code === requestedDiscountCode)
+  ) {
+    if (requestedDiscountDetails === "not_found") {
+      requestedNote = `Requested code ${requestedDiscountCode} is unknown`
+    } else if (requestedDiscountDetails) {
+      const reason = discountIneligibilityReason(requestedDiscountDetails, resourceRateIds)
+      requestedNote = reason
+        ? `Requested code ${requestedDiscountCode} can't be applied here — ${reason}`
+        : null
+    }
+  }
 
   return (
     <>
@@ -354,20 +412,26 @@ export function BookingCustomerFields({
               {assignedFallback.label}
             </option>
           )}
-          {eligibleDiscounts.map((discount) => (
-            <option key={discount.id} value={discount.id}>
-              {discount.code} — {formatDiscountValue(discount)}
-              {/* The visitor's own request, called out so staff don't have
-                  to remember it — but only while it isn't already what's
-                  applied, which needs no extra flag. */}
-              {requestedDiscountCode &&
-              discount.code === requestedDiscountCode &&
-              discount.id !== initialDiscountId
-                ? " — requested by the visitor"
-                : ""}
-            </option>
-          ))}
+          {eligibleDiscounts.map((discount) => {
+            // The visitor's own request, called out so staff don't have to
+            // remember it — but only while it isn't already what's
+            // applied, which needs no extra flag.
+            const isRequested =
+              requestedDiscountCode === discount.code && discount.id !== initialDiscountId
+            return (
+              <option key={discount.id} value={discount.id}>
+                {discount.code} — {formatDiscountValue(discount)}
+                {isRequested ? " — requested by the visitor" : ""}
+              </option>
+            )
+          })}
         </NativeSelect>
+        {/* The requested code named a discount that either doesn't exist
+            or exists but can't be used here — say which, and why, rather
+            than leaving staff to guess why it isn't in the list above. */}
+        {requestedNote && (
+          <p className="text-xs text-muted-foreground">{requestedNote}</p>
+        )}
         {/* Hidden field the action reads to tell "left untouched" apart
             from "explicitly cleared" — see updateBookingAction. */}
         {disabled && <input type="hidden" name="currentDiscountId" value={initialDiscountId} />}

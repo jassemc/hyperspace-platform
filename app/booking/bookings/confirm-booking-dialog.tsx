@@ -10,7 +10,7 @@ import {
 import { NativeSelect } from "@/components/ui/native-select"
 import { getListDiscounts, getResource } from "@/lib/service"
 import type { BookingDto, BookingFreeReason, DiscountDto } from "@/lib/service/HsService"
-import { formatDiscountValue, isInWindow } from "@/app/billing/discounts/discount-meta"
+import { discountIneligibilityReason, formatDiscountValue, isInWindow } from "@/app/billing/discounts/discount-meta"
 import { FREE_REASON_LABELS } from "./free-reason"
 
 /**
@@ -32,6 +32,17 @@ export function ConfirmBookingDialog({ open, onOpenChange, booking, pending, onC
   const [discounts, setDiscounts] = useState<DiscountDto[]>([])
   const [discountId, setDiscountId] = useState("")
   const [loading, setLoading] = useState(true)
+  // Kept alongside `discounts` (both set by the same fetch below) so the
+  // requested-code note can explain a rate mismatch, not just quote it.
+  const [resourceRateIds, setResourceRateIds] = useState<Set<string>>(new Set())
+  // The requested code's own record, resolved against the UNFILTERED
+  // catalog — only once it isn't already an option in `discounts` — purely
+  // to explain why it can't be picked. "not_found" means the code matches
+  // nothing at all; `null` means no code was requested, or the lookup
+  // hasn't settled yet.
+  const [requestedDiscountDetails, setRequestedDiscountDetails] = useState<DiscountDto | "not_found" | null>(
+    null
+  )
   const label = booking.title || "This booking"
 
   // Fetched once per mount (this dialog is only mounted while open, see
@@ -53,6 +64,7 @@ export function ConfirmBookingDialog({ open, onOpenChange, booking, pending, onC
             (discount.appliesToAll || discount.resourceRateIds.some((id) => rateIds.has(id)))
         )
         setDiscounts(eligible)
+        setResourceRateIds(rateIds)
         // The visitor's requested code only pre-selects when it is still
         // an eligible, resolvable discount for this exact resource — an
         // expired or unrelated code leaves the select on "No discount"
@@ -70,6 +82,49 @@ export function ConfirmBookingDialog({ open, onOpenChange, booking, pending, onC
       cancelled = true
     }
   }, [booking.resourceId, booking.requestedDiscountCode])
+
+  // Resolves the requested code against the FULL catalog (no kind/status/
+  // window filter) so a note can say *why* it can't be picked — expired,
+  // archived, plan-kind, or scoped to other rates — rather than the generic
+  // "no longer applies" the select's own silence used to leave staff with.
+  // Waits on `loading`: `discounts` starts `[]` before the first fetch
+  // settles, and firing this against that placeholder would call it
+  // "unknown" for a code the eligible-list fetch was about to explain fine.
+  useEffect(() => {
+    setRequestedDiscountDetails(null)
+    const code = booking.requestedDiscountCode
+    if (!code || loading || discounts.some((discount) => discount.code === code)) return
+    let cancelled = false
+    getListDiscounts({ q: code, limit: 5, offset: 0, sort: "ASC" })
+      .then((page) => {
+        if (cancelled) return
+        const match = ((page.results ?? []) as DiscountDto[]).find((discount) => discount.code === code)
+        setRequestedDiscountDetails(match ?? "not_found")
+      })
+      .catch((error) => console.error("Failed to resolve the requested discount code", error))
+    return () => {
+      cancelled = true
+    }
+  }, [booking.requestedDiscountCode, discounts, loading])
+
+  // What to tell staff about the requested code when it is neither a real
+  // option above nor resolvable at all — built at render time so it always
+  // reflects the current `discounts`/`resourceRateIds`, not whatever they
+  // were when the resolution fetch fired.
+  let requestedNote: string | null = null
+  if (
+    booking.requestedDiscountCode &&
+    !discounts.some((discount) => discount.code === booking.requestedDiscountCode)
+  ) {
+    if (requestedDiscountDetails === "not_found") {
+      requestedNote = `Requested code ${booking.requestedDiscountCode} is unknown`
+    } else if (requestedDiscountDetails) {
+      const ineligibleReason = discountIneligibilityReason(requestedDiscountDetails, resourceRateIds)
+      requestedNote = ineligibleReason
+        ? `Requested code ${booking.requestedDiscountCode} can't be applied here — ${ineligibleReason}`
+        : null
+    }
+  }
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -104,17 +159,22 @@ export function ConfirmBookingDialog({ open, onOpenChange, booking, pending, onC
               disabled={loading}
             >
               <option value="">No discount</option>
-              {discounts.map((discount) => (
-                <option key={discount.id} value={discount.id}>
-                  {discount.code} — {formatDiscountValue(discount)}
-                  {discount.code === booking.requestedDiscountCode ? " — requested by the visitor" : ""}
-                </option>
-              ))}
+              {discounts.map((discount) => {
+                const isRequested = discount.code === booking.requestedDiscountCode
+                return (
+                  <option key={discount.id} value={discount.id}>
+                    {discount.code} — {formatDiscountValue(discount)}
+                    {isRequested ? " — requested by the visitor" : ""}
+                  </option>
+                )
+              })}
             </NativeSelect>
-            {booking.requestedDiscountCode && !discounts.some((d) => d.code === booking.requestedDiscountCode) && !loading && (
-              <p className="text-xs text-muted-foreground">
-                The visitor requested <code className="rounded bg-muted px-1">{booking.requestedDiscountCode}</code>, but it no longer applies to this resource.
-              </p>
+            {/* The requested code named a discount that either doesn't
+                exist or exists but can't be used here — say which, and
+                why, rather than leaving staff to guess why it isn't in the
+                list above. */}
+            {!loading && requestedNote && (
+              <p className="text-xs text-muted-foreground">{requestedNote}</p>
             )}
           </div>
         )}

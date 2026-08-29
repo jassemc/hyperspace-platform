@@ -24,3 +24,24 @@ export function isInWindow(
 ): boolean {
   return (!d.validFrom || d.validFrom <= today) && (!d.validUntil || d.validUntil >= today)
 }
+
+/**
+ * Why a discount resolved by code cannot be picked at a booking, or null
+ * once it turns out fine after all (the eligible list a caller already
+ * fetched just hadn't caught up yet). Checked in this order because a
+ * later reason can be true of a discount for which an earlier one is the
+ * actual, more useful explanation — an archived resource-rate discount
+ * outside its own window is still first and foremost archived.
+ */
+export function discountIneligibilityReason(
+  d: Pick<DiscountDto, "status" | "kind" | "appliesToAll" | "resourceRateIds" | "validFrom" | "validUntil">,
+  resourceRateIds: ReadonlySet<string>
+): string | null {
+  if (d.status === "archived") return "archived"
+  if (d.kind !== "resource_rate") return "not a rate discount"
+  if (!isInWindow(d)) return "expired or not yet valid"
+  if (!d.appliesToAll && !d.resourceRateIds.some((id) => resourceRateIds.has(id))) {
+    return "doesn't cover this room's rates"
+  }
+  return null
+}
