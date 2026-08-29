@@ -30,6 +30,7 @@ import {
   formatTimeOfDay,
   formatVatRate,
 } from "@/lib/format"
+import { formatDiscountValue } from "@/app/billing/discounts/discount-meta"
 import { getIconFromFontAwesome } from "@/lib/icon-utils"
 import { getBookingDetailsAction, type BookingDetails } from "./actions"
 import { CancelBookingAlert } from "./cancel-booking-alert"
@@ -388,16 +389,36 @@ export function BookingDetailsDialog({
                 </div>
               ) : (
                 <>
-                  <div className="flex justify-between px-3 py-2">
+                  {booking.status === "pending" && booking.requestedDiscountCode && (
+                    <div className="flex justify-between px-3 py-2">
+                      <dt className="text-muted-foreground">Requested code</dt>
+                      <dd className="flex items-center gap-2">
+                        <code className="rounded bg-muted px-1">{booking.requestedDiscountCode}</code>
+                        <Badge variant="outline" className="font-normal text-muted-foreground">
+                          awaiting confirmation
+                        </Badge>
+                      </dd>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t px-3 py-2 first:border-t-0">
                     <dt className="text-muted-foreground">Room (HT)</dt>
                     <dd className="tabular-nums">
                       {creditCovered ? "Covered by credits" : formatPriceHt(booking.priceHt)}
                     </dd>
                   </div>
+                  {booking.discount && (
+                    <div className="flex justify-between border-t px-3 py-2">
+                      <dt className="text-muted-foreground">Discount ({booking.discount.code})</dt>
+                      <dd className="tabular-nums">{formatDiscountValue(booking.discount)}</dd>
+                    </div>
+                  )}
                   <div className="flex justify-between border-t px-3 py-2">
                     <dt className="text-muted-foreground">Extras (HT)</dt>
                     <dd className="tabular-nums">{formatPriceHt(extrasHt)}</dd>
                   </div>
+                  {/* booking.priceHt is already net of any discount (the API
+                      applies it once, server-side, at confirm), so totalHt
+                      below must not subtract the discount a second time. */}
                   <div className="flex justify-between border-t bg-muted/40 px-3 py-2 font-semibold">
                     <dt>Total HT</dt>
                     <dd className="tabular-nums">{formatPriceHt(totalHt)}</dd>

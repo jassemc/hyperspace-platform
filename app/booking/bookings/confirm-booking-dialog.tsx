@@ -23,10 +23,11 @@ export function ConfirmBookingDialog({ open, onOpenChange, booking, pending, onC
   booking: BookingDto
   pending: boolean
   partnerTagged: boolean
-  onConfirm: (opts: { isFree: boolean; freeReason?: BookingFreeReason }) => void
+  onConfirm: (opts: { isFree: boolean; freeReason?: BookingFreeReason; discountCode?: string | null }) => void
 }>) {
   const [isFree, setIsFree] = useState(partnerTagged)
   const [reason, setReason] = useState<BookingFreeReason>("partnership")
+  const [keepDiscountCode, setKeepDiscountCode] = useState(true)
   const label = booking.title || "This booking"
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -51,9 +52,35 @@ export function ConfirmBookingDialog({ open, onOpenChange, booking, pending, onC
             </NativeSelect>
           </div>
         )}
+        {booking.requestedDiscountCode && (
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={keepDiscountCode}
+              onChange={(e) => setKeepDiscountCode(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-input"
+            />
+            <span>
+              Apply the requested code <code className="rounded bg-muted px-1">{booking.requestedDiscountCode}</code>
+              <span className="block text-xs text-muted-foreground">Unchecked = confirm at the list price. Unknown or expired codes are refused.</span>
+            </span>
+          </label>
+        )}
         <AlertDialogFooter>
           <AlertDialogCancel disabled={pending}>Not yet</AlertDialogCancel>
-          <Button disabled={pending} onClick={() => onConfirm(isFree ? { isFree, freeReason: reason } : { isFree: false })}>
+          <Button
+            disabled={pending}
+            onClick={() =>
+              onConfirm({
+                ...(isFree ? { isFree, freeReason: reason } : { isFree: false }),
+                // Only meaningful when a code was actually requested — leave
+                // it undefined otherwise so nothing gets sent to drop.
+                ...(booking.requestedDiscountCode
+                  ? { discountCode: keepDiscountCode ? booking.requestedDiscountCode : null }
+                  : {}),
+              })
+            }
+          >
             {pending ? "Confirming..." : isFree ? "Confirm as free" : "Confirm"}
           </Button>
         </AlertDialogFooter>

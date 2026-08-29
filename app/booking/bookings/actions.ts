@@ -222,7 +222,15 @@ export async function confirmBookingAction(
     const isFree = formData.get("isFree") === "on"
     const freeReason = text(formData, "freeReason")
     if (isFree && !freeReason) return { success: false, error: "Pick a reason for the free booking" }
-    await confirmBooking(id, isFree ? { isFree, freeReason: freeReason as ConfirmBookingDto["freeReason"] } : {})
+    // Absent field = no requested code, nothing to send. Present but empty =
+    // staff unticked "apply the requested code", so the API must drop it —
+    // that has to reach the body as an explicit `null`, not a missing key.
+    const discountCodeField = formData.get("discountCode")
+    const discountCode = typeof discountCodeField === "string" ? discountCodeField.trim() || null : undefined
+    await confirmBooking(id, {
+      ...(isFree ? { isFree, freeReason: freeReason as ConfirmBookingDto["freeReason"] } : {}),
+      ...(discountCode !== undefined ? { discountCode } : {}),
+    })
     revalidate()
     return { success: true }
   } catch (error) {

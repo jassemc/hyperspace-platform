@@ -80,9 +80,13 @@ export function useBookingMutations(booking: BookingDto) {
     canMarkNoShow: noShowHint === null,
     /** Set only when `canMarkNoShow` is false; suitable as a tooltip. */
     noShowHint: noShowHint ?? undefined,
-    confirm: (opts: { isFree: boolean; freeReason?: BookingFreeReason } = { isFree: false }) =>
-      run("confirm", confirmBookingAction, opts.isFree ? "confirmed as free" : "confirmed", "Failed to confirm",
-        opts.isFree ? { isFree: "on", freeReason: opts.freeReason ?? "" } : {}),
+    confirm: (opts: { isFree: boolean; freeReason?: BookingFreeReason; discountCode?: string | null } = { isFree: false }) =>
+      run("confirm", confirmBookingAction, opts.isFree ? "confirmed as free" : "confirmed", "Failed to confirm", {
+        ...(opts.isFree ? { isFree: "on", freeReason: opts.freeReason ?? "" } : {}),
+        // "" reaches the action as an explicit drop; the key is omitted
+        // entirely when there was no requested code to begin with.
+        ...(opts.discountCode !== undefined ? { discountCode: opts.discountCode ?? "" } : {}),
+      }),
     cancel: () => run("cancel", cancelBookingAction, "cancelled", "Failed to cancel"),
     markNoShow: () =>
       run("no_show", markNoShowAction, "marked as a no-show", "Failed to mark as no-show"),
