@@ -3739,6 +3739,18 @@ export interface ListMembersParams {
    * candidate's status first and pages the matches, so totals stay true.
    */
   status?: MemberStatus;
+  /**
+   * Instants, not dates — same rule as opportunities: the server has no
+   * timezone in which to decide what "a day" is for a member, so the
+   * client turns the day it means into a pair of instants.
+   * @example "2026-08-01T00:00:00Z"
+   */
+  createdFrom?: string;
+  /**
+   * Exclusive upper bound.
+   * @example "2026-08-08T00:00:00Z"
+   */
+  createdTo?: string;
   /** The search term to filter results. */
   q?: string;
 }
@@ -3749,6 +3761,18 @@ export interface MemberStatsParams {
   companyId?: string;
   /** Matches fullName, email or phone. */
   q?: string;
+  /**
+   * Instants, not dates — same rule as opportunities: the server has no
+   * timezone in which to decide what "a day" is for a member, so the
+   * client turns the day it means into a pair of instants.
+   * @example "2026-08-01T00:00:00Z"
+   */
+  createdFrom?: string;
+  /**
+   * Exclusive upper bound.
+   * @example "2026-08-08T00:00:00Z"
+   */
+  createdTo?: string;
 }
 
 export interface ListResourceTypesParams {
@@ -4674,7 +4698,7 @@ export namespace Api {
   }
 
   /**
- * @description Paginated list. `q` fuzzy-matches name/email/phone; `email` is exact-match; filter by `kindHint` and `companyId`. The `status` field on each result is derived on read, never stored: a manual `statusOverride` pin (set via PUT /members/:id/status) wins, otherwise it derives from memberships, then one-off charges, then open opportunities, then `kindHint`. `status` can also be used as a filter — since it is derived rather than a column, matching candidates are resolved before paging, so `totalItems` is always the exact count of matches, never a post-page approximation.
+ * @description Paginated list. `q` fuzzy-matches name/email/phone; `email` is exact-match; filter by `kindHint`, `companyId` and creation time with `createdFrom`/`createdTo` (ISO instants, upper bound exclusive). The `status` field on each result is derived on read, never stored: a manual `statusOverride` pin (set via PUT /members/:id/status) wins, otherwise it derives from memberships, then one-off charges, then open opportunities, then `kindHint`. `status` can also be used as a filter — since it is derived rather than a column, matching candidates are resolved before paging, so `totalItems` is always the exact count of matches, never a post-page approximation.
  * @tags Members
  * @name ListMembers
  * @summary List members
@@ -4719,6 +4743,18 @@ export namespace Api {
        * candidate's status first and pages the matches, so totals stay true.
        */
       status?: MemberStatus;
+      /**
+       * Instants, not dates — same rule as opportunities: the server has no
+       * timezone in which to decide what "a day" is for a member, so the
+       * client turns the day it means into a pair of instants.
+       * @example "2026-08-01T00:00:00Z"
+       */
+      createdFrom?: string;
+      /**
+       * Exclusive upper bound.
+       * @example "2026-08-08T00:00:00Z"
+       */
+      createdTo?: string;
       /** The search term to filter results. */
       q?: string;
     };
@@ -4755,7 +4791,7 @@ export namespace Api {
   }
 
   /**
-   * @description Counts by derived status, kind hint and employer, plus an eight-week creation trend. Accepts the list filters minus status and pagination.
+   * @description Counts by derived status, kind hint and employer, plus an eight-week creation trend. Accepts the list filters minus `status`, `email` and pagination, including `createdFrom`/`createdTo` (ISO instants, upper bound exclusive) so the cards match the rows on screen.
    * @tags Members
    * @name MemberStats
    * @summary Member statistics
@@ -4777,6 +4813,18 @@ export namespace Api {
       companyId?: string;
       /** Matches fullName, email or phone. */
       q?: string;
+      /**
+       * Instants, not dates — same rule as opportunities: the server has no
+       * timezone in which to decide what "a day" is for a member, so the
+       * client turns the day it means into a pair of instants.
+       * @example "2026-08-01T00:00:00Z"
+       */
+      createdFrom?: string;
+      /**
+       * Exclusive upper bound.
+       * @example "2026-08-08T00:00:00Z"
+       */
+      createdTo?: string;
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
@@ -8707,7 +8755,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
- * @description Paginated list. `q` fuzzy-matches name/email/phone; `email` is exact-match; filter by `kindHint` and `companyId`. The `status` field on each result is derived on read, never stored: a manual `statusOverride` pin (set via PUT /members/:id/status) wins, otherwise it derives from memberships, then one-off charges, then open opportunities, then `kindHint`. `status` can also be used as a filter — since it is derived rather than a column, matching candidates are resolved before paging, so `totalItems` is always the exact count of matches, never a post-page approximation.
+ * @description Paginated list. `q` fuzzy-matches name/email/phone; `email` is exact-match; filter by `kindHint`, `companyId` and creation time with `createdFrom`/`createdTo` (ISO instants, upper bound exclusive). The `status` field on each result is derived on read, never stored: a manual `statusOverride` pin (set via PUT /members/:id/status) wins, otherwise it derives from memberships, then one-off charges, then open opportunities, then `kindHint`. `status` can also be used as a filter — since it is derived rather than a column, matching candidates are resolved before paging, so `totalItems` is always the exact count of matches, never a post-page approximation.
  *
  * @tags Members
  * @name ListMembers
@@ -8771,7 +8819,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Counts by derived status, kind hint and employer, plus an eight-week creation trend. Accepts the list filters minus status and pagination.
+     * @description Counts by derived status, kind hint and employer, plus an eight-week creation trend. Accepts the list filters minus `status`, `email` and pagination, including `createdFrom`/`createdTo` (ISO instants, upper bound exclusive) so the cards match the rows on screen.
      *
      * @tags Members
      * @name MemberStats
