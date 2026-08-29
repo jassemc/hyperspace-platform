@@ -1,12 +1,13 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { DataTable } from "@/components/data-table"
-import { MemberDetailsDialog } from "@/app/community/members/member-details-dialog"
 import { MemberFormDialog } from "@/app/community/members/member-form-dialog"
 import type { MemberDto } from "@/lib/service/HsService"
 import { createMemberColumns } from "./members-columns"
 import { ReassignMemberDialog } from "./reassign-member-dialog"
+import { memberPath } from "@/app/community/members/[id]/member-route"
 
 interface CompanyMembersTableProps {
   data: MemberDto[]
@@ -19,9 +20,9 @@ export function CompanyMembersTable({
   totalCount,
   companyId,
 }: Readonly<CompanyMembersTableProps>) {
+  const router = useRouter()
   const [editingMember, setEditingMember] = useState<MemberDto | null>(null)
   const [isFormOpen, setIsFormOpen] = useState(false)
-  const [detailsMember, setDetailsMember] = useState<MemberDto | null>(null)
   const [reassign, setReassign] = useState<{ member: MemberDto; detach: boolean } | null>(null)
 
   const handleEdit = (member: MemberDto) => {
@@ -34,17 +35,11 @@ export function CompanyMembersTable({
     setEditingMember(null)
   }
 
-  // Handing over from the details dialog: it closes first, so the two are
-  // never stacked, and only reopens if the caller goes back to it.
-  const handOff = (run: (member: MemberDto) => void) => {
-    const member = detailsMember
-    if (!member) return
-    setDetailsMember(null)
-    run(member)
-  }
 
   const columns = createMemberColumns({
-    onDetails: setDetailsMember,
+    // Details is the member's own page now; the company page keeps only
+    // what is about the employment (edit, move, detach).
+    onDetails: (member) => router.push(memberPath(member.id)),
     onEdit: handleEdit,
     onReassign: (member) => setReassign({ member, detach: false }),
     onDetach: (member) => setReassign({ member, detach: true }),
@@ -63,17 +58,6 @@ export function CompanyMembersTable({
           isOpen
           onClose={handleClose}
           editingMember={editingMember}
-        />
-      )}
-      {detailsMember && (
-        <MemberDetailsDialog
-          key={detailsMember.id}
-          member={detailsMember}
-          open
-          onOpenChange={(next) => {
-            if (!next) setDetailsMember(null)
-          }}
-          onEdit={() => handOff(handleEdit)}
         />
       )}
       {reassign && (

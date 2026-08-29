@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
@@ -13,10 +14,10 @@ import { Edit, Eye, Loader2, MoreHorizontal, UserCog } from "lucide-react"
 import type { MemberDto } from "@/lib/service/HsService"
 import { StatusDialog } from "./status-dialog"
 import { useMemberMutations } from "./use-member-mutations"
+import { memberPath } from "./[id]/member-route"
 
 interface MemberRowActionsProps {
   member: MemberDto
-  onDetails: (member: MemberDto) => void
   onEdit: (member: MemberDto) => void
 }
 
@@ -26,7 +27,8 @@ interface MemberRowActionsProps {
  * menu unmounts its content on close and would take an inline dialog down
  * with it.
  */
-export function MemberRowActions({ member, onDetails, onEdit }: Readonly<MemberRowActionsProps>) {
+export function MemberRowActions({ member, onEdit }: Readonly<MemberRowActionsProps>) {
+  const router = useRouter()
   const { label, pending, setStatus } = useMemberMutations(member)
   const [statusOpen, setStatusOpen] = useState(false)
 
@@ -43,7 +45,7 @@ export function MemberRowActions({ member, onDetails, onEdit }: Readonly<MemberR
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => onDetails(member)}>
+          <DropdownMenuItem onSelect={() => router.push(memberPath(member.id))}>
             <Eye />
             Details
           </DropdownMenuItem>

@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { MemberDto, MemberStatus } from "@/lib/service/HsService"
@@ -8,6 +9,7 @@ import { ArrowUpDown } from "lucide-react"
 import { formatDate, formatEnumLabel } from "@/lib/format"
 import { MEMBER_STATUS_CLASSES, MEMBER_STATUS_LABELS } from "@/app/community/members/member-status"
 import { CompanyMemberRowActions } from "./company-member-row-actions"
+import { memberPath } from "@/app/community/members/[id]/member-route"
 
 interface ColumnsProps {
   onDetails: (member: MemberDto) => void
@@ -33,6 +35,11 @@ export const createMemberColumns = ({
         Name
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
+    ),
+    cell: ({ row }) => (
+      <Link href={memberPath(row.original.id)} className="font-medium hover:underline">
+        {row.original.fullName}
+      </Link>
     ),
   },
   {

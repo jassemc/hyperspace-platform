@@ -1,14 +1,15 @@
 "use client"
 
+import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import type { MemberDto, MemberStatus } from "@/lib/service/HsService"
 import type { ColumnDef } from "@tanstack/react-table"
 import { formatDate, formatEnumLabel } from "@/lib/format"
 import { MEMBER_STATUS_CLASSES, MEMBER_STATUS_LABELS } from "./member-status"
 import { MemberRowActions } from "./member-row-actions"
+import { memberPath } from "./[id]/member-route"
 
 interface ColumnsProps {
-  onDetails: (member: MemberDto) => void
   onEdit: (member: MemberDto) => void
 }
 
@@ -19,7 +20,7 @@ interface ColumnsProps {
  * company is named once, in its own column. Kind is not a column: it is
  * the inline filter, and the derived status already says more.
  */
-export const createColumns = ({ onDetails, onEdit }: ColumnsProps): ColumnDef<MemberDto>[] => [
+export const createColumns = ({ onEdit }: ColumnsProps): ColumnDef<MemberDto>[] => [
   {
     id: "name",
     accessorKey: "fullName",
@@ -28,15 +29,14 @@ export const createColumns = ({ onDetails, onEdit }: ColumnsProps): ColumnDef<Me
       const member = row.original
       return (
         <div className="flex flex-col">
-          {/* The name opens the details — the row's most common action,
+          {/* The name opens the member page — the row's most common action,
               one click instead of a trip through the "⋯" menu. */}
-          <button
-            type="button"
-            onClick={() => onDetails(member)}
-            className="rounded-sm text-left font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          <Link
+            href={memberPath(member.id)}
+            className="rounded-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {member.fullName}
-          </button>
+          </Link>
           {member.segment && (
             <span className="text-xs capitalize text-muted-foreground">
               {formatEnumLabel(member.segment)}
@@ -131,7 +131,7 @@ export const createColumns = ({ onDetails, onEdit }: ColumnsProps): ColumnDef<Me
     id: "actions",
     header: "Actions",
     cell: ({ row }) => (
-      <MemberRowActions member={row.original} onDetails={onDetails} onEdit={onEdit} />
+      <MemberRowActions member={row.original} onEdit={onEdit} />
     ),
   },
 ]
