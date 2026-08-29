@@ -1158,6 +1158,11 @@ export interface DiscountDto {
    */
   appliesToAll: boolean;
   /**
+   * "Show on the website" — only kind = plan may be true.
+   * @example false
+   */
+  isPublic: boolean;
+  /**
    * The date of creation of the resource
    * @format date-time
    * @example "2025-05-25T10:03:33.169Z"
@@ -1520,6 +1525,15 @@ export interface CreateDiscountDto {
    * @example false
    */
   appliesToAll?: boolean;
+  /**
+   * "Show on the website" (amendment 2026-08-29) — a marketing offer for
+   * the landing/pricing pages and the public booking page. Only kind =
+   * plan may be public (422 discount_targets_invalid otherwise).
+   * Defaults false.
+   * @default false
+   * @example false
+   */
+  isPublic?: boolean;
 }
 
 export interface UpdateDiscountDto {
@@ -1541,6 +1555,15 @@ export interface UpdateDiscountDto {
    * @example false
    */
   appliesToAll?: boolean;
+  /**
+   * "Show on the website" (amendment 2026-08-29) — a marketing offer for
+   * the landing/pricing pages and the public booking page. Only kind =
+   * plan may be public (422 discount_targets_invalid otherwise).
+   * Defaults false.
+   * @default false
+   * @example false
+   */
+  isPublic?: boolean;
   /** @example 10 */
   percentOff?: number | null;
   /** @example 15 */
@@ -2741,15 +2764,19 @@ export interface UpdateBookingDto {
   status?: "no_show";
   /**
    * Change the booking's discount (docs/superpowers/plans/2026-08-29-
-   * booking-patch-discount.md). Omitted = unchanged; `null` = remove the
+   * booking-discount-select.md). Omitted = unchanged; `null` = remove the
    * discount; an id resolves the same way as create's `discountId` (404
    * `discount_not_found` for an unknown id, 422 `discount_not_eligible`
    * for one that is not an active, in-window, kind=resource_rate discount
    * or does not apply to this booking's rate). A CONFIRMED booking's
    * money is reversed and re-applied with the new discount, exactly like
    * an `extraIds` change; a PENDING booking has no money yet, so only its
-   * stored snapshot is replaced — confirm() prices it, and confirm's own
-   * `discountId`/`discountCode` still override whatever was set here.
+   * stored snapshot is replaced — confirm() prices and re-validates it
+   * then. Precedence at confirm (fix round 1, review of f443da4):
+   * `ConfirmBookingDto.discountId`/`discountCode`, when SENT, always
+   * override whatever was set here; confirm called with an EMPTY body
+   * (the common case — a website confirm never sends either field) falls
+   * back to this PATCHed snapshot instead of dropping it.
    * @format uuid
    */
   discountId?: string | null;
@@ -2779,14 +2806,22 @@ export interface ConfirmBookingDto {
   freeReason?: BookingFreeReason;
   /**
    * Staff-picked discount (docs/superpowers/plans/2026-08-29-booking-
-   * discount-select.md): must resolve to an active, in-window,
-   * kind=resource_rate discount, else 404 discount_not_found (unknown id)
-   * or 422 discount_not_eligible (wrong kind/archived/out of window, or
-   * one that does not target this booking's winning rate). Also accepted
-   * by POST /bookings/validate (same DTO).
+   * discount-select.md): resolves the same 404/422 way as create's
+   * discountId. Precedence at confirm (fix round 1, review of f443da4):
+   * an explicit id here always wins over `discountCode`; explicit `null`
+   * drops any discount outright; OMITTING both fields falls back to
+   * whatever was already set on the booking via
+   * `PATCH /bookings/:id { discountId }` while it was still PENDING
+   * (docs/superpowers/plans/2026-08-29-booking-discount-select.md's
+   * PATCH extension) — a website confirm with an empty body is the
+   * common case, and that PATCHed discount must not silently vanish. The
+   * fallback is re-validated here exactly like an explicit id (422
+   * discount_not_eligible if the live rate no longer matches or the
+   * booking is now fully credit-covered), never re-resolved from the
+   * database — the snapshot IS the discount.
    * @format uuid
    */
-  discountId?: string;
+  discountId?: string | null;
   /**
    * Discount code to apply (spec §5.4): send the requested code to KEEP it,
    * another code to replace it, null/omit to DROP it. Only an active,
@@ -3212,6 +3247,29 @@ export interface PublicPlanExtraDto {
   amenityIcon?: string | null;
 }
 
+export interface PublicOfferDto {
+  /** @example "SUMMER26" */
+  code: string;
+  /** @example "Summer 2026" */
+  name: string;
+  /** @example 25 */
+  percentOff?: number | null;
+  /** @example null */
+  amountOffHt?: number | null;
+  /** @example "2026-12-31" */
+  validUntil?: string | null;
+  /**
+   * priceHt + the (negative) plan-fee reduction, rounded to millimes.
+   * @example 90
+   */
+  discountedPriceHt: number;
+  /**
+   * discountedPriceHt × (1 + the plan's VAT rate).
+   * @example 107.1
+   */
+  discountedPriceTtc: number;
+}
+
 export interface PublicPlanDto {
   /**
    * Unique identifier
@@ -3256,6 +3314,8 @@ export interface PublicPlanDto {
   benefits: Array<PublicPlanBenefitDto>;
   /** Paid add-ons offered with this plan. */
   extras: Array<PublicPlanExtraDto>;
+  /** The single best public offer on this plan, or null. */
+  offer?: PublicOfferDto | null;
   /**
    * The date of creation of the resource
    * @format date-time
@@ -3339,6 +3399,8 @@ export interface PublicTargetPlanDto {
    * @example 285.6
    */
   priceTtc: number;
+  /** The single best public offer on this plan, or null. */
+  offer?: PublicOfferDto | null;
 }
 
 export interface PublicResourceDto {
@@ -7684,7 +7746,7 @@ export namespace Api {
   }
 
   /**
-   * @description Active, non-hidden plans, cheapest first. Filter by ?category=<slug> for one service section (see GET /public/plan-categories). Server-to-server only.
+   * @description Active, non-hidden plans, cheapest first. Filter by ?category=<slug> for one service section (see GET /public/plan-categories). Each plan carries `offer`: the single best public, active, in-window discount targeting it, server-priced (discountedPriceHt/Ttc) — null when none applies. Server-to-server only.
    * @tags Public (website)
    * @name PublicListPlans
    * @summary Plans for the website pricing page
@@ -7774,7 +7836,7 @@ export namespace Api {
   }
 
   /**
-   * @description Active, visible, sellable spaces: bookable ones carry rates, plan-sold ones carry their target plans (cheapest first), pool parents carry live seat counts; every card has a derived status badge. Filter by ?resourceType=<slug> for one catalog tab, and/or ?planCode=<code> for the spaces sold under one plan. Server-to-server only.
+   * @description Active, visible, sellable spaces: bookable ones carry rates, plan-sold ones carry their target plans (cheapest first, each with its own `offer` — see GET /public/plans), pool parents carry live seat counts; every card has a derived status badge. Filter by ?resourceType=<slug> for one catalog tab, and/or ?planCode=<code> for the spaces sold under one plan. Server-to-server only.
    * @tags Public (website)
    * @name PublicListResources
    * @summary Space catalog for the website
@@ -11378,7 +11440,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Active, non-hidden plans, cheapest first. Filter by ?category=<slug> for one service section (see GET /public/plan-categories). Server-to-server only.
+     * @description Active, non-hidden plans, cheapest first. Filter by ?category=<slug> for one service section (see GET /public/plan-categories). Each plan carries `offer`: the single best public, active, in-window discount targeting it, server-priced (discountedPriceHt/Ttc) — null when none applies. Server-to-server only.
      *
      * @tags Public (website)
      * @name PublicListPlans
@@ -11443,7 +11505,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Active, visible, sellable spaces: bookable ones carry rates, plan-sold ones carry their target plans (cheapest first), pool parents carry live seat counts; every card has a derived status badge. Filter by ?resourceType=<slug> for one catalog tab, and/or ?planCode=<code> for the spaces sold under one plan. Server-to-server only.
+     * @description Active, visible, sellable spaces: bookable ones carry rates, plan-sold ones carry their target plans (cheapest first, each with its own `offer` — see GET /public/plans), pool parents carry live seat counts; every card has a derived status badge. Filter by ?resourceType=<slug> for one catalog tab, and/or ?planCode=<code> for the spaces sold under one plan. Server-to-server only.
      *
      * @tags Public (website)
      * @name PublicListResources

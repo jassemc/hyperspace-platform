@@ -21,7 +21,12 @@ export const createColumns = ({ onEdit, onArchive, planNames = {}, rateNames = {
     header: "Code",
     cell: ({ row }) => (
       <div className="flex flex-col">
-        <code className="w-fit rounded bg-muted px-1.5 py-0.5 text-xs">{row.original.code}</code>
+        <div className="flex items-center gap-1.5">
+          <code className="w-fit rounded bg-muted px-1.5 py-0.5 text-xs">{row.original.code}</code>
+          {row.original.isPublic && (
+            <Badge className="border-0 bg-sky-100 text-sky-800">Public</Badge>
+          )}
+        </div>
         <span className="text-xs text-muted-foreground">{row.original.name}</span>
       </div>
     ),

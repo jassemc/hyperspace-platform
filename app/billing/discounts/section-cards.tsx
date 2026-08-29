@@ -8,7 +8,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { BadgePercentIcon, LayersIcon, DollarSignIcon, CalendarClockIcon } from "lucide-react"
+import { BadgePercentIcon, LayersIcon, DollarSignIcon, GlobeIcon } from "lucide-react"
+import { isInWindow } from "./discount-meta"
 
 type DiscountsPage = {
   results?: DiscountDto[]
@@ -19,7 +20,7 @@ type DiscountStats = {
   totalActive: number
   planDiscounts: number
   rateDiscounts: number
-  withValidityWindow: number
+  liveOnWebsite: number
 }
 
 async function loadDiscountStats(): Promise<DiscountStats> {
@@ -37,11 +38,11 @@ async function loadDiscountStats(): Promise<DiscountStats> {
       totalActive: active.length,
       planDiscounts: active.filter((discount) => discount.kind === "plan").length,
       rateDiscounts: active.filter((discount) => discount.kind === "resource_rate").length,
-      withValidityWindow: active.filter((discount) => discount.validFrom || discount.validUntil).length,
+      liveOnWebsite: active.filter((discount) => discount.isPublic && isInWindow(discount)).length,
     }
   } catch (error) {
     console.warn("Failed to load discount stats", error)
-    return { totalActive: 0, planDiscounts: 0, rateDiscounts: 0, withValidityWindow: 0 }
+    return { totalActive: 0, planDiscounts: 0, rateDiscounts: 0, liveOnWebsite: 0 }
   }
 }
 
@@ -106,19 +107,19 @@ export async function SectionCards() {
 
       <Card className="@container/card">
         <CardHeader className="relative">
-          <CardDescription>With validity window</CardDescription>
+          <CardDescription>Live on the website</CardDescription>
           <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
-            {stats.withValidityWindow}
+            {stats.liveOnWebsite}
           </CardTitle>
           <div className="absolute right-4 top-4">
             <Badge variant="outline" className="flex gap-1 rounded-lg text-xs">
-              <CalendarClockIcon className="size-3" />
-              Dated
+              <GlobeIcon className="size-3" />
+              Public
             </Badge>
           </div>
         </CardHeader>
         <CardFooter className="flex-col items-start gap-1 text-sm">
-          <div className="text-muted-foreground">Time-boxed with a valid-from or valid-until date</div>
+          <div className="text-muted-foreground">Public, active, and in their validity window</div>
         </CardFooter>
       </Card>
     </div>

@@ -66,6 +66,7 @@ export function AddDiscountForm({
   const [selectedPlanIds, setSelectedPlanIds] = useState<string[]>([])
   const [selectedRateIds, setSelectedRateIds] = useState<string[]>([])
   const [appliesToAll, setAppliesToAll] = useState(false)
+  const [isPublic, setIsPublic] = useState(false)
 
   const [createState, createFormAction] = useActionState(createDiscountAction, {})
   const [updateState, updateFormAction] = useActionState(updateDiscountAction, {})
@@ -82,6 +83,7 @@ export function AddDiscountForm({
       setSelectedPlanIds(editingDiscount?.planIds ?? [])
       setSelectedRateIds(editingDiscount?.resourceRateIds ?? [])
       setAppliesToAll(editingDiscount?.appliesToAll ?? false)
+      setIsPublic(editingDiscount?.isPublic ?? false)
       fetchPlans()
       fetchRates()
       fetchResourceTypes()
@@ -257,7 +259,10 @@ export function AddDiscountForm({
                               name="kind"
                               value={value}
                               checked={kind === value}
-                              onChange={() => setKind(value)}
+                              onChange={() => {
+                                setKind(value)
+                                if (value !== "plan") setIsPublic(false)
+                              }}
                               className="h-4 w-4"
                             />
                             {DISCOUNT_KIND_LABELS[value]}
@@ -268,6 +273,25 @@ export function AddDiscountForm({
                     </div>
                   </div>
                 )}
+
+                <label className="flex items-start gap-2 rounded-md border border-input p-2 text-sm">
+                  <input
+                    type="checkbox"
+                    name="isPublic"
+                    checked={isPublic}
+                    disabled={kind !== "plan"}
+                    onChange={(e) => setIsPublic(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-input"
+                  />
+                  <span>
+                    Show on the website
+                    <span className="block text-xs text-muted-foreground">
+                      {kind === "plan"
+                        ? "Displayed as a public offer on the pricing pages and public booking wizard."
+                        : "Only plan discounts can be shown on the website"}
+                    </span>
+                  </span>
+                </label>
 
                 <label className="flex items-start gap-2 rounded-md border border-input p-2 text-sm">
                   <input

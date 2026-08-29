@@ -55,7 +55,8 @@ export async function createDiscountAction(prevState: ActionState, formData: For
     if (!kind) return { success: false, error: "Kind is required" }
     const read = readValueAndTargets(formData, kind)
     if (read.error) return { success: false, error: read.error }
-    const data: CreateDiscountDto = { name, code, kind, ...read.data }
+    const isPublic = formData.get("isPublic") === "on"
+    const data: CreateDiscountDto = { name, code, kind, isPublic, ...read.data }
     await createDiscount(data)
     revalidatePath("/billing/discounts")
     return { success: true }
@@ -71,7 +72,8 @@ export async function updateDiscountAction(prevState: ActionState, formData: For
     if (!id || !kind) return { success: false, error: "Discount ID is required" }
     const read = readValueAndTargets(formData, kind)
     if (read.error) return { success: false, error: read.error }
-    const data: UpdateDiscountDto = { name: text(formData, "name"), code: text(formData, "code"), ...read.data }
+    const isPublic = formData.get("isPublic") === "on"
+    const data: UpdateDiscountDto = { name: text(formData, "name"), code: text(formData, "code"), isPublic, ...read.data }
     // A blank date field must clear the bound, not leave it untouched: the
     // generated client keeps `null` in the request body and drops
     // `undefined`, and the backend now treats `null` as "clear this date".
