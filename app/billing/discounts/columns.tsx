@@ -41,10 +41,13 @@ export const createColumns = ({ onEdit, onArchive, planNames = {}, rateNames = {
     header: "Applies to",
     cell: ({ row }) => {
       const d = row.original
+      if (d.appliesToAll) {
+        const label = d.kind === "plan" ? "All plans" : "All rates"
+        return <Badge variant="outline">{label}</Badge>
+      }
       const names =
         d.kind === "plan" ? d.planIds.map((id) => planNames[id] ?? "…")
-        : d.kind === "resource_rate" ? d.resourceRateIds.map((id) => rateNames[id] ?? "…")
-        : ["All resources and plans (website)"]
+        : d.resourceRateIds.map((id) => rateNames[id] ?? "…")
       return (
         <div className="flex max-w-[360px] flex-wrap gap-1">
           {names.map((n, i) => <Badge key={`${n}-${i}`} variant="outline">{n}</Badge>)}
@@ -57,7 +60,7 @@ export const createColumns = ({ onEdit, onArchive, planNames = {}, rateNames = {
     header: "Validity",
     cell: ({ row }) => {
       const d = row.original
-      if (d.kind !== "promo") return <span className="text-muted-foreground">—</span>
+      if (!d.validFrom && !d.validUntil) return <span className="text-muted-foreground">—</span>
       const range = `${d.validFrom ? formatDate(d.validFrom) : "…"} → ${d.validUntil ? formatDate(d.validUntil) : "…"}`
       return (
         <div className="flex items-center gap-2 text-sm">

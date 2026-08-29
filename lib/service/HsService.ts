@@ -1030,7 +1030,7 @@ export interface PlanBenefitDto {
   updatedAt: string;
 }
 
-export type DiscountKind = "plan" | "resource_rate" | "promo";
+export type DiscountKind = "plan" | "resource_rate";
 
 export type DiscountStatus = "active" | "archived";
 
@@ -1057,6 +1057,11 @@ export interface DiscountDto {
   status: DiscountStatus;
   planIds: Array<string>;
   resourceRateIds: Array<string>;
+  /**
+   * Targets every plan (kind=plan) or every rate (kind=resource_rate).
+   * @example false
+   */
+  appliesToAll: boolean;
   /**
    * The date of creation of the resource
    * @format date-time
@@ -1393,7 +1398,7 @@ export interface CreateDiscountDto {
   /** @example "Loyalty 10 %" */
   name: string;
   /**
-   * Unique, case-insensitive. Shown on invoices and typed by visitors (promo).
+   * Unique, case-insensitive. Shown on invoices and typed by visitors as a discount code.
    * @example "10LOYALTY"
    */
   code: string;
@@ -1402,24 +1407,45 @@ export interface CreateDiscountDto {
   percentOff?: number;
   /** @example 15 */
   amountOffHt?: number;
-  /** @example "2026-09-01" */
+  /**
+   * Any kind may be time-boxed (amendment 2026-08-29).
+   * @example "2026-09-01"
+   */
   validFrom?: string;
   /** @example "2026-12-31" */
   validUntil?: string;
   planIds?: Array<string>;
   resourceRateIds?: Array<string>;
+  /**
+   * Targets every plan (kind=plan) or every resource rate
+   * (kind=resource_rate) without maintaining a list — the replacement for
+   * the dropped `promo` kind's implicit "applies to everything". A kind
+   * needs either its own target list OR this flag (422
+   * discount_targets_invalid otherwise).
+   * @example false
+   */
+  appliesToAll?: boolean;
 }
 
 export interface UpdateDiscountDto {
   /** @example "Loyalty 10 %" */
   name?: string;
   /**
-   * Unique, case-insensitive. Shown on invoices and typed by visitors (promo).
+   * Unique, case-insensitive. Shown on invoices and typed by visitors as a discount code.
    * @example "10LOYALTY"
    */
   code?: string;
   planIds?: Array<string>;
   resourceRateIds?: Array<string>;
+  /**
+   * Targets every plan (kind=plan) or every resource rate
+   * (kind=resource_rate) without maintaining a list — the replacement for
+   * the dropped `promo` kind's implicit "applies to everything". A kind
+   * needs either its own target list OR this flag (422
+   * discount_targets_invalid otherwise).
+   * @example false
+   */
+  appliesToAll?: boolean;
   /** @example 10 */
   percentOff?: number | null;
   /** @example 15 */
@@ -1898,7 +1924,7 @@ export interface CreateMembershipDto {
    */
   setupFee?: number;
   /**
-   * Plan or promo discount to apply on every cycle (spec §5.2).
+   * Plan discount to apply on every cycle (spec §5.2).
    * @format uuid
    */
   discountId?: string;
@@ -2166,15 +2192,22 @@ export interface QuoteExtraDto {
   totalTtc: number;
 }
 
+export interface DiscountRateScopeDto {
+  /** @example false */
+  all: boolean;
+  rateIds: Array<string>;
+}
+
 export interface BookingDiscountDto {
   /** @format uuid */
   discountId: string;
-  /** @example "SUMMER26" */
+  /** @example "ROOM10" */
   code: string;
   /** @example null */
   percentOff: number | null;
   /** @example null */
   amountOffHt: number | null;
+  rateScope: DiscountRateScopeDto | null;
 }
 
 export type BookingFreeReason = "partnership" | "internal_event" | "goodwill" | "staff";
@@ -2211,11 +2244,11 @@ export interface BookingDto {
   /** Snapshot of the extras priced at booking time (§6.3 Task 6). */
   extras?: Array<QuoteExtraDto>;
   /**
-   * Promo code typed on the website, verbatim (a hint for staff — spec §5.4).
-   * @example "SUMMER26"
+   * Discount code typed on the website, verbatim (a hint for staff — spec §5.4).
+   * @example "ROOM10"
    */
   requestedDiscountCode?: string | null;
-  /** The promo staff applied at confirm, or null (spec §5.4). */
+  /** The resource-rate discount staff applied at confirm, or null (spec §5.4). */
   discount?: BookingDiscountDto | null;
   /**
    * Complimentary: no credits, no charges (spec 2026-08-28).
@@ -2428,7 +2461,7 @@ export interface QuoteDiscountDto {
   /** @example "MEMBER10" */
   code: string;
   /** Which candidate won the single-discount rule (spec §5.4). */
-  source: "promo" | "plan";
+  source: "code" | "plan";
   /**
    * Negative HT amount taken off the room line.
    * @example -5
@@ -2522,10 +2555,11 @@ export interface ConfirmBookingDto {
   isFree?: boolean;
   freeReason?: BookingFreeReason;
   /**
-   * Promo code to apply (spec §5.4): send the requested code to KEEP it, another
-   * promo code to replace it, null/omit to DROP it. Only active, in-window promo
-   * codes are accepted → 422 discount_code_invalid.
-   * @example "SUMMER26"
+   * Discount code to apply (spec §5.4): send the requested code to KEEP it,
+   * another code to replace it, null/omit to DROP it. Only an active,
+   * in-window resource_rate discount code is accepted → 422
+   * discount_code_invalid.
+   * @example "ROOM10"
    */
   discountCode?: string | null;
 }
@@ -2770,7 +2804,7 @@ export interface CreateOpportunityDto {
    */
   requestedPlanPriceHt?: number;
   /**
-   * Promo code typed on the website, stored verbatim (spec §5.4).
+   * Discount code typed on the website, stored verbatim (spec §5.4).
    * @example "SUMMER26"
    */
   requestedDiscountCode?: string;
@@ -2831,7 +2865,7 @@ export interface OnboardLeadDto {
    */
   endsAt?: string;
   /**
-   * Promo/plan discount code to apply to the new membership (spec §5.4):
+   * Discount code to apply to the new membership (spec §5.4):
    * send the opportunity's requested code to KEEP it, another code to
    * replace it, null/omit to DROP it. Resolved and checked for eligibility
    * → 422 discount_code_invalid / discount_not_eligible.
@@ -3199,7 +3233,7 @@ export interface CreateBookingRequestDto {
   /** Extras offered by the booked resource's rates (§6.3 Task 6). */
   extraIds?: Array<string>;
   /**
-   * Promo code typed on the website. Stored verbatim for staff; not
+   * Discount code typed on the website. Stored verbatim for staff; not
    * validated or priced here (spec §5.4).
    * @example "SUMMER26"
    */
@@ -3272,7 +3306,7 @@ export interface CreatePlanRequestDto {
    */
   interest?: OpportunityInterest;
   /**
-   * Promo code typed on the website. Stored verbatim for staff; not
+   * Discount code typed on the website. Stored verbatim for staff; not
    * validated or priced here (spec §5.4).
    * @example "SUMMER26"
    */
@@ -5407,7 +5441,7 @@ export namespace Api {
   }
 
   /**
- * @description Plan discounts (per membership), resource-rate discounts (granted by plans) and promo codes (public site). Filter by kind, status or code fragment.
+ * @description Plan discounts (per membership) and resource-rate discounts (granted by plans and/or claimed by code at booking confirm). Either kind may target every plan/rate via appliesToAll and carry a validity window. Filter by kind, status or code fragment.
  * @tags Billing — Discounts
  * @name ListDiscounts
  * @summary List discounts
@@ -9275,7 +9309,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
- * @description Plan discounts (per membership), resource-rate discounts (granted by plans) and promo codes (public site). Filter by kind, status or code fragment.
+ * @description Plan discounts (per membership) and resource-rate discounts (granted by plans and/or claimed by code at booking confirm). Either kind may target every plan/rate via appliesToAll and carry a validity window. Filter by kind, status or code fragment.
  *
  * @tags Billing — Discounts
  * @name ListDiscounts

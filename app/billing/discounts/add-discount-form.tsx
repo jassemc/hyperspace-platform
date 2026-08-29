@@ -35,7 +35,7 @@ interface AddDiscountFormProps {
   editingDiscount?: DiscountDto | null
 }
 
-const DISCOUNT_KINDS: DiscountKind[] = ["plan", "resource_rate", "promo"]
+const DISCOUNT_KINDS: DiscountKind[] = ["plan", "resource_rate"]
 
 function SubmitButton({ editingDiscount }: Readonly<{ editingDiscount?: DiscountDto | null }>) {
   const { pending } = useFormStatus()
@@ -65,6 +65,7 @@ export function AddDiscountForm({
   const [valueType, setValueType] = useState<"percent" | "amount">("percent")
   const [selectedPlanIds, setSelectedPlanIds] = useState<string[]>([])
   const [selectedRateIds, setSelectedRateIds] = useState<string[]>([])
+  const [appliesToAll, setAppliesToAll] = useState(false)
 
   const [createState, createFormAction] = useActionState(createDiscountAction, {})
   const [updateState, updateFormAction] = useActionState(updateDiscountAction, {})
@@ -80,6 +81,7 @@ export function AddDiscountForm({
       setValueType(editingDiscount?.amountOffHt != null ? "amount" : "percent")
       setSelectedPlanIds(editingDiscount?.planIds ?? [])
       setSelectedRateIds(editingDiscount?.resourceRateIds ?? [])
+      setAppliesToAll(editingDiscount?.appliesToAll ?? false)
       fetchPlans()
       fetchRates()
       fetchResourceTypes()
@@ -196,7 +198,7 @@ export function AddDiscountForm({
             <DrawerDescription>
               {editingDiscount
                 ? "Update the value and targets for this discount."
-                : "Create a plan, resource-rate or promo-code discount."}
+                : "Create a plan or resource-rate discount."}
             </DrawerDescription>
           </DrawerHeader>
 
@@ -227,7 +229,7 @@ export function AddDiscountForm({
                     required
                   />
                   <p className="text-xs text-muted-foreground">
-                    Shown on invoices; visitors type promo codes on the website.
+                    Shown on invoices; typed as a discount code on the website.
                   </p>
                 </div>
 
@@ -266,6 +268,22 @@ export function AddDiscountForm({
                     </div>
                   </div>
                 )}
+
+                <label className="flex items-start gap-2 rounded-md border border-input p-2 text-sm">
+                  <input
+                    type="checkbox"
+                    name="appliesToAll"
+                    checked={appliesToAll}
+                    onChange={(e) => setAppliesToAll(e.target.checked)}
+                    className="mt-0.5 h-4 w-4 rounded border-input"
+                  />
+                  <span>
+                    {kind === "resource_rate" ? "Applies to all rates" : "Applies to all plans"}
+                    <span className="block text-xs text-muted-foreground">
+                      Targets every {kind === "resource_rate" ? "resource rate" : "plan"} without maintaining a list below.
+                    </span>
+                  </span>
+                </label>
 
                 <div className="grid gap-2">
                   <Label>Value</Label>
@@ -313,7 +331,7 @@ export function AddDiscountForm({
                   )}
                 </div>
 
-                {kind === "plan" && (
+                {kind === "plan" && !appliesToAll && (
                   <div className="grid gap-2">
                     <Label>Plans</Label>
                     {isLoading ? (
@@ -361,7 +379,7 @@ export function AddDiscountForm({
                   </div>
                 )}
 
-                {kind === "resource_rate" && (
+                {kind === "resource_rate" && !appliesToAll && (
                   <div className="grid gap-2">
                     <Label>Resource rates</Label>
                     {rates.length === 0 && missingRateIds.length === 0 ? (
@@ -417,31 +435,27 @@ export function AddDiscountForm({
                   </div>
                 )}
 
-                {kind === "promo" && (
+                <div className="grid gap-2">
                   <div className="grid gap-2">
-                    <div className="grid gap-2">
-                      <Label htmlFor="validFrom">Valid from</Label>
-                      <Input
-                        id="validFrom"
-                        name="validFrom"
-                        type="date"
-                        defaultValue={editingDiscount?.validFrom ?? ""}
-                      />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="validUntil">Valid until</Label>
-                      <Input
-                        id="validUntil"
-                        name="validUntil"
-                        type="date"
-                        defaultValue={editingDiscount?.validUntil ?? ""}
-                      />
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      Leave blank for no limit. Promo codes apply to every resource and plan on the website.
-                    </p>
+                    <Label htmlFor="validFrom">Valid from</Label>
+                    <Input
+                      id="validFrom"
+                      name="validFrom"
+                      type="date"
+                      defaultValue={editingDiscount?.validFrom ?? ""}
+                    />
                   </div>
-                )}
+                  <div className="grid gap-2">
+                    <Label htmlFor="validUntil">Valid until</Label>
+                    <Input
+                      id="validUntil"
+                      name="validUntil"
+                      type="date"
+                      defaultValue={editingDiscount?.validUntil ?? ""}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">Leave blank for no limit.</p>
+                </div>
 
                 {currentState.error && <div className="text-sm text-red-600">{currentState.error}</div>}
               </div>

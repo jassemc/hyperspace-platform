@@ -4,13 +4,11 @@ import { formatPriceHt, todayInTunis } from "@/lib/format"
 export const DISCOUNT_KIND_LABELS: Record<DiscountKind, string> = {
   plan: "Plan discount",
   resource_rate: "Resource rate discount",
-  promo: "Promo code",
 }
 
 export const DISCOUNT_KIND_HELP: Record<DiscountKind, string> = {
   plan: "Chosen per membership. Reduces the cycle fee (and plan extras) on every future, non-invoiced cycle.",
-  resource_rate: "Attached to billing plans. Every member on those plans pays less for the selected rates.",
-  promo: "A code visitors type on the website. Applies to every public booking and plan request.",
+  resource_rate: "Attached to billing plans, or claimed by code at booking confirm. Every member on those plans — or anyone typing the code — pays less for the selected rates.",
 }
 
 export function formatDiscountValue(d: Pick<DiscountDto, "percentOff" | "amountOffHt">): string {
@@ -19,7 +17,7 @@ export function formatDiscountValue(d: Pick<DiscountDto, "percentOff" | "amountO
   return "—"
 }
 
-/** Promo validity, inclusive, YYYY-MM-DD compare (Africa/Tunis dates from the API). */
+/** Validity window, inclusive, YYYY-MM-DD compare (Africa/Tunis dates from the API). Any kind may carry one. */
 export function isInWindow(
   d: Pick<DiscountDto, "validFrom" | "validUntil">,
   today = todayInTunis()

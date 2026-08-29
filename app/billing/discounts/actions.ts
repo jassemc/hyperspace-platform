@@ -34,14 +34,15 @@ function readValueAndTargets(formData: FormData, kind: DiscountKind): { error?: 
   if (amountOffHt !== undefined && amountOffHt <= 0) {
     return { error: "Amount off must be greater than 0" }
   }
-  const planIds = kind === "plan" ? ids(formData, "planIds") : []
-  const resourceRateIds = kind === "resource_rate" ? ids(formData, "resourceRateIds") : []
-  if (kind === "plan" && planIds.length === 0) return { error: "Pick at least one plan" }
-  if (kind === "resource_rate" && resourceRateIds.length === 0) return { error: "Pick at least one resource rate" }
-  const validFrom = kind === "promo" ? text(formData, "validFrom") : undefined
-  const validUntil = kind === "promo" ? text(formData, "validUntil") : undefined
+  const appliesToAll = formData.get("appliesToAll") === "on"
+  const planIds = kind === "plan" && !appliesToAll ? ids(formData, "planIds") : []
+  const resourceRateIds = kind === "resource_rate" && !appliesToAll ? ids(formData, "resourceRateIds") : []
+  if (kind === "plan" && !appliesToAll && planIds.length === 0) return { error: "Pick at least one plan or applies to all" }
+  if (kind === "resource_rate" && !appliesToAll && resourceRateIds.length === 0) return { error: "Pick at least one resource rate or applies to all" }
+  const validFrom = text(formData, "validFrom")
+  const validUntil = text(formData, "validUntil")
   if (validFrom && validUntil && validUntil < validFrom) return { error: "Valid until cannot be before valid from" }
-  return { data: { percentOff, amountOffHt, planIds, resourceRateIds, validFrom, validUntil } }
+  return { data: { percentOff, amountOffHt, planIds, resourceRateIds, appliesToAll, validFrom, validUntil } }
 }
 
 export async function createDiscountAction(prevState: ActionState, formData: FormData): Promise<ActionState> {
@@ -71,13 +72,12 @@ export async function updateDiscountAction(prevState: ActionState, formData: For
     const read = readValueAndTargets(formData, kind)
     if (read.error) return { success: false, error: read.error }
     const data: UpdateDiscountDto = { name: text(formData, "name"), code: text(formData, "code"), ...read.data }
-    if (kind === "promo") {
-      // A blank date field must clear the bound, not leave it untouched: the
-      // generated client keeps `null` in the request body and drops
-      // `undefined`, and the backend now treats `null` as "clear this date".
-      data.validFrom = text(formData, "validFrom") ?? null
-      data.validUntil = text(formData, "validUntil") ?? null
-    }
+    // A blank date field must clear the bound, not leave it untouched: the
+    // generated client keeps `null` in the request body and drops
+    // `undefined`, and the backend now treats `null` as "clear this date".
+    // Valid on every kind now, so always resolve it explicitly.
+    data.validFrom = text(formData, "validFrom") ?? null
+    data.validUntil = text(formData, "validUntil") ?? null
     await updateDiscount(id, data)
     revalidatePath("/billing/discounts")
     return { success: true }
