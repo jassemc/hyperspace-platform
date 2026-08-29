@@ -26,7 +26,7 @@ type DiscountStats = {
 async function loadDiscountStats(): Promise<DiscountStats> {
   try {
     const response = (await getListDiscounts({
-      limit: 1000,
+      limit: 100,
       offset: 0,
       sort: "ASC",
     })) as DiscountsPage

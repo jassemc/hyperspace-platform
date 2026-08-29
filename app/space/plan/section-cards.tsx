@@ -25,7 +25,7 @@ type PlanStats = {
 async function loadPlanStats(): Promise<PlanStats> {
   try {
     const response = (await getListPlans({
-      limit: 1000,
+      limit: 100,
       offset: 0,
       sort: "ASC",
     })) as PlansPage

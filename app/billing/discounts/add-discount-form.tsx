@@ -126,7 +126,7 @@ export function AddDiscountForm({
 
   const fetchRates = async () => {
     try {
-      const response = await getListResourceRates({ limit: 200, offset: 0, sort: "ASC" })
+      const response = await getListResourceRates({ limit: 100, offset: 0, sort: "ASC" })
       setRates((response.results ?? []) as ResourceRateDto[])
     } catch (error) {
       console.error("Failed to fetch resource rates", error)

@@ -122,7 +122,7 @@ export function AddPlanForm({ isOpen, onClose, editingPlan }: Readonly<AddPlanFo
   const fetchRateDiscounts = async () => {
     try {
       const response = await getListDiscounts({
-        limit: 200,
+        limit: 100,
         offset: 0,
         sort: "ASC",
         kind: "resource_rate",

@@ -171,7 +171,7 @@ export function AddMembershipForm({
 
     setDiscountsLoading(true)
     setDiscountsError(false)
-    getListDiscounts({ limit: 200, offset: 0, sort: "ASC", status: "active" })
+    getListDiscounts({ limit: 100, offset: 0, sort: "ASC", status: "active" })
       .then(async (page) => {
         if (cancelled) return
         const list = (page.results ?? []) as DiscountDto[]

@@ -59,7 +59,7 @@ export async function DiscountTableSection({
 
   const rateNames: Record<string, string> = {}
   try {
-    const ratesResponse = await getListResourceRates({ limit: 200, offset: 0, sort: "ASC" })
+    const ratesResponse = await getListResourceRates({ limit: 100, offset: 0, sort: "ASC" })
     for (const rate of (ratesResponse?.results ?? []) as ResourceRateDto[]) {
       rateNames[rate.id] = rate.name
     }
