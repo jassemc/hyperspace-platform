@@ -372,6 +372,7 @@ export function BookingFormDialog({
             prefillResourceName={prefill?.resourceName}
             disabled={Boolean(editingBooking)}
             onExtrasChange={invalidateQuote}
+            initialExtraIds={(editingBooking?.extras ?? []).map((extra) => extra.extraId)}
           />
 
           <div className="grid gap-3" role="group" aria-labelledby="booking-when-label">

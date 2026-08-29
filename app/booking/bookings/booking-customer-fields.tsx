@@ -5,7 +5,7 @@ import { Label } from "@/components/ui/label"
 import { NativeSelect } from "@/components/ui/native-select"
 import { getListResources, getListMembers, getListCompanies } from "@/lib/service"
 import type { CompanyDto, MemberDto, ResourceDto } from "@/lib/service/HsService"
-import { formatPriceHt } from "@/lib/format"
+import { ExtraTagPicker } from "@/components/extra-tag-picker"
 
 type CustomerKind = "member" | "company"
 
@@ -23,6 +23,8 @@ interface BookingCustomerFieldsProps {
   disabled?: boolean
   /** A quote describes one exact set of extras, so the dialog clears it. */
   onExtrasChange?: () => void
+  /** Edit mode: the ids already on the booking, so the tags start selected. */
+  initialExtraIds?: string[]
 }
 
 /**
@@ -30,10 +32,10 @@ interface BookingCustomerFieldsProps {
  *
  * The extras live here rather than in the dialog because they hang off the
  * *selected resource's* rates, and this is the component that owns the
- * resource list — the alternative was fetching that list twice. Everything
- * below the resource select is create-only: PATCH /bookings changes neither
- * the customer nor the extras, so `disabled` hides them rather than showing
- * a Member select that is blank and inert.
+ * resource list — the alternative was fetching that list twice. The customer
+ * is create-only: PATCH /bookings cannot change it, so `disabled` hides the
+ * Member/Company selects rather than showing them blank and inert. The
+ * extras are editable in both modes — PATCH accepts `extraIds`.
  */
 export function BookingCustomerFields({
   resources: seedResources,
@@ -42,11 +44,15 @@ export function BookingCustomerFields({
   prefillResourceName,
   disabled = false,
   onExtrasChange,
+  initialExtraIds = [],
 }: Readonly<BookingCustomerFieldsProps>) {
   const [resources, setResources] = useState<ResourceDto[]>(seedResources ?? [])
   const [memberNames, setMemberNames] = useState<Record<string, string>>({})
   const [companyNames, setCompanyNames] = useState<Record<string, string>>({})
   const [customerKind, setCustomerKind] = useState<CustomerKind>("member")
+  // Controlled so the tags know their own state; the picker posts the
+  // selection as hidden `extraIds` inputs, which is what the action reads.
+  const [extraIds, setExtraIds] = useState<string[]>(initialExtraIds)
 
   // The page-level Add button renders this form with no seed data, so
   // resources are fetched here rather than threaded through every caller.
@@ -116,6 +122,13 @@ export function BookingCustomerFields({
         .map((extra) => [extra.id, extra] as const)
     ).values(),
   ]
+  // An extra that was booked but has since been detached from the room's
+  // rates still needs a tag, or the user could never remove it — and the
+  // API refuses the patch (`extra_not_offered`) while it is selected.
+  const bookedButGone = initialExtraIds
+    .filter((id) => !availableExtras.some((extra) => extra.id === id))
+    .map((id) => ({ id, name: "No longer offered", priceHt: 0 }))
+  const pickerExtras = [...availableExtras, ...bookedButGone]
 
   return (
     <>
@@ -198,35 +211,30 @@ export function BookingCustomerFields({
               </NativeSelect>
             </div>
           )}
-
-          {availableExtras.length > 0 && (
-            <div className="grid gap-2">
-              <Label>Extras</Label>
-              <div className="grid gap-2 rounded-md border border-input p-3">
-                {availableExtras.map((extra) => (
-                  <label key={extra.id} className="flex items-start gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      name="extraIds"
-                      value={extra.id}
-                      onChange={onExtrasChange}
-                      className="mt-0.5 h-4 w-4 rounded border-input"
-                    />
-                    <span>
-                      {extra.name}
-                      <span className="block text-xs text-muted-foreground">
-                        {formatPriceHt(extra.priceHt)}
-                      </span>
-                    </span>
-                  </label>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Offered by the rates attached to this resource.
-              </p>
-            </div>
-          )}
         </>
+      )}
+
+      {pickerExtras.length > 0 && (
+        <div className="grid gap-2">
+          <Label>Extras</Label>
+          {/* Tells updateBookingAction the picker was on screen, so an
+              empty selection means "remove all" and not "field absent". */}
+          <input type="hidden" name="extrasEdited" value="1" />
+          <ExtraTagPicker
+            extras={pickerExtras}
+            value={extraIds}
+            name="extraIds"
+            onChange={(next) => {
+              setExtraIds(next)
+              onExtrasChange?.()
+            }}
+          />
+          <p className="text-xs text-muted-foreground">
+            {disabled
+              ? "Extras you keep stay at the price they were booked at; ones you add are priced at today's rate."
+              : "Offered by the rates attached to this resource."}
+          </p>
+        </div>
       )}
     </>
   )
