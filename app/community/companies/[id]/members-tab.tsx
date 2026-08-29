@@ -6,9 +6,11 @@ import { CompanyMembersTable } from "./company-members-table"
 
 export async function MembersTab({
   companyId,
+  companyName,
   searchParams,
 }: Readonly<{
   companyId: string
+  companyName: string
   searchParams?: SearchParamsInput
 }>) {
   const params = await resolveSearchParams(searchParams)
@@ -35,7 +37,12 @@ export async function MembersTab({
         </div>
         <AttachMemberButton companyId={companyId} />
       </div>
-      <CompanyMembersTable data={results} totalCount={total} companyId={companyId} />
+      <CompanyMembersTable
+        data={results}
+        totalCount={total}
+        companyId={companyId}
+        companyName={companyName}
+      />
     </div>
   )
 }
