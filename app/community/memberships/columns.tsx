@@ -4,18 +4,20 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { ColumnDef } from "@tanstack/react-table"
 import type { MembershipDto, MembershipStatus } from "@/lib/service/HsService"
-import { ArrowUpDown, Edit } from "lucide-react"
+import { ArrowUpDown } from "lucide-react"
 import { formatDate } from "@/lib/format"
 import { MEMBERSHIP_STATUS_CLASSES, MEMBERSHIP_STATUS_LABELS } from "./membership-status"
-import { LifecycleButtons } from "./lifecycle-buttons"
+import { MembershipRowActions } from "./membership-row-actions"
 
 interface ColumnsProps {
+  onDetails: (membership: MembershipDto) => void
   onEdit: (membership: MembershipDto) => void
   memberNames?: Record<string, string>
   companyNames?: Record<string, string>
 }
 
 export const createColumns = ({
+  onDetails,
   onEdit,
   memberNames = {},
   companyNames = {},
@@ -107,26 +109,8 @@ export const createColumns = ({
   {
     id: "actions",
     header: "Actions",
-    cell: ({ row }) => {
-      const membership = row.original
-      return (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onEdit(membership)}
-            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-950 dark:border-blue-800"
-          >
-            <Edit className="h-4 w-4" />
-            <span className="sr-only">Edit</span>
-          </Button>
-          <LifecycleButtons
-            membershipId={membership.id}
-            membershipName={membership.name}
-            canCancel={membership.status !== "ended" && !membership.cancelledAt}
-          />
-        </div>
-      )
-    },
+    cell: ({ row }) => (
+      <MembershipRowActions membership={row.original} onDetails={onDetails} onEdit={onEdit} />
+    ),
   },
 ]

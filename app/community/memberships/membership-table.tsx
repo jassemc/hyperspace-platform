@@ -24,20 +24,31 @@ export function MembershipTable({
   plans = [],
   activeStatus,
 }: Readonly<MembershipTableProps>) {
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingMembership, setEditingMembership] = useState<MembershipDto | null>(null)
+  const [detailsMembership, setDetailsMembership] = useState<MembershipDto | null>(null)
 
   const handleEdit = (membership: MembershipDto) => {
     setEditingMembership(membership)
-    setIsDrawerOpen(true)
+    setIsFormOpen(true)
   }
 
   const handleClose = () => {
-    setIsDrawerOpen(false)
+    setIsFormOpen(false)
     setEditingMembership(null)
   }
 
-  const columns = createColumns({ onEdit: handleEdit, memberNames, companyNames })
+  // Handing over from the details dialog: it closes first, so the two are
+  // never stacked, and only reopens if the caller goes back to it.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- wired by the details dialog (next task)
+  const handOff = (run: (membership: MembershipDto) => void) => {
+    const membership = detailsMembership
+    if (!membership) return
+    setDetailsMembership(null)
+    run(membership)
+  }
+
+  const columns = createColumns({ onDetails: setDetailsMembership, onEdit: handleEdit, memberNames, companyNames })
 
   return (
     <>
@@ -52,15 +63,17 @@ export function MembershipTable({
         serverSearch
         searchPlaceholder="Search memberships..."
       />
-      <AddMembershipForm
-        key={editingMembership?.id || "create"}
-        isOpen={isDrawerOpen}
-        onClose={handleClose}
-        editingMembership={editingMembership}
-        memberNames={memberNames}
-        companyNames={companyNames}
-        plans={plans}
-      />
+      {isFormOpen && (
+        <AddMembershipForm
+          key={editingMembership?.id || "create"}
+          isOpen
+          onClose={handleClose}
+          editingMembership={editingMembership}
+          memberNames={memberNames}
+          companyNames={companyNames}
+          plans={plans}
+        />
+      )}
     </>
   )
 }
