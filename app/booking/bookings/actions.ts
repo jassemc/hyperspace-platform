@@ -201,6 +201,12 @@ export async function updateBookingAction(
       status: formData.get("markNoShow") === "on" ? "no_show" : undefined,
       startsAt: startsAt ? toUtcIso(startsAt, timeZone) : undefined,
       endsAt: endsAt ? toUtcIso(endsAt, timeZone) : undefined,
+      // Only when the picker was rendered: `[]` then means "remove all",
+      // whereas a form without it must leave the extras alone.
+      extraIds:
+        formData.get("extrasEdited") === "1"
+          ? formData.getAll("extraIds").map(String).filter(Boolean)
+          : undefined,
     }
 
     await updateBooking(id, data)
