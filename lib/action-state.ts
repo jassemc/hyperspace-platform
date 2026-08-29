@@ -18,10 +18,14 @@ export type ActionState = {
  * a validation failure; `problemType` is what lets a form say what to do next.
  */
 export function problem(error: unknown, fallback: string): ActionState {
-    const http = error as { message?: string; status?: number; error?: { type?: string } }
+    const http = error as {
+        message?: string
+        status?: number
+        error?: { type?: string; detail?: string }
+    }
     return {
         success: false,
-        error: http?.message || fallback,
+        error: http?.error?.detail || http?.message || fallback,
         problemType: http?.error?.type,
         status: http?.status,
     }

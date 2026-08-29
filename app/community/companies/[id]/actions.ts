@@ -136,7 +136,7 @@ export async function reassignMemberAction(
     if (!detach && !targetCompanyId) {
       return { success: false, error: "Select a company or choose to detach" }
     }
-    if (targetCompanyId === currentCompanyId) {
+    if (targetCompanyId && targetCompanyId === currentCompanyId) {
       return { success: false, error: "Member already belongs to this company" }
     }
 

@@ -16,17 +16,33 @@ export interface CompanyStats {
  */
 export const companyStats = cache(async (): Promise<CompanyStats | null> => {
     try {
-        const [companies, members, activeMemberships, pendingMemberships] = await Promise.all([
-            pageResult(await getListCompanies({ limit: 1, offset: 0, sort: "ASC" })).total,
-            pageResult(await getListMembers({ limit: 1, offset: 0, sort: "ASC" })).total,
-            pageResult(
-                await getListMemberships({ limit: 1, offset: 0, sort: "ASC", status: "active" })
-            ).total,
-            pageResult(
-                await getListMemberships({ limit: 1, offset: 0, sort: "ASC", status: "pending" })
-            ).total,
-        ])
-        return { companies, members, activeMemberships, pendingMemberships }
+        const companiesRequest = getListCompanies({ limit: 1, offset: 0, sort: "ASC" })
+        const membersRequest = getListMembers({ limit: 1, offset: 0, sort: "ASC" })
+        const activeMembershipsRequest = getListMemberships({
+            limit: 1,
+            offset: 0,
+            sort: "ASC",
+            status: "active",
+        })
+        const pendingMembershipsRequest = getListMemberships({
+            limit: 1,
+            offset: 0,
+            sort: "ASC",
+            status: "pending",
+        })
+        const [companiesResult, membersResult, activeMembershipsResult, pendingMembershipsResult] =
+            await Promise.all([
+                companiesRequest,
+                membersRequest,
+                activeMembershipsRequest,
+                pendingMembershipsRequest,
+            ])
+        return {
+            companies: pageResult(companiesResult).total,
+            members: pageResult(membersResult).total,
+            activeMemberships: pageResult(activeMembershipsResult).total,
+            pendingMemberships: pageResult(pendingMembershipsResult).total,
+        }
     } catch (error) {
         console.warn("Failed to load company stats", error)
         return null

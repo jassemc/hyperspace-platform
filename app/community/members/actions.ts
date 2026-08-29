@@ -34,7 +34,8 @@ function parseMemberPayload(formData: FormData): UpdateMemberDto {
 
   return {
     fullName,
-    email: clearableText(formData, "email"),
+    // Format-validated by the API: "" fails @IsEmail/@IsUrl, so a blank field is omitted rather than cleared.
+    email: text(formData, "email"),
     phone: clearableText(formData, "phone"),
     notes: clearableText(formData, "notes"),
     kindHint: (text(formData, "kindHint") as MemberKindHint) || undefined,

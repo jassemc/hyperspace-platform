@@ -79,8 +79,7 @@ export async function updateMembershipAction(
     const data: UpdateMembershipDto = {
       name: text(formData, "name"),
       notes: clearableText(formData, "notes"),
-      // A DISABLED select is excluded from FormData entirely, so only treat
-      // the field as "cleared" when it was actually submitted.
+      // Only treat the field as "cleared" when it was actually submitted.
       discountId: formData.has("discountId") ? (text(formData, "discountId") ?? null) : undefined,
     }
 

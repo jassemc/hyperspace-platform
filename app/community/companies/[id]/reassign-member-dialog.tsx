@@ -52,11 +52,15 @@ export function ReassignMemberDialog({
     if (!open) return
 
     let cancelled = false
-    listCompanyOptions().then((results) => {
-      if (!cancelled) {
-        setCompanies(results.filter((company) => company.id !== currentCompanyId))
-      }
-    })
+    listCompanyOptions()
+      .then((results) => {
+        if (!cancelled) {
+          setCompanies(results.filter((company) => company.id !== currentCompanyId))
+        }
+      })
+      .catch(() => {
+        if (!cancelled) toast.error("Could not load companies")
+      })
 
     return () => {
       cancelled = true

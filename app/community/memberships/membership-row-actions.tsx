@@ -84,19 +84,32 @@ export function MembershipRowActions({
             Edit
           </DropdownMenuItem>
           <DropdownMenuSeparator />
+          {/* `title` still helps on the enabled case, but dropdown-menu.tsx sets
+              data-[disabled]:pointer-events-none on disabled items, which swallows
+              hover entirely — so a disabled item's reason is also rendered as a
+              muted second line inside the item, where it stays visible. */}
           <DropdownMenuItem disabled={!canRenew} title={renewHint ?? "Append another billing cycle"} onSelect={() => setRenewOpen(true)}>
             <RotateCw />
-            Renew
+            <span className="flex flex-col">
+              <span>Renew</span>
+              {!canRenew && renewHint && <span className="text-xs text-muted-foreground">{renewHint}</span>}
+            </span>
           </DropdownMenuItem>
           {isPaused ? (
             <DropdownMenuItem disabled={!canResume} title={resumeHint ?? "Start billing again"} onSelect={() => setResumeOpen(true)}>
               <Play />
-              Resume
+              <span className="flex flex-col">
+                <span>Resume</span>
+                {!canResume && resumeHint && <span className="text-xs text-muted-foreground">{resumeHint}</span>}
+              </span>
             </DropdownMenuItem>
           ) : (
             <DropdownMenuItem disabled={!canPause} title={pauseHint ?? "Stop billing for a while"} onSelect={() => setPauseOpen(true)}>
               <Pause />
-              Pause
+              <span className="flex flex-col">
+                <span>Pause</span>
+                {!canPause && pauseHint && <span className="text-xs text-muted-foreground">{pauseHint}</span>}
+              </span>
             </DropdownMenuItem>
           )}
           {/* Cancelling stops renewal for good, so it asks first. */}
@@ -107,7 +120,10 @@ export function MembershipRowActions({
             onSelect={() => setCancelOpen(true)}
           >
             <Ban />
-            Cancel
+            <span className="flex flex-col">
+              <span>Cancel</span>
+              {!canCancel && cancelHint && <span className="text-xs text-muted-foreground">{cancelHint}</span>}
+            </span>
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

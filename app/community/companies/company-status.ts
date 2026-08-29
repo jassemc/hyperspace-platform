@@ -21,10 +21,3 @@ export const COMPANY_STATUS_CLASSES: Record<CompanyStatus, string> = {
     former: "bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900 dark:text-red-200",
     inactive: "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200",
 }
-
-export const COMPANY_STATUS_VALUES = Object.keys(COMPANY_STATUS_LABELS) as CompanyStatus[]
-
-export const COMPANY_STATUS_TABS = COMPANY_STATUS_VALUES.map((value) => ({
-    value,
-    label: COMPANY_STATUS_LABELS[value],
-}))

@@ -13,12 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { todayInTunis } from "@/lib/format"
 import type { PauseFields } from "./use-membership-mutations"
-
-/** Today, as a business date (YYYY-MM-DD) — the pause's default start. */
-function today(): string {
-  return new Date().toISOString().slice(0, 10)
-}
 
 /**
  * Pausing collects a span rather than a single flag, so it is a full dialog
@@ -36,13 +32,13 @@ export function PauseMembershipDialog({
   pending: boolean
   onConfirm: (fields: PauseFields) => void
 }>) {
-  const [startsAt, setStartsAt] = useState(today)
+  const [startsAt, setStartsAt] = useState(todayInTunis)
   const [endsAt, setEndsAt] = useState("")
   const [reason, setReason] = useState("")
 
   useEffect(() => {
     if (open) {
-      setStartsAt(today())
+      setStartsAt(todayInTunis())
       setEndsAt("")
       setReason("")
     }

@@ -38,9 +38,11 @@ function parseCompanyPayload(formData: FormData): CreateCompanyDto {
   return {
     name,
     taxId: clearableText(formData, "taxId"),
-    email: clearableText(formData, "email"),
+    // Format-validated by the API: "" fails @IsEmail/@IsUrl, so a blank field is omitted rather than cleared.
+    email: text(formData, "email"),
     phone: clearableText(formData, "phone"),
-    website: clearableText(formData, "website"),
+    // Format-validated by the API: "" fails @IsEmail/@IsUrl, so a blank field is omitted rather than cleared.
+    website: text(formData, "website"),
     description: clearableText(formData, "description"),
     billingName: clearableText(formData, "billingName"),
     registrationNumber: clearableText(formData, "registrationNumber"),

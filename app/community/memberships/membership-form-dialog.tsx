@@ -157,7 +157,8 @@ export function MembershipFormDialog({
 
     setDiscountsLoading(true)
     setDiscountsError(false)
-    getListDiscounts({ limit: 200, offset: 0, sort: "ASC", status: "active" })
+    // 100 is the API's page cap; 200 was a permanent 422.
+    getListDiscounts({ limit: 100, offset: 0, sort: "ASC", status: "active" })
       .then(async (page) => {
         if (cancelled) return
         const list = (page.results ?? []) as DiscountDto[]
