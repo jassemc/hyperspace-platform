@@ -15,9 +15,10 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer"
 import { X } from "lucide-react"
-import { getListExtras, getListPlanCategories } from "@/lib/service"
-import type { ExtraDto, PlanCategoryDto, PlanDto, PlanKind } from "@/lib/service/HsService"
+import { getListDiscounts, getListExtras, getListPlanCategories } from "@/lib/service"
+import type { DiscountDto, ExtraDto, PlanCategoryDto, PlanDto, PlanKind } from "@/lib/service/HsService"
 import { formatPriceHt } from "@/lib/format"
+import { formatDiscountValue } from "@/app/billing/discounts/discount-meta"
 import { createPlanAction, updatePlanAction } from "./actions"
 import { toast } from "sonner"
 
@@ -50,6 +51,8 @@ export function AddPlanForm({ isOpen, onClose, editingPlan }: Readonly<AddPlanFo
   const [categories, setCategories] = useState<PlanCategoryDto[]>([])
   const [isLoadingExtras, setIsLoadingExtras] = useState(false)
   const [selectedExtraIds, setSelectedExtraIds] = useState<string[]>([])
+  const [rateDiscounts, setRateDiscounts] = useState<DiscountDto[]>([])
+  const [selectedRateDiscountIds, setSelectedRateDiscountIds] = useState<string[]>([])
 
   const createNotifiedRef = useRef(false)
   const updateNotifiedRef = useRef(false)
@@ -60,12 +63,16 @@ export function AddPlanForm({ isOpen, onClose, editingPlan }: Readonly<AddPlanFo
       updateNotifiedRef.current = false
       setKind(editingPlan?.kind ?? "recurring")
       setSelectedExtraIds((editingPlan?.extras ?? []).map((extra) => extra.id))
+      setSelectedRateDiscountIds((editingPlan?.rateDiscounts ?? []).map((d) => d.id))
       fetchExtras()
       fetchCategories()
+      fetchRateDiscounts()
     } else {
       setExtras([])
       setCategories([])
       setSelectedExtraIds([])
+      setRateDiscounts([])
+      setSelectedRateDiscountIds([])
     }
   }, [isOpen, editingPlan])
 
@@ -112,8 +119,29 @@ export function AddPlanForm({ isOpen, onClose, editingPlan }: Readonly<AddPlanFo
     }
   }
 
+  const fetchRateDiscounts = async () => {
+    try {
+      const response = await getListDiscounts({
+        limit: 200,
+        offset: 0,
+        sort: "ASC",
+        kind: "resource_rate",
+        status: "active",
+      })
+      setRateDiscounts((response.results ?? []) as DiscountDto[])
+    } catch (error) {
+      console.error("Failed to fetch rate discounts", error)
+    }
+  }
+
   const toggleExtra = (id: string) => {
     setSelectedExtraIds((previous) =>
+      previous.includes(id) ? previous.filter((value) => value !== id) : [...previous, id]
+    )
+  }
+
+  const toggleRateDiscount = (id: string) => {
+    setSelectedRateDiscountIds((previous) =>
       previous.includes(id) ? previous.filter((value) => value !== id) : [...previous, id]
     )
   }
@@ -276,6 +304,36 @@ export function AddPlanForm({ isOpen, onClose, editingPlan }: Readonly<AddPlanFo
                       </div>
                     )
                   })()}
+                </div>
+
+                <div className="grid gap-2">
+                  <Label>Rate discounts</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Members on this plan pay less for the selected rates. Applies immediately to all active
+                    memberships — no plan clone.
+                  </p>
+                  {rateDiscounts.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">No resource-rate discounts yet.</p>
+                  ) : (
+                    <div className="grid gap-2 rounded-md border border-input p-3">
+                      {rateDiscounts.map((d) => (
+                        <label key={d.id} className="flex items-start gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            name="rateDiscountIds"
+                            value={d.id}
+                            checked={selectedRateDiscountIds.includes(d.id)}
+                            onChange={() => toggleRateDiscount(d.id)}
+                            className="mt-0.5 h-4 w-4 rounded border-input"
+                          />
+                          <span>
+                            <code className="rounded bg-muted px-1 text-xs">{d.code}</code> {d.name}
+                            <span className="block text-xs text-muted-foreground">{formatDiscountValue(d)}</span>
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 <div className="grid gap-2">

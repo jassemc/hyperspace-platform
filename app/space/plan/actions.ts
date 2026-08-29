@@ -28,6 +28,13 @@ function extraIds(formData: FormData): string[] {
     .filter(Boolean)
 }
 
+function rateDiscountIds(formData: FormData): string[] {
+  return formData
+    .getAll("rateDiscountIds")
+    .map((value) => String(value).trim())
+    .filter(Boolean)
+}
+
 /**
  * `cycleMonths` is required for recurring plans and forbidden for one-off ones,
  * so it is dropped rather than sent as 0 when the kind is one_off.
@@ -47,6 +54,7 @@ function planFields(formData: FormData, kind: PlanKind | undefined) {
     hidden: formData.get("hidden") === "on",
     description: text(formData, "description"),
     extraIds: extraIds(formData),
+    rateDiscountIds: rateDiscountIds(formData),
   }
 }
 

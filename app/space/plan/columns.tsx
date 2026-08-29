@@ -121,6 +121,14 @@ export const createColumns = ({ onEdit }: ColumnsProps): ColumnDef<PlanDto>[] =>
     },
   },
   {
+    id: "rateDiscounts",
+    header: "Rate discounts",
+    cell: ({ row }) => {
+      const n = row.original.rateDiscounts?.length ?? 0
+      return n ? <Badge variant="secondary">{n}</Badge> : <span className="text-muted-foreground">-</span>
+    },
+  },
+  {
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => {
