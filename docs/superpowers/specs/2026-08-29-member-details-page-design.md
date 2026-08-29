@@ -45,7 +45,7 @@ through the existing domain services, in one `Promise.all`:
 | `memberships` | `total`, `active`, `items: MembershipDto[]` (newest 5 by createdAt) | `MembershipService.list({memberId})`, `MembershipStatsService.stats({memberId})` → `byStatus` active count |
 | `bookings` | `upcoming`, `items: BookingDto[]` (next 5 `confirmed`, `from = now`, ASC) | `BookingService.list(caller, …)` |
 | `checkins` | `total`, `onSite: CheckinDto \| null` (latest with no `checkedOutAt`), `items` (last 5) | `CheckinService.list({memberId})` |
-| `credits` | `balances: MembershipCreditBalancesDto[]`, `recent: CreditTransactionDto[]` (last 5) | `CreditsService.balances({memberId})`, `.list({memberId})` |
+| `credits` | `balances: MembershipCreditBalancesDto[]`, `recent: CreditTransactionDto[]` (last 5) | `CreditsService.balances({memberId})`, `.list({memberId})` — the ledger's `memberId` means "spendable by this person" (own + employer-pooled memberships); kept as the one exception to direct-only |
 | `charges` | `total`, `uninvoiced`, `items` (latest 5 uninvoiced) | `ChargesService.list({memberId})` and `({memberId, uninvoiced: true})` |
 | `invoices` | `total`, `open` (status `sent`), `outstandingTtc` (Σ `totalTtc − paid` over open, `roundMoney`), `items` (latest 5 open) | `InvoicesService.list(caller, …)` ×2 + new `InvoicesService.outstandingFor(memberId)` |
 
