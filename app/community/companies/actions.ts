@@ -18,11 +18,11 @@ function revalidate(id?: string) {
 
 function parseAddress(formData: FormData): AddressDto | undefined {
   const address: AddressDto = {
-    street: clearableText(formData, "street"),
-    city: clearableText(formData, "city"),
-    state: clearableText(formData, "state"),
-    zip: clearableText(formData, "zip"),
-    country: clearableText(formData, "country"),
+    street: text(formData, "street"),
+    city: text(formData, "city"),
+    state: text(formData, "state"),
+    zip: text(formData, "zip"),
+    country: text(formData, "country"),
   }
 
   const hasValue = Object.values(address).some((value) => value !== undefined)

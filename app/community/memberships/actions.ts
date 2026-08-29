@@ -15,7 +15,7 @@ import type {
   ResumeMembershipDto,
   UpdateMembershipDto,
 } from "@/lib/service/HsService"
-import { type ActionState, problem, text, num } from "@/lib/action-state"
+import { type ActionState, problem, text, clearableText, num } from "@/lib/action-state"
 
 export type { ActionState }
 
@@ -77,7 +77,7 @@ export async function updateMembershipAction(
 
     const data: UpdateMembershipDto = {
       name: text(formData, "name"),
-      notes: text(formData, "notes"),
+      notes: clearableText(formData, "notes"),
       // A DISABLED select is excluded from FormData entirely, so only treat
       // the field as "cleared" when it was actually submitted.
       discountId: formData.has("discountId") ? (text(formData, "discountId") ?? null) : undefined,
