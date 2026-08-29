@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { DataTable } from "@/components/data-table"
-import { AddCompanyForm } from "./add-company-form"
+import { CompanyFormDialog } from "./company-form-dialog"
 import type { CompanyDto } from "@/lib/service/HsService"
 import { createColumns } from "./columns"
 
@@ -12,16 +12,16 @@ interface CompanyTableProps {
 }
 
 export function CompanyTable({ data, totalCount }: Readonly<CompanyTableProps>) {
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+  const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingCompany, setEditingCompany] = useState<CompanyDto | null>(null)
 
   const handleEdit = (company: CompanyDto) => {
     setEditingCompany(company)
-    setIsDrawerOpen(true)
+    setIsFormOpen(true)
   }
 
   const handleClose = () => {
-    setIsDrawerOpen(false)
+    setIsFormOpen(false)
     setEditingCompany(null)
   }
 
@@ -38,12 +38,14 @@ export function CompanyTable({ data, totalCount }: Readonly<CompanyTableProps>) 
         serverSearch
         searchPlaceholder="Search companies..."
       />
-      <AddCompanyForm
-        key={editingCompany?.id || "create"}
-        isOpen={isDrawerOpen}
-        onClose={handleClose}
-        editingCompany={editingCompany}
-      />
+      {isFormOpen && (
+        <CompanyFormDialog
+          key={editingCompany?.id || "create"}
+          isOpen
+          onClose={handleClose}
+          editingCompany={editingCompany}
+        />
+      )}
     </>
   )
 }

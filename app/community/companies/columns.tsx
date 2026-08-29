@@ -2,10 +2,12 @@
 
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import type { CompanyDto } from "@/lib/service/HsService"
+import type { CompanyDto, CompanyStatus } from "@/lib/service/HsService"
 import type { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, Edit, Eye } from "lucide-react"
-import Link from "next/link"
+import { ArrowUpDown } from "lucide-react"
+import { formatDate } from "@/lib/format"
+import { COMPANY_STATUS_CLASSES, COMPANY_STATUS_LABELS } from "./company-status"
+import { CompanyRowActions } from "./company-row-actions"
 
 interface ColumnsProps {
   onEdit: (company: CompanyDto) => void
@@ -28,6 +30,18 @@ export const createColumns = ({ onEdit }: ColumnsProps): ColumnDef<CompanyDto>[]
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
+  },
+  {
+    accessorKey: "status",
+    header: "Status",
+    cell: ({ row }) => {
+      const value = row.getValue<CompanyStatus>("status")
+      return (
+        <Badge variant="secondary" className={`${COMPANY_STATUS_CLASSES[value] ?? ""} border-0`}>
+          {COMPANY_STATUS_LABELS[value] ?? value}
+        </Badge>
+      )
+    },
   },
   {
     accessorKey: "taxId",
@@ -96,39 +110,11 @@ export const createColumns = ({ onEdit }: ColumnsProps): ColumnDef<CompanyDto>[]
   {
     accessorKey: "createdAt",
     header: "Created",
-    cell: ({ row }) => {
-      const value = row.getValue<string>("createdAt")
-      const date = value ? new Date(value) : null
-      return <span>{date ? date.toLocaleDateString() : "-"}</span>
-    },
+    cell: ({ row }) => <span>{formatDate(row.getValue<string>("createdAt"))}</span>,
   },
   {
     id: "actions",
     header: "Actions",
-    cell: ({ row }) => {
-      const company = row.original
-      return (
-        <div className="flex items-center gap-2">
-          <Button
-            asChild
-            variant="outline"
-            size="sm"
-            className="text-slate-600 hover:text-slate-700 hover:bg-slate-50 border-slate-200 dark:text-slate-300 dark:hover:text-slate-100 dark:hover:bg-slate-800 dark:border-slate-700"
-          >
-            <Link href={`/community/companies/${company.id}`} aria-label={`Open ${company.name}`}>
-              <Eye className="h-4 w-4" />
-            </Link>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onEdit(company)}
-            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-950 dark:border-blue-800"
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-        </div>
-      )
-    },
+    cell: ({ row }) => <CompanyRowActions company={row.original} onEdit={onEdit} />,
   },
 ]

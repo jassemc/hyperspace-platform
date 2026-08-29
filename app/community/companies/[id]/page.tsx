@@ -4,13 +4,16 @@ import { notFound } from "next/navigation"
 import { getCompany } from "@/lib/service"
 import type { CompanyDto } from "@/lib/service/HsService"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { ArrowLeft } from "lucide-react"
 import { CompanyTabs } from "./company-tabs"
 import { OverviewTab } from "./overview-tab"
 import { MembersTab } from "./members-tab"
 import { PlansTab } from "./plans-tab"
+import { EditCompanyButton } from "./edit-company-button"
 import { TableSkeleton } from "@/components/table-skeleton"
 import { firstParam } from "@/lib/search-params"
+import { COMPANY_STATUS_CLASSES, COMPANY_STATUS_LABELS } from "../company-status"
 
 const VALID_TABS = ["overview", "members", "plans"]
 
@@ -48,11 +51,17 @@ export default async function CompanyDetailsPage({
 
       <div className="flex items-center justify-between py-2 px-4 mb-6">
         <div>
-          <h1 className="text-5xl font-semibold">{company.name}</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-5xl font-semibold">{company.name}</h1>
+            <Badge variant="secondary" className={`${COMPANY_STATUS_CLASSES[company.status] ?? ""} border-0`}>
+              {COMPANY_STATUS_LABELS[company.status] ?? company.status}
+            </Badge>
+          </div>
           {company.taxId && (
             <p className="mt-2 text-sm text-muted-foreground">Tax ID {company.taxId}</p>
           )}
         </div>
+        <EditCompanyButton company={company} />
       </div>
 
       <CompanyTabs activeTab={activeTab}>

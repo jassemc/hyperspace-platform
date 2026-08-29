@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
-import { AddCompanyForm } from "./add-company-form"
+import { CompanyFormDialog } from "./company-form-dialog"
 
 export function AddCompanyButton() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
@@ -15,7 +15,7 @@ export function AddCompanyButton() {
         Add Company
       </Button>
       {isDrawerOpen && (
-        <AddCompanyForm
+        <CompanyFormDialog
           isOpen={isDrawerOpen}
           onClose={() => setIsDrawerOpen(false)}
         />
