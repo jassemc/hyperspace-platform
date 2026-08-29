@@ -43,7 +43,19 @@ const EMPTY: OpportunityOptions = { members: [], plans: [], resources: [] }
  * and shared by both drawers.
  */
 const CACHE_TTL_MS = 5 * 60 * 1000
-let cache: { at: number; options: OpportunityOptions } | null = null
+/**
+ * Per list, not all-or-nothing: Edit skips the member list (see
+ * `needsMembers`), so an edit-first session used to write `members: []`
+ * into a cache that Add then trusted for five minutes — an empty Member
+ * select and no request to fill it. `null` means "never fetched", which is
+ * the one state Add must not take at face value.
+ */
+let cache: {
+  at: number
+  members: MemberDto[] | null
+  plans: PlanDto[]
+  resources: ResourceDto[]
+} | null = null
 
 /**
  * Everything the opportunity drawer needs to render its selects, fetched
@@ -63,14 +75,16 @@ export function useOpportunityOptions() {
   ) => {
     setLoading({ action, id: opportunity?.id ?? null })
     try {
-      const fresh = cache && Date.now() - cache.at < CACHE_TTL_MS ? cache.options : null
+      const fresh = cache && Date.now() - cache.at < CACHE_TTL_MS ? cache : null
 
       // Editing locks the member to the one the lead was opened for, and the
-      // row already names them — only Add needs the whole member list.
+      // row already names them — only Add needs the whole member list. A
+      // cached list is still used on Edit, though: it spares the by-id
+      // backfill below, which otherwise ran on every edit open.
       const needsMembers = action !== "edit"
 
       const [memberPage, planPage, resourcePage] = await Promise.all([
-        needsMembers && !fresh ? getListMembers(PAGE) : null,
+        needsMembers && fresh?.members == null ? getListMembers(PAGE) : null,
         fresh ? null : getListPlans(PAGE),
         fresh ? null : getListResources(PAGE),
       ])
@@ -107,9 +121,15 @@ export function useOpportunityOptions() {
         resources: resource ? [...resources, resource as ResourceDto] : resources,
       }
       // Only the lists as fetched are cached; a by-id backfill belongs to the
-      // lead that needed it.
-      if (!fresh) {
-        cache = { at: Date.now(), options: { members, plans, resources } }
+      // lead that needed it. A members list fetched into a still-fresh cache
+      // joins it without resetting its age.
+      if (!fresh || memberPage) {
+        cache = {
+          at: fresh?.at ?? Date.now(),
+          members: memberPage ? members : (fresh?.members ?? null),
+          plans,
+          resources,
+        }
       }
       setOptions(loaded)
       return loaded

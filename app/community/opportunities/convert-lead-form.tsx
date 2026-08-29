@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useRef, useState } from "react"
 import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { DateField } from "@/components/ui/date-field"
 import {
@@ -66,6 +67,9 @@ export function ConvertLeadForm({
   const [state, formAction] = useActionState(onboardLeadAction, {})
   const [startsAt, setStartsAt] = useState(todayInTunis())
   const [endsAt, setEndsAt] = useState("")
+  const [codeMode, setCodeMode] = useState<"keep" | "drop" | "replace">(
+    opportunity.requestedDiscountCode ? "keep" : "replace"
+  )
   const notifiedRef = useRef(false)
 
   useEffect(() => {
@@ -188,6 +192,68 @@ export function ConvertLeadForm({
                     it is the only word on what gets sold.
                   </p>
                 )}
+
+                <div className="grid gap-2">
+                  <Label>Discount code</Label>
+                  {opportunity.requestedDiscountCode ? (
+                    <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+                      Requested on the website:{" "}
+                      <code className="rounded bg-muted px-1">
+                        {opportunity.requestedDiscountCode}
+                      </code>
+                      <div className="mt-2 flex gap-4">
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="codeMode"
+                            value="keep"
+                            checked={codeMode === "keep"}
+                            onChange={() => setCodeMode("keep")}
+                          />{" "}
+                          Keep
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="codeMode"
+                            value="drop"
+                            checked={codeMode === "drop"}
+                            onChange={() => setCodeMode("drop")}
+                          />{" "}
+                          Remove
+                        </label>
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="radio"
+                            name="codeMode"
+                            value="replace"
+                            checked={codeMode === "replace"}
+                            onChange={() => setCodeMode("replace")}
+                          />{" "}
+                          Replace
+                        </label>
+                      </div>
+                    </div>
+                  ) : null}
+                  {(codeMode === "replace" || !opportunity.requestedDiscountCode) && (
+                    <Input
+                      name="discountCodeInput"
+                      placeholder="e.g. 10LOYALTY"
+                      onChange={(e) => {
+                        e.currentTarget.value = e.currentTarget.value.toUpperCase()
+                      }}
+                    />
+                  )}
+                  <input
+                    type="hidden"
+                    name="discountCode"
+                    value={codeMode === "keep" ? opportunity.requestedDiscountCode ?? "" : ""}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Checked when the membership is created; an unknown or ineligible code
+                    is refused with the reason.
+                  </p>
+                </div>
 
                 <div className="grid gap-2">
                   <Label htmlFor="startsAt">First day of the membership</Label>

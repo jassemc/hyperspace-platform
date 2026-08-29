@@ -80,6 +80,11 @@ function opportunityFields(formData: FormData) {
       num(formData, "requestedPlanPriceHt")
     ),
     requestedExtras: requestedExtras(formData),
+    requestedDiscountCode: clearable(
+      formData,
+      "requestedDiscountCode",
+      text(formData, "requestedDiscountCode")
+    ),
   }
 }
 
@@ -102,6 +107,7 @@ export async function createOpportunityAction(
       requestedPlanId: fields.requestedPlanId ?? undefined,
       requestedResourceId: fields.requestedResourceId ?? undefined,
       requestedPlanPriceHt: fields.requestedPlanPriceHt ?? undefined,
+      requestedDiscountCode: fields.requestedDiscountCode ?? undefined,
       memberId: fields.memberId,
       interest: fields.interest,
       // Required by the schema; an opportunity always carries a list.
@@ -152,14 +158,23 @@ export async function onboardLeadAction(
   try {
     const opportunityId = text(formData, "opportunityId")
     const startsAt = text(formData, "startsAt")
+    const codeMode = text(formData, "codeMode")
 
     if (!opportunityId) return { success: false, error: "Opportunity is required" }
     if (!startsAt) return { success: false, error: "Start date is required" }
+
+    // keep = the requested code, verbatim; replace = what staff typed;
+    // drop = explicitly null, clearing it rather than leaving it unset.
+    let discountCode: string | null | undefined
+    if (codeMode === "keep") discountCode = text(formData, "discountCode")
+    else if (codeMode === "replace") discountCode = text(formData, "discountCodeInput")
+    else if (codeMode === "drop") discountCode = null
 
     const result = (await onboardLead({
       opportunityId,
       startsAt,
       endsAt: text(formData, "endsAt"),
+      discountCode,
     })) as OnboardingResultDto
 
     revalidatePath("/community/opportunities")

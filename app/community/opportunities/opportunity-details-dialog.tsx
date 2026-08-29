@@ -215,6 +215,16 @@ export function OpportunityDetailsDialog({
                     )}
                   </dd>
                 </div>
+                {apiString(opportunity.requestedDiscountCode) && (
+                  <div className="flex items-start justify-between gap-3 border-t px-3 py-2">
+                    <dt className="text-muted-foreground">Requested discount code</dt>
+                    <dd className="text-right">
+                      <code className="rounded bg-muted px-1 text-xs">
+                        {opportunity.requestedDiscountCode}
+                      </code>
+                    </dd>
+                  </div>
+                )}
               </dl>
             )}
           </Section>

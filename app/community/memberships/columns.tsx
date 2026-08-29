@@ -69,6 +69,16 @@ export const createColumns = ({
     },
   },
   {
+    id: "discount",
+    accessorFn: (membership) => membership.planSnapshot?.plan?.discount?.code ?? "",
+    header: "Discount",
+    cell: ({ row }) => {
+      const code = row.getValue<string>("discount")
+      if (!code) return <span className="text-muted-foreground">-</span>
+      return <code className="rounded bg-muted px-1 text-xs">{code}</code>
+    },
+  },
+  {
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => {

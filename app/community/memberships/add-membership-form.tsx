@@ -16,10 +16,12 @@ import {
 } from "@/components/ui/drawer"
 import { X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
-import { getListMembers, getListCompanies, getListPlans } from "@/lib/service"
-import type { CompanyDto, MemberDto, MembershipDto, PlanDto } from "@/lib/service/HsService"
+import { getListMembers, getListCompanies, getListPlans, getListDiscounts } from "@/lib/service"
+import type { CompanyDto, DiscountDto, MemberDto, MembershipDto, PlanDto } from "@/lib/service/HsService"
 import { formatDate, formatEnumLabel, formatPriceHt, formatVatRate } from "@/lib/format"
 import { benefitLabel } from "@/lib/benefits"
+import { formatDiscountValue, isInWindow } from "@/app/billing/discounts/discount-meta"
+import { totalDiscount } from "@/lib/pricing/discount-math"
 import { createMembershipAction, updateMembershipAction } from "./actions"
 import { billingCycleLabel, membershipSnapshot } from "./membership-snapshot"
 import { MEMBERSHIP_STATUS_CLASSES, MEMBERSHIP_STATUS_LABELS } from "./membership-status"
@@ -97,6 +99,10 @@ export function AddMembershipForm({
   const [updateState, updateFormAction] = useActionState(updateMembershipAction, {})
   const [customerKind, setCustomerKind] = useState<CustomerKind>("member")
   const [planId, setPlanId] = useState("")
+  const [discounts, setDiscounts] = useState<DiscountDto[]>([])
+  const [discountId, setDiscountId] = useState("")
+  const [selectedExtraIds, setSelectedExtraIds] = useState<string[]>([])
+  const [priceOverride, setPriceOverride] = useState<number | undefined>(undefined)
 
   const createNotifiedRef = useRef(false)
   const updateNotifiedRef = useRef(false)
@@ -107,8 +113,27 @@ export function AddMembershipForm({
       updateNotifiedRef.current = false
       setCustomerKind(editingMembership?.companyId ? "company" : "member")
       setPlanId(editingMembership?.planId ?? "")
+      setDiscountId(editingMembership?.discountId ?? "")
+      setSelectedExtraIds([])
+      setPriceOverride(undefined)
     }
   }, [isOpen, editingMembership])
+
+  // Discounts are scoped to a plan (or promo window), so the whole active
+  // catalog is fetched once per open and filtered client-side against
+  // whichever plan is selected.
+  useEffect(() => {
+    if (!isOpen) return
+    let cancelled = false
+    getListDiscounts({ limit: 200, offset: 0, sort: "ASC", status: "active" })
+      .then((page) => {
+        if (!cancelled) setDiscounts((page.results ?? []) as DiscountDto[])
+      })
+      .catch((error) => console.error("Failed to load discounts", error))
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen])
 
   // The page-level Add button renders this form with no seed data, so the
   // lookups are fetched here rather than threaded through every caller.
@@ -168,6 +193,31 @@ export function AddMembershipForm({
   const selectedPlan = plans.find((plan) => plan.id === planId)
   const currentState = editingMembership ? updateState : createState
   const formAction = editingMembership ? updateFormAction : createFormAction
+
+  // A plan discount only fits the plan it targets; a promo just needs to be
+  // in its date window. Only one of these ever has to explain a "-".
+  const eligibleDiscounts = discounts.filter(
+    (d) =>
+      (d.kind === "plan" && !!selectedPlan && d.planIds.includes(selectedPlan.id)) ||
+      (d.kind === "promo" && isInWindow(d))
+  )
+  const selectedDiscount = eligibleDiscounts.find((d) => d.id === discountId)
+
+  // Mirrors the create-only preview below; edit mode never renders it since
+  // the plan fee and extras are frozen in the snapshot already.
+  const basePriceHt = priceOverride ?? selectedPlan?.priceHt ?? 0
+  const selectedExtras = (selectedPlan?.extras ?? []).filter((e) => selectedExtraIds.includes(e.id))
+  const extrasHt = selectedExtras.reduce((s, e) => s + e.priceHt, 0)
+  const discountHt = selectedDiscount
+    ? totalDiscount(
+        selectedDiscount,
+        [
+          { key: "plan", amountHt: basePriceHt },
+          ...selectedExtras.map((e) => ({ key: `extra:${e.id}`, amountHt: e.priceHt })),
+        ],
+        "plan"
+      )
+    : 0
 
   // What the membership actually runs on, rather than what the catalog says today.
   const snapshot = membershipSnapshot(editingMembership ?? ({ planSnapshot: {} } as MembershipDto))
@@ -279,6 +329,12 @@ export function AddMembershipForm({
                         />
                         <Term label="VAT" value={formatVatRate(snapshot.plan?.vatRate)} />
                         <Term label="Deposit" value={formatPriceHt(snapshot.plan?.deposit)} />
+                        {snapshot.plan?.discount?.code && (
+                          <Term
+                            label="Discount"
+                            value={`${snapshot.plan.discount.code} — ${formatDiscountValue(snapshot.plan.discount)}`}
+                          />
+                        )}
                         {cycle && <Term label="Billing cycle" value={cycle} />}
                         {snapshot.plan?.kind && (
                           <Term label="Kind" value={formatEnumLabel(snapshot.plan.kind)} />
@@ -348,6 +404,34 @@ export function AddMembershipForm({
                         </ul>
                       )}
                     </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="discountId">Discount</Label>
+                      <select
+                        id="discountId"
+                        name="discountId"
+                        className={selectClassName}
+                        value={discountId}
+                        onChange={(e) => setDiscountId(e.target.value)}
+                        disabled={!selectedPlan}
+                      >
+                        <option value="">{selectedPlan ? "No discount" : "Select a plan first"}</option>
+                        {eligibleDiscounts.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.code} — {formatDiscountValue(d)}
+                            {d.kind === "promo" ? " (promo)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                      {selectedPlan && eligibleDiscounts.length === 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          No discount is eligible for this plan.
+                        </p>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        Changes apply to future, non-invoiced cycles only.
+                      </p>
+                    </div>
                   </>
                 ) : (
                   <>
@@ -400,7 +484,26 @@ export function AddMembershipForm({
                         name="planId"
                         className={selectClassName}
                         value={planId}
-                        onChange={(e) => setPlanId(e.target.value)}
+                        onChange={(e) => {
+                          const nextPlanId = e.target.value
+                          const nextPlan = plans.find((plan) => plan.id === nextPlanId)
+                          setPlanId(nextPlanId)
+                          // Extras and the discount both belong to the old
+                          // plan; carrying them over would offer stale, or
+                          // now-ineligible, options.
+                          setSelectedExtraIds([])
+                          setDiscountId((current) => {
+                            const stillEligible = discounts.some(
+                              (d) =>
+                                d.id === current &&
+                                ((d.kind === "plan" &&
+                                  !!nextPlan &&
+                                  d.planIds.includes(nextPlan.id)) ||
+                                  (d.kind === "promo" && isInWindow(d)))
+                            )
+                            return stillEligible ? current : ""
+                          })
+                        }}
                         required
                       >
                         <option value="">Select plan</option>
@@ -422,6 +525,14 @@ export function AddMembershipForm({
                                 type="checkbox"
                                 name="extraIds"
                                 value={extra.id}
+                                checked={selectedExtraIds.includes(extra.id)}
+                                onChange={(e) =>
+                                  setSelectedExtraIds((current) =>
+                                    e.target.checked
+                                      ? [...current, extra.id]
+                                      : current.filter((id) => id !== extra.id)
+                                  )
+                                }
                                 className="mt-0.5 h-4 w-4 rounded border-input"
                               />
                               <span>
@@ -457,6 +568,10 @@ export function AddMembershipForm({
                         min="0"
                         step="0.001"
                         placeholder={selectedPlan ? String(selectedPlan.priceHt) : "Plan price"}
+                        onChange={(e) => {
+                          const raw = e.target.value
+                          setPriceOverride(raw === "" ? undefined : Number(raw))
+                        }}
                       />
                       <p className="text-xs text-muted-foreground">
                         Overrides the plan price for this membership only.
@@ -473,6 +588,58 @@ export function AddMembershipForm({
                         placeholder={selectedPlan ? String(selectedPlan.deposit) : "Plan deposit"}
                       />
                     </div>
+
+                    <div className="grid gap-2">
+                      <Label htmlFor="discountId">Discount</Label>
+                      <select
+                        id="discountId"
+                        name="discountId"
+                        className={selectClassName}
+                        value={discountId}
+                        onChange={(e) => setDiscountId(e.target.value)}
+                        disabled={!selectedPlan}
+                      >
+                        <option value="">{selectedPlan ? "No discount" : "Select a plan first"}</option>
+                        {eligibleDiscounts.map((d) => (
+                          <option key={d.id} value={d.id}>
+                            {d.code} — {formatDiscountValue(d)}
+                            {d.kind === "promo" ? " (promo)" : ""}
+                          </option>
+                        ))}
+                      </select>
+                      {selectedPlan && eligibleDiscounts.length === 0 && (
+                        <p className="text-xs text-muted-foreground">
+                          No discount is eligible for this plan.
+                        </p>
+                      )}
+                    </div>
+
+                    {selectedPlan && (
+                      <dl className="rounded-md border bg-muted/40 text-sm">
+                        <div className="flex justify-between px-3 py-2">
+                          <dt className="text-muted-foreground">Default price</dt>
+                          <dd className="tabular-nums">{formatPriceHt(basePriceHt)}</dd>
+                        </div>
+                        {selectedExtras.length > 0 && (
+                          <div className="flex justify-between border-t px-3 py-2">
+                            <dt className="text-muted-foreground">Extras</dt>
+                            <dd className="tabular-nums">{formatPriceHt(extrasHt)}</dd>
+                          </div>
+                        )}
+                        <div className="flex justify-between border-t px-3 py-2">
+                          <dt className="text-muted-foreground">
+                            Discount{selectedDiscount ? ` (${selectedDiscount.code})` : ""}
+                          </dt>
+                          <dd className="tabular-nums">{formatPriceHt(discountHt)}</dd>
+                        </div>
+                        <div className="flex justify-between border-t px-3 py-2 font-semibold">
+                          <dt>Price per cycle</dt>
+                          <dd className="tabular-nums">
+                            {formatPriceHt(basePriceHt + extrasHt + discountHt)}
+                          </dd>
+                        </div>
+                      </dl>
+                    )}
                   </>
                 )}
 

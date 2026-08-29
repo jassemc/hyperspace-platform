@@ -124,6 +124,16 @@ export const createColumns = ({
     },
   },
   {
+    id: "code",
+    accessorFn: (opportunity) => apiString(opportunity.requestedDiscountCode) ?? "",
+    header: "Code",
+    cell: ({ row }) => {
+      const value = row.getValue<string>("code")
+      if (!value) return <span className="text-muted-foreground">-</span>
+      return <code className="rounded bg-muted px-1 text-xs">{value}</code>
+    },
+  },
+  {
     accessorKey: "closedAt",
     header: "Closed",
     cell: ({ row }) => {
