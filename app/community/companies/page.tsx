@@ -27,7 +27,7 @@ export default async function CommunityCompaniesPage({
           </div>
         }
       >
-        <SectionCards />
+        <SectionCards searchParams={resolvedSearchParams} />
       </Suspense>
       <Suspense fallback={<TableSkeleton rows={10} />}>
         <CompanyTableSection searchParams={resolvedSearchParams} />
