@@ -4,7 +4,7 @@ import { useEffect, useState, useTransition, type ReactNode } from "react"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useRouter, useSearchParams } from "next/navigation"
-import { TableSkeleton } from "../table-skeleton"
+import { TableSkeleton } from "@/components/table-skeleton"
 
 const TABS = [
   { value: "overview", label: "Overview" },

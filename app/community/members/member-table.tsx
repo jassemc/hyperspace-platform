@@ -5,17 +5,7 @@ import { DataTable } from "@/components/data-table"
 import { AddMemberForm } from "./add-member-form"
 import type { MemberDto } from "@/lib/service/HsService"
 import { createColumns } from "./columns"
-
-/**
- * These tabs filter by `kindHint`, the only lifecycle-ish filter the list
- * endpoint accepts. `status` is derived server-side and not filterable, so it
- * stays a display-only column.
- */
-const MEMBER_KIND_TABS = [
-  { value: "lead", label: "Lead" },
-  { value: "visitor", label: "Visitor" },
-  { value: "member", label: "Member" },
-]
+import { MEMBER_KIND_TABS } from "./member-status"
 
 interface MemberTableProps {
   data: MemberDto[]
@@ -58,6 +48,8 @@ export function MemberTable({
         totalCount={typeof totalCount === "number" ? totalCount : undefined}
         showStatusTabs={true}
         statusTabOptions={MEMBER_KIND_TABS}
+        serverSearch
+        searchPlaceholder="Search members..."
       />
       <AddMemberForm
         key={editingMember?.id || "create"}

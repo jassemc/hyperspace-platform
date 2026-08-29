@@ -1,5 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import { TableSkeleton } from "./table-skeleton";
+import { TableSkeleton } from "@/components/table-skeleton";
 
 export default function Loading() {
     return (

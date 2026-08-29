@@ -9,13 +9,10 @@ import { CompanyTabs } from "./company-tabs"
 import { OverviewTab } from "./overview-tab"
 import { MembersTab } from "./members-tab"
 import { PlansTab } from "./plans-tab"
-import { TableSkeleton } from "../table-skeleton"
+import { TableSkeleton } from "@/components/table-skeleton"
+import { firstParam } from "@/lib/search-params"
 
 const VALID_TABS = ["overview", "members", "plans"]
-
-function firstParam(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value
-}
 
 export default async function CompanyDetailsPage({
   params,

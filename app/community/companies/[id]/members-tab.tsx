@@ -1,40 +1,25 @@
 import { getListMembers } from "@/lib/service"
-import type { ListMembersParams, MemberDto } from "@/lib/service/HsService"
+import type { MemberDto } from "@/lib/service/HsService"
+import { pageQuery, pageResult, resolveSearchParams, type SearchParamsInput } from "@/lib/search-params"
 import { AttachMemberButton } from "./attach-member-button"
 import { CompanyMembersTable } from "./company-members-table"
-
-type MembersPage = { results?: MemberDto[]; meta?: { totalItems?: number } }
-
-function firstParam(value: string | string[] | undefined): string | undefined {
-  return Array.isArray(value) ? value[0] : value
-}
 
 export async function MembersTab({
   companyId,
   searchParams,
 }: Readonly<{
   companyId: string
-  searchParams?: Record<string, string | string[] | undefined>
+  searchParams?: SearchParamsInput
 }>) {
-  const page = Number(firstParam(searchParams?.page)) || 1
-  const pageSize = Number(firstParam(searchParams?.pageSize)) || 10
-  const searchQuery = firstParam(searchParams?.name)
-
-  const query: ListMembersParams = {
-    limit: pageSize,
-    offset: (page - 1) * pageSize,
-    sort: "ASC",
-    companyId,
-    q: searchQuery || undefined,
-  }
+  const params = await resolveSearchParams(searchParams)
+  const { limit, offset, q } = pageQuery(params)
 
   let results: MemberDto[] = []
   let total = 0
 
   try {
-    const response = (await getListMembers(query)) as MembersPage
-    results = response.results ?? []
-    total = response.meta?.totalItems ?? results.length
+    const response = await getListMembers({ limit, offset, sort: "ASC", companyId, q })
+    ;({ results, total } = pageResult<MemberDto>(response))
   } catch (error) {
     console.warn("Failed to load company members", error)
   }

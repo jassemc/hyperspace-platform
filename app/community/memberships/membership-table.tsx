@@ -49,6 +49,8 @@ export function MembershipTable({
         totalCount={typeof totalCount === "number" ? totalCount : undefined}
         showStatusTabs={true}
         statusTabOptions={MEMBERSHIP_STATUS_TABS}
+        serverSearch
+        searchPlaceholder="Search memberships..."
       />
       <AddMembershipForm
         key={editingMembership?.id || "create"}

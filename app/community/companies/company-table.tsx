@@ -35,6 +35,8 @@ export function CompanyTable({ data, totalCount }: Readonly<CompanyTableProps>) 
         columns={columns}
         data={data}
         totalCount={typeof totalCount === "number" ? totalCount : undefined}
+        serverSearch
+        searchPlaceholder="Search companies..."
       />
       <AddCompanyForm
         key={editingCompany?.id || "create"}
