@@ -28,6 +28,7 @@ import {
     LayoutGrid,
     Package,
     MapPin,
+    BadgePercent,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -201,6 +202,11 @@ export const navigationConfig: NavigationConfig = {
                     title: "Resource rates",
                     url: "/billing/resource-rates",
                     icon: Receipt,
+                },
+                {
+                    title: "Discounts",
+                    url: "/billing/discounts",
+                    icon: BadgePercent,
                 },
                 {
                     title: "Payment Methods",
