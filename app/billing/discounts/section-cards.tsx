@@ -1,127 +1,30 @@
 import { getListDiscounts } from "@/lib/service"
 import type { DiscountDto } from "@/lib/service/HsService"
-import { Badge } from "@/components/ui/badge"
-import {
-  Card,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { pageResult } from "@/lib/search-params"
+import { StatCards } from "@/components/stat-cards"
 import { BadgePercentIcon, LayersIcon, DollarSignIcon, GlobeIcon } from "lucide-react"
 import { isInWindow } from "./discount-meta"
 
-type DiscountsPage = {
-  results?: DiscountDto[]
-  meta?: { totalItems?: number }
-}
+export async function SectionCards() {
+  let discounts: DiscountDto[] = []
 
-type DiscountStats = {
-  totalActive: number
-  planDiscounts: number
-  rateDiscounts: number
-  liveOnWebsite: number
-}
-
-async function loadDiscountStats(): Promise<DiscountStats> {
   try {
-    const response = (await getListDiscounts({
-      limit: 100,
-      offset: 0,
-      sort: "ASC",
-    })) as DiscountsPage
-
-    const discounts = response.results ?? []
-    const active = discounts.filter((discount) => discount.status === "active")
-
-    return {
-      totalActive: active.length,
-      planDiscounts: active.filter((discount) => discount.kind === "plan").length,
-      rateDiscounts: active.filter((discount) => discount.kind === "resource_rate").length,
-      liveOnWebsite: active.filter((discount) => discount.isPublic && isInWindow(discount)).length,
-    }
+    const response = await getListDiscounts({ limit: 100, offset: 0, sort: "ASC" })
+    discounts = pageResult<DiscountDto>(response).results
   } catch (error) {
     console.warn("Failed to load discount stats", error)
-    return { totalActive: 0, planDiscounts: 0, rateDiscounts: 0, liveOnWebsite: 0 }
   }
-}
 
-export async function SectionCards() {
-  const stats = await loadDiscountStats()
+  const active = discounts.filter((discount) => discount.status === "active")
 
   return (
-    <div className="*:data-[slot=card]:shadow-xs grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 px-4 *:data-[slot=card]:bg-gradient-to-t *:data-[slot=card]:from-primary/5 *:data-[slot=card]:to-card dark:*:data-[slot=card]:bg-card lg:px-4 mb-6">
-      <Card className="@container/card">
-        <CardHeader className="relative">
-          <CardDescription>Total active</CardDescription>
-          <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
-            {stats.totalActive}
-          </CardTitle>
-          <div className="absolute right-4 top-4">
-            <Badge variant="outline" className="flex gap-1 rounded-lg text-xs">
-              <BadgePercentIcon className="size-3" />
-              Discounts
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardFooter className="flex-col items-start gap-1 text-sm">
-          <div className="text-muted-foreground">Discounts that can currently be assigned</div>
-        </CardFooter>
-      </Card>
-
-      <Card className="@container/card">
-        <CardHeader className="relative">
-          <CardDescription>Plan discounts</CardDescription>
-          <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
-            {stats.planDiscounts}
-          </CardTitle>
-          <div className="absolute right-4 top-4">
-            <Badge variant="outline" className="flex gap-1 rounded-lg text-xs">
-              <LayersIcon className="size-3" />
-              Plans
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardFooter className="flex-col items-start gap-1 text-sm">
-          <div className="text-muted-foreground">Reduce a membership&apos;s cycle fee</div>
-        </CardFooter>
-      </Card>
-
-      <Card className="@container/card">
-        <CardHeader className="relative">
-          <CardDescription>Rate discounts</CardDescription>
-          <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
-            {stats.rateDiscounts}
-          </CardTitle>
-          <div className="absolute right-4 top-4">
-            <Badge variant="outline" className="flex gap-1 rounded-lg text-xs">
-              <DollarSignIcon className="size-3" />
-              Rates
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardFooter className="flex-col items-start gap-1 text-sm">
-          <div className="text-muted-foreground">Attached to billing plans</div>
-        </CardFooter>
-      </Card>
-
-      <Card className="@container/card">
-        <CardHeader className="relative">
-          <CardDescription>Live on the website</CardDescription>
-          <CardTitle className="@[250px]/card:text-3xl text-2xl font-semibold tabular-nums">
-            {stats.liveOnWebsite}
-          </CardTitle>
-          <div className="absolute right-4 top-4">
-            <Badge variant="outline" className="flex gap-1 rounded-lg text-xs">
-              <GlobeIcon className="size-3" />
-              Public
-            </Badge>
-          </div>
-        </CardHeader>
-        <CardFooter className="flex-col items-start gap-1 text-sm">
-          <div className="text-muted-foreground">Public, active, and in their validity window</div>
-        </CardFooter>
-      </Card>
-    </div>
+    <StatCards
+      cards={[
+        { label: "Total active", value: active.length, badge: "Discounts", icon: BadgePercentIcon, footer: "Discounts that can currently be assigned" },
+        { label: "Plan discounts", value: active.filter((discount) => discount.kind === "plan").length, badge: "Plans", icon: LayersIcon, footer: "Reduce a membership's cycle fee" },
+        { label: "Rate discounts", value: active.filter((discount) => discount.kind === "resource_rate").length, badge: "Rates", icon: DollarSignIcon, footer: "Attached to billing plans" },
+        { label: "Live on the website", value: active.filter((discount) => discount.isPublic && isInWindow(discount)).length, badge: "Public", icon: GlobeIcon, footer: "Public, active, and in their validity window" },
+      ]}
+    />
   )
 }
