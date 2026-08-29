@@ -160,19 +160,6 @@ const meta = {
 
     {
       namespace: "api",
-      method: "GET",
-      usage: "getMember",
-      path: "/api/v1/members/${id}",
-      functionName: "getMember",
-      pathParams: [{ name: "id", type: "string", optional: false }],
-      requestParams: [],
-      combinedPathAndRequestParams: [],
-      payload: null,
-      responseType: "(MemberDto)",
-    },
-
-    {
-      namespace: "api",
       method: "PATCH",
       usage: "updateMember",
       path: "/api/v1/members/${id}",
@@ -182,6 +169,19 @@ const meta = {
       combinedPathAndRequestParams: [],
       payload: { name: "data", optional: false, type: "UpdateMemberDto" },
       responseType: "(MemberDto)",
+    },
+
+    {
+      namespace: "api",
+      method: "GET",
+      usage: "getMember",
+      path: "/api/v1/members/${id}",
+      functionName: "getMember",
+      pathParams: [{ name: "id", type: "string", optional: false }],
+      requestParams: [],
+      combinedPathAndRequestParams: [],
+      payload: null,
+      responseType: "(MemberDetailsDto)",
     },
 
     {

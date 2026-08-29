@@ -134,12 +134,12 @@ export async function getMemberStats(query: MemberStatsParams, params?: RequestP
   return hsService.api.memberStats(query, params);
 }
 
-export async function getMember(id: string, params?: RequestParams) {
-  return hsService.api.getMember(id, params);
-}
-
 export async function updateMember(id: string, data: UpdateMemberDto, params?: RequestParams) {
   return hsService.api.updateMember(id, data, params);
+}
+
+export async function getMember(id: string, params?: RequestParams) {
+  return hsService.api.getMember(id, params);
 }
 
 export async function updateMemberStatus(id: string, data: UpdateMemberStatusDto, params?: RequestParams) {

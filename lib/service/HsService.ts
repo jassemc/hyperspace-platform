@@ -2882,6 +2882,125 @@ export interface AvailabilityDto {
   busy: Array<BusyIntervalDto>;
 }
 
+export interface MemberMembershipsSummaryDto {
+  /** @example 3 */
+  total: number;
+  /**
+   * Memberships whose derived status is active today.
+   * @example 1
+   */
+  active: number;
+  /** Newest five by creation. */
+  items: Array<MembershipDto>;
+}
+
+export interface MemberBookingsSummaryDto {
+  /**
+   * Confirmed bookings starting from now.
+   * @example 2
+   */
+  upcoming: number;
+  /** Next five upcoming, soonest first. */
+  items: Array<BookingDto>;
+}
+
+export interface MemberCheckinsSummaryDto {
+  /** @example 40 */
+  total: number;
+  /** The open check-in when the member is on site right now. */
+  onSite?: CheckinDto | null;
+  /** Last five, newest first. */
+  items: Array<CheckinDto>;
+}
+
+export interface MemberCreditsSummaryDto {
+  /** Per-membership balances, as `GET /credits/balances?memberId=` returns them. */
+  balances: Array<MembershipCreditBalancesDto>;
+  /** Last five ledger rows, newest first. */
+  recent: Array<CreditTransactionDto>;
+}
+
+export interface MemberChargesSummaryDto {
+  /** @example 12 */
+  total: number;
+  /**
+   * Charges not yet on an invoice.
+   * @example 2
+   */
+  uninvoiced: number;
+  /** Latest five uninvoiced charges. */
+  items: Array<ChargeDto>;
+}
+
+export interface MemberInvoicesSummaryDto {
+  /** @example 9 */
+  total: number;
+  /**
+   * Issued (sent) and not yet paid.
+   * @example 1
+   */
+  open: number;
+  /**
+   * Σ (totalTtc − paid) over open invoices, in TND.
+   * @example 120.5
+   */
+  outstandingTtc: number;
+  /** Latest five open invoices. */
+  items: Array<InvoiceDto>;
+}
+
+export interface MemberDetailsDto {
+  /**
+   * Unique identifier
+   * @format uuid
+   * @example "9df3cd63-ad9a-48fb-8d48-2744da103c39"
+   */
+  id: string;
+  /** @example "Mohamed Ali May" */
+  fullName: string;
+  email?: string | null;
+  phone?: string | null;
+  /** @format uuid */
+  companyId?: string | null;
+  company?: MemberCompanyDto | null;
+  /** True if this member receives their company's invoices. */
+  isBillingPerson: boolean;
+  /** True if this member is their company's contact person. */
+  isContactPerson: boolean;
+  segment?: MemberSegment | null;
+  kindHint: MemberKindHint;
+  /**
+   * DERIVED status (OfficeRnD vocabulary) — computed on read, never stored.
+   * A manual `statusOverride` pin (`former`/`contact`) wins when set;
+   * otherwise it derives from memberships, then one-off charges, then open
+   * opportunities, then kindHint.
+   */
+  status: MemberStatus;
+  /** Manual lifecycle pin (staff-set via PUT /members/:id/status); null = auto. */
+  statusOverride?: MemberStatusOverride | null;
+  notes?: string | null;
+  tags: Array<string>;
+  metadata: Record<string, any>;
+  memberships: MemberMembershipsSummaryDto;
+  bookings: MemberBookingsSummaryDto;
+  checkins: MemberCheckinsSummaryDto;
+  credits: MemberCreditsSummaryDto;
+  charges: MemberChargesSummaryDto;
+  invoices: MemberInvoicesSummaryDto;
+  /**
+   * The date of creation of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  createdAt: string;
+  /**
+   * The date of the last update of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  updatedAt: string;
+}
+
 export interface OpportunityMemberDto {
   /** @format uuid */
   id: string;
@@ -4841,32 +4960,6 @@ export namespace Api {
   }
 
   /**
-   * @description Staff and admins can fetch any member; a member-role caller can only fetch the member record linked to their account.
-   * @tags Members
-   * @name GetMember
-   * @summary Get a member
-   * @request GET:/api/v1/members/{id}
-   * @secure
-   * @response `200` `(MemberDto)` 200
-   * @response `401` `(ResponseErrorDto)` Unauthorized
-   * @response `403` `(ResponseErrorDto)` Forbidden
-   * @response `404` `(ResponseErrorDto)` Not Found
-   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
-   * @response `429` `(ResponseErrorDto)` Too Many Requests
-   * @response `500` `(ResponseErrorDto)` Internal Server Error
-   * @response `default` `MemberDto`
-   */
-  export namespace GetMember {
-    export type RequestParams = {
-      id: string;
-    };
-    export type RequestQuery = {};
-    export type RequestBody = never;
-    export type RequestHeaders = {};
-    export type ResponseBody = MemberDto;
-  }
-
-  /**
    * @description Staff/admin may update all business fields except `companyId` — sending it is rejected with 422; moving a member is PUT /members/:id/company. A member-role caller may only update their own record, restricted to fullName, email and phone — any other field is rejected with 403. The user link is never updatable here.
    * @tags Members
    * @name UpdateMember
@@ -4890,6 +4983,32 @@ export namespace Api {
     export type RequestBody = UpdateMemberDto;
     export type RequestHeaders = {};
     export type ResponseBody = MemberDto;
+  }
+
+  /**
+   * @description Staff and admins can fetch any member; a member-role caller can only fetch the member record linked to their account. The response is the member row plus one block per domain (memberships, bookings, check-ins, credits, charges, invoices), each a count and its five most relevant rows. Blocks list DIRECT holdings only — rows naming this member — never the employer company’s own; use the list endpoints with `memberId` for the full, paginated history.
+   * @tags Members
+   * @name GetMember
+   * @summary Get a member with their overview
+   * @request GET:/api/v1/members/{id}
+   * @secure
+   * @response `200` `(MemberDetailsDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `(ResponseErrorDto)` Forbidden
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `MemberDetailsDto`
+   */
+  export namespace GetMember {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = MemberDetailsDto;
   }
 
   /**
@@ -8854,32 +8973,6 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Staff and admins can fetch any member; a member-role caller can only fetch the member record linked to their account.
-     *
-     * @tags Members
-     * @name GetMember
-     * @summary Get a member
-     * @request GET:/api/v1/members/{id}
-     * @secure
-     * @response `200` `(MemberDto)` 200
-     * @response `401` `(ResponseErrorDto)` Unauthorized
-     * @response `403` `(ResponseErrorDto)` Forbidden
-     * @response `404` `(ResponseErrorDto)` Not Found
-     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
-     * @response `429` `(ResponseErrorDto)` Too Many Requests
-     * @response `500` `(ResponseErrorDto)` Internal Server Error
-     * @response `default` `MemberDto`
-     */
-    getMember: (id: string, params: RequestParams = {}) =>
-      this.http.request<MemberDto, ResponseErrorDto | MemberDto>({
-        path: `/api/v1/members/${id}`,
-        method: "GET",
-        secure: true,
-        format: "json",
-        ...params,
-      }),
-
-    /**
      * @description Staff/admin may update all business fields except `companyId` — sending it is rejected with 422; moving a member is PUT /members/:id/company. A member-role caller may only update their own record, restricted to fullName, email and phone — any other field is rejected with 403. The user link is never updatable here.
      *
      * @tags Members
@@ -8903,6 +8996,32 @@ export class HsService<SecurityDataType extends unknown> {
         body: data,
         secure: true,
         type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Staff and admins can fetch any member; a member-role caller can only fetch the member record linked to their account. The response is the member row plus one block per domain (memberships, bookings, check-ins, credits, charges, invoices), each a count and its five most relevant rows. Blocks list DIRECT holdings only — rows naming this member — never the employer company’s own; use the list endpoints with `memberId` for the full, paginated history.
+     *
+     * @tags Members
+     * @name GetMember
+     * @summary Get a member with their overview
+     * @request GET:/api/v1/members/{id}
+     * @secure
+     * @response `200` `(MemberDetailsDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `(ResponseErrorDto)` Forbidden
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `MemberDetailsDto`
+     */
+    getMember: (id: string, params: RequestParams = {}) =>
+      this.http.request<MemberDetailsDto, ResponseErrorDto | MemberDetailsDto>({
+        path: `/api/v1/members/${id}`,
+        method: "GET",
+        secure: true,
         format: "json",
         ...params,
       }),
