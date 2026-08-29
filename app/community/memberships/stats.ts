@@ -1,7 +1,6 @@
 import { getMembershipStats } from "@/lib/service"
 import type { MembershipStatsDto } from "@/lib/service/HsService"
 import { firstParam, pageQuery } from "@/lib/search-params"
-import { changeIn } from "@/lib/stats"
 import { cachedStats } from "@/lib/cached-stats"
 
 /**
@@ -30,24 +29,6 @@ export const membershipStats = cachedStats(
     ) as Promise<MembershipStatsDto>
 )
 
-/** Tab counts, with `undefined` meaning "unknown" rather than "zero". */
-export function membershipTotals(stats: MembershipStatsDto | null) {
-  const byStatus = new Map<string, number>(
-    (stats?.byStatus ?? []).map((row) => [row.status, row.count])
-  )
-  const weeks = stats?.byWeek ?? []
-  const plans = stats?.byPlan ?? []
-
-  return {
-    weeks,
-    changeIn: (key: "created" | "starting") => changeIn(weeks, key),
-    countFor: (status: string) => (stats ? (byStatus.get(status) ?? 0) : undefined),
-    total: stats?.total,
-    topPlan: stats?.byPlan[0],
-    plans,
-  }
-}
-
 /**
  * Shared by the cards and the table so the two derive identical arguments:
  * `membershipStats` is a cache() keyed by positional primitives, so both
@@ -59,3 +40,5 @@ export function membershipStatsArgs(params: Record<string, string | string[] | u
   const planId = firstParam(params.planId) || undefined
   return { q, planId }
 }
+
+export { membershipTotals } from "./totals"

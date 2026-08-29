@@ -1,7 +1,6 @@
 import { getCompanyStats } from "@/lib/service"
 import type { CompanyStatsDto } from "@/lib/service/HsService"
 import { pageQuery } from "@/lib/search-params"
-import { changeIn } from "@/lib/stats"
 import { cachedStats } from "@/lib/cached-stats"
 
 /**
@@ -20,22 +19,6 @@ export const companyStats = cachedStats(
   (params, q: string | undefined) => getCompanyStats({ q }, params) as Promise<CompanyStatsDto>
 )
 
-/** Card counts, with `undefined` meaning "unknown" rather than "zero". */
-export function companyTotals(stats: CompanyStatsDto | null) {
-  const byStatus = new Map<string, number>(
-    (stats?.byStatus ?? []).map((row) => [row.status, row.count])
-  )
-  const weeks = stats?.byWeek ?? []
-
-  return {
-    weeks,
-    changeIn: (key: "created") => changeIn(weeks, key),
-    countFor: (status: string) => (stats ? (byStatus.get(status) ?? 0) : undefined),
-    total: stats?.total,
-    withMembers: stats?.withMembers,
-  }
-}
-
 /**
  * Shared by the cards and the table so the two derive identical arguments:
  * `companyStats` is a cache() keyed by positional primitives, so both call
@@ -46,3 +29,5 @@ export function companyStatsArgs(params: Record<string, string | string[] | unde
   const { q } = pageQuery(params)
   return { q }
 }
+
+export { companyTotals } from "./totals"

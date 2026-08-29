@@ -7,7 +7,7 @@ import type { MemberDto, MemberKindHint, MemberStatsDto, MemberStatus } from "@/
 import { createColumns } from "./columns"
 import { MemberDetailsDialog } from "./member-details-dialog"
 import { MEMBER_KIND_TABS, MEMBER_STATUS_TABS } from "./member-status"
-import { memberTotals } from "./stats"
+import { memberTotals } from "./totals"
 
 interface MemberTableProps {
   data: MemberDto[]

@@ -12,7 +12,7 @@ import { createColumns } from "./columns"
 import { MembershipFormDialog } from "./membership-form-dialog"
 import { MembershipDetailsDialog } from "./membership-details-dialog"
 import { MEMBERSHIP_STATUS_TABS } from "./membership-status"
-import { membershipTotals } from "./stats"
+import { membershipTotals } from "./totals"
 
 interface MembershipTableProps {
   data: MembershipDto[]

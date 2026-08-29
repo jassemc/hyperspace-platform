@@ -6,7 +6,7 @@ import { MembershipDetailsDialog } from "@/app/community/memberships/membership-
 import { MembershipFormDialog } from "@/app/community/memberships/membership-form-dialog"
 import type { MembershipActions } from "@/app/community/memberships/use-membership-mutations"
 import { MEMBERSHIP_STATUS_TABS } from "@/app/community/memberships/membership-status"
-import { membershipTotals } from "@/app/community/memberships/stats"
+import { membershipTotals } from "@/app/community/memberships/totals"
 import type { MembershipDto, MembershipStatsDto, MembershipStatus } from "@/lib/service/HsService"
 import { createPlanColumns } from "./plans-columns"
 import {

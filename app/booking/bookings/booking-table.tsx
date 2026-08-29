@@ -14,7 +14,7 @@ import type {
 import { createColumns } from "./columns"
 import { BookingFormDialog } from "./booking-form-dialog"
 import { BOOKING_STATUS_TABS } from "./booking-status"
-import { bookingTotals } from "./stats"
+import { bookingTotals } from "./totals"
 import { formatEnumLabel } from "@/lib/format"
 
 interface BookingTableProps {

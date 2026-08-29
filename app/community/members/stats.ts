@@ -1,7 +1,6 @@
 import { getMemberStats } from "@/lib/service"
 import type { MemberKindHint, MemberStatsDto } from "@/lib/service/HsService"
 import { asEnum, firstParam, pageQuery } from "@/lib/search-params"
-import { changeIn } from "@/lib/stats"
 import { cachedStats } from "@/lib/cached-stats"
 import { MEMBER_KIND_HINT_VALUES } from "./member-status"
 
@@ -26,26 +25,6 @@ export const memberStats = cachedStats(
   ) => getMemberStats({ q, kindHint, companyId }, params) as Promise<MemberStatsDto>
 )
 
-/** Tab counts, with `undefined` meaning "unknown" rather than "zero". */
-export function memberTotals(stats: MemberStatsDto | null) {
-  const byStatus = new Map<string, number>(
-    (stats?.byStatus ?? []).map((row) => [row.status, row.count])
-  )
-  const byKind = new Map<string, number>(
-    (stats?.byKindHint ?? []).map((row) => [row.kindHint, row.count])
-  )
-  const weeks = stats?.byWeek ?? []
-
-  return {
-    weeks,
-    changeIn: (key: "created" | "joined") => changeIn(weeks, key),
-    countFor: (status: string) => (stats ? (byStatus.get(status) ?? 0) : undefined),
-    kindCount: (kind: string) => (stats ? (byKind.get(kind) ?? 0) : undefined),
-    total: stats?.total,
-    withCompany: stats?.withCompany,
-  }
-}
-
 /**
  * Shared by the cards and the table so the two derive identical arguments:
  * `memberStats` is a cache() keyed by positional primitives, so both call
@@ -57,3 +36,5 @@ export function memberStatsArgs(params: Record<string, string | string[] | undef
   const kindHint = asEnum<MemberKindHint>(firstParam(params.kindHint), MEMBER_KIND_HINT_VALUES)
   return { q, kindHint }
 }
+
+export { memberTotals } from "./totals"
