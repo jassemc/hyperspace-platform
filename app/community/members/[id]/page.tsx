@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import { firstParam } from "@/lib/search-params"
 import { isMemberTab, type MemberTab } from "./member-route"
-import { MemberTabs } from "./member-tabs"
+import { MemberTabs, type MemberTabCounts } from "./member-tabs"
 import { IdentityCard } from "./identity-card"
 import { OverviewTab } from "./overview-tab"
 import { MembershipsTab } from "./memberships-tab"
@@ -37,6 +37,16 @@ export default async function MemberDetailsPage({
     notFound()
   }
 
+  // What each tab holds, so staff know where to look before clicking.
+  const counts: MemberTabCounts = {
+    memberships: member.memberships.total,
+    bookings: member.bookings.upcoming,
+    checkins: member.checkins.total,
+    credits: member.credits.recent.length,
+    charges: member.charges.uninvoiced,
+    invoices: member.invoices.open,
+  }
+
   return (
     <div className="w-full py-6">
       <div className="px-4">
@@ -51,7 +61,7 @@ export default async function MemberDetailsPage({
       <div className="grid gap-6 px-4 lg:grid-cols-[320px_minmax(0,1fr)]">
         <IdentityCard member={member} />
         <div className="min-w-0">
-          <MemberTabs activeTab={activeTab}>
+          <MemberTabs activeTab={activeTab} counts={counts}>
             {activeTab === "overview" && <OverviewTab member={member} />}
             {activeTab === "memberships" && (
               <MembershipsTab member={member} searchParams={resolvedSearchParams} />
