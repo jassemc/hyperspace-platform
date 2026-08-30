@@ -83,15 +83,22 @@ requests.
   default `overview`. A `MemberTabs` client component (copy of `CompanyTabs`
   with the tab list swapped) moves the highlight optimistically and clears
   `page`, `pageSize`, `q`, `status` on switch.
-- Layout: `lg+` two columns — identity card (~320px, `sticky top-*`) left,
-  tabs right; stacked below `lg`. "← Back to members" link above.
+- Layout: stacked — header band, then tab strip, then tab body (revised
+  2026-08-30; the earlier two-column card layout was dropped). "← Back to
+  members" link above.
 - Entry points: member name in `app/community/members/columns.tsx` and in
   `companies/[id]/members-columns.tsx` becomes a `Link` to
   `/community/members/{id}`. The row menu "Details" item navigates there too.
 
-## 2. Identity card
+## 2. Member header (revised 2026-08-30 — replaces the left identity card)
 
-Always visible. Contents, top to bottom:
+A full-width band above the tab strip: a title row (avatar, name, status
+badge, pin, kind · segment · member-since, with Set status / Edit on the
+right) and a three-column facts strip — Contact · Employer · Tags & notes
+(notes clamped to three lines, updated date, copy-id). The tab strip sits
+directly under it and is styled like the status tabs above every table,
+with count pills from the overview payload. Original card contents, for
+the record:
 
 - Actions row: **Edit** (existing `MemberFormDialog`) and **Set status**
   (existing `StatusDialog` through `useMemberMutations`).
