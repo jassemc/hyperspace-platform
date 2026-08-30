@@ -119,10 +119,7 @@ Top to bottom, all from the `MemberDetailsDto` blocks:
 1. **KPI tiles** (`StatCards`, four across): Memberships (active / total),
    Credits available (own + employer-pooled), Bookings upcoming (footer: next
    one), Outstanding TND (footer: open invoices · uninvoiced charges).
-2. **Quick actions** row: Add membership · Add booking · Check in / **Check
-   out** (while on site) · Add credit · Add charge · Add invoice — each opens
-   its form with the member pre-selected.
-3. Two columns (`xl+`):
+2. Two columns (`xl+`):
    - **Left — Current memberships**: non-ended memberships, active first,
      with plan, term and that membership's credit balances inline (joined on
      `credits.balances[].membershipId`); then **Open billing**: open invoices
@@ -132,8 +129,9 @@ Top to bottom, all from the `MemberDetailsDto` blocks:
      check-ins and credit movements (icon, what, when), newest first, capped
      at eight; header shows "On site" or "Last visit …".
 
-Every section links to its tab. The only requests beyond the page load are
-the booking dialog's seed lists and the location's time zone.
+Every section links to its tab; actions live on each tab's header (quick
+actions row removed 2026-08-30). The only request beyond the page load is
+the location's time zone.
 
 ## 4. Domain tabs
 
