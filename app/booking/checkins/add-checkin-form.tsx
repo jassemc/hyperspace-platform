@@ -3,6 +3,7 @@
 import { useEffect, useActionState, useRef, useState } from "react"
 import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
   Drawer,
@@ -29,10 +30,22 @@ interface AddCheckinFormProps {
 const selectClassName =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
 
-function SubmitButton() {
+/** Now, in the `datetime-local` shape (local time, minute precision). */
+function localNow(): string {
+  const now = new Date()
+  const pad = (n: number) => String(n).padStart(2, "0")
+  return `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`
+}
+
+/** A `datetime-local` value as an ISO instant, converted in the browser's zone. */
+function toInstant(local: string): string {
+  return local ? new Date(local).toISOString() : ""
+}
+
+function SubmitButton({ disabled = false }: Readonly<{ disabled?: boolean }>) {
   const { pending } = useFormStatus()
   return (
-    <Button type="submit" disabled={pending} className="flex-1">
+    <Button type="submit" disabled={pending || disabled} className="flex-1">
       {pending ? "Checking in..." : "Check in"}
     </Button>
   )
@@ -46,11 +59,19 @@ export function AddCheckinForm({ isOpen, onClose, defaultMemberId }: Readonly<Ad
   const [memberId, setMemberId] = useState(defaultMemberId ?? "")
   const [locations, setLocations] = useState<LocationDto[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  // The visit's window. From starts at now so the live "check in" flow is
+  // unchanged; To stays blank to leave the check-in open.
+  const [from, setFrom] = useState("")
+  const [to, setTo] = useState("")
   const notifiedRef = useRef(false)
+
+  const windowError = from && to && to <= from ? "The end must be after the start" : null
 
   useEffect(() => {
     if (isOpen) {
       notifiedRef.current = false
+      setFrom(localNow())
+      setTo("")
       loadOptions()
     } else {
       setMembers([])
@@ -147,6 +168,41 @@ export function AddCheckinForm({ isOpen, onClose, defaultMemberId }: Readonly<Ad
                 </div>
 
                 <div className="grid gap-2">
+                  <Label htmlFor="from">From</Label>
+                  <Input
+                    id="from"
+                    type="datetime-local"
+                    value={from}
+                    onChange={(e) => setFrom(e.target.value)}
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    When the visit started. Entitlements and opening hours apply at this time.
+                  </p>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="to">To</Label>
+                  <Input
+                    id="to"
+                    type="datetime-local"
+                    value={to}
+                    min={from || undefined}
+                    onChange={(e) => setTo(e.target.value)}
+                    aria-invalid={windowError ? true : undefined}
+                    aria-describedby="to-hint"
+                  />
+                  <p id="to-hint" className={`text-xs ${windowError ? "text-red-600" : "text-muted-foreground"}`}>
+                    {windowError ?? "Optional. Leave blank to keep the check-in open."}
+                  </p>
+                </div>
+
+                {/* The server action gets instants; a bare local value would
+                    be parsed in the server's zone instead of the user's. */}
+                <input type="hidden" name="checkedInAt" value={toInstant(from)} />
+                <input type="hidden" name="checkedOutAt" value={toInstant(to)} />
+
+                <div className="grid gap-2">
                   <Label htmlFor="force">Override</Label>
                   <select id="force" name="force" className={selectClassName} defaultValue="">
                     <option value="">None — use the member&apos;s entitlements</option>
@@ -164,7 +220,7 @@ export function AddCheckinForm({ isOpen, onClose, defaultMemberId }: Readonly<Ad
 
             <DrawerFooter className="shrink-0 border-t pt-4 px-6 pb-6">
               <div className="flex gap-3">
-                <SubmitButton />
+                <SubmitButton disabled={windowError !== null} />
                 <DrawerClose asChild>
                   <Button variant="outline" className="flex-1">
                     Cancel
