@@ -112,26 +112,28 @@ the record:
 - Tags, notes (when present).
 - Footer: created / updated dates, `CopyId`.
 
-## 3. Overview tab
+## 3. Overview tab (redesigned 2026-08-30, option A)
 
-Grid of five cards (`md:grid-cols-2`, `xl:grid-cols-3`). Each card: headline
-figure, up to three most-relevant rows, a "View all →" link to its tab, and one
-quick action button (see §5).
+Top to bottom, all from the `MemberDetailsDto` blocks:
 
-| Card | Headline | Rows | Quick action |
-|---|---|---|---|
-| Memberships | active count from `memberships/stats` | active then pending memberships, name + dates + status badge | Add membership |
-| Credits | balance from `credits/balances` | last 3 credit rows (`sort DESC, limit 3`) | Add credit |
-| Bookings | upcoming count | next 3 bookings (`from = now`, `sort ASC`, `limit 3`) with resource + time | New booking |
-| Billing | open/overdue invoice count and summed total; uninvoiced charge count | up to 3 open invoices | Add charge · Create invoice |
-| Check-ins | "Checked in since {time}" when the latest check-in has no checkout, else "Last visit {date}" | last 3 check-ins | Check in, or **Check out** (existing `CheckoutButton`) when currently inside |
+1. **KPI tiles** (`StatCards`, four across): Memberships (active / total),
+   Credits available (own + employer-pooled), Bookings upcoming (footer: next
+   one), Outstanding TND (footer: open invoices · uninvoiced charges).
+2. **Quick actions** row: Add membership · Add booking · Check in / **Check
+   out** (while on site) · Add credit · Add charge · Add invoice — each opens
+   its form with the member pre-selected.
+3. Two columns (`xl+`):
+   - **Left — Current memberships**: non-ended memberships, active first,
+     with plan, term and that membership's credit balances inline (joined on
+     `credits.balances[].membershipId`); then **Open billing**: open invoices
+     (number → invoice page, due, paid, total, status) and the latest
+     uninvoiced charges with a "N to invoice" link into the charges tab.
+   - **Right — Recent activity**: one feed merging upcoming bookings,
+     check-ins and credit movements (icon, what, when), newest first, capped
+     at eight; header shows "On site" or "Last visit …".
 
-The cards are plain (synchronous) components over `member.<block>` from the
-single `getMember` payload — no per-card fetching. The "Memberships" headline
-is `memberships.active`; "Credits" sums `available` over
-`credits.balances[].balances[]`; "Billing" shows `invoices.outstandingTtc`
-with `invoices.open` / `charges.uninvoiced`; "Check-ins" uses
-`checkins.onSite`.
+Every section links to its tab. The only requests beyond the page load are
+the booking dialog's seed lists and the location's time zone.
 
 ## 4. Domain tabs
 
