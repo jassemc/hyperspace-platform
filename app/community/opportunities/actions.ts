@@ -189,7 +189,7 @@ export async function onboardLeadAction(
 
     revalidate()
     revalidatePath("/community/memberships")
-    revalidatePath("/booking/assignments")
+    revalidatePath("/space/resources")
     // Onboarding turns the lead into a membership, moving company figures too.
     revalidateTag("stats:memberships")
     revalidateTag("stats:companies")

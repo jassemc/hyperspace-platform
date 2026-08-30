@@ -32,6 +32,11 @@ export function pauseBlocker(m: MembershipDto): string | null {
   if (m.status !== "active") return "Only an active membership can be paused"
   return null
 }
+/** Resources are allocated against a running membership only. */
+export function assignBlocker(m: MembershipDto): string | null {
+  if (m.status !== "active") return "Only an active membership can be assigned a resource"
+  return null
+}
 export function resumeBlocker(m: MembershipDto): string | null {
   if (m.status !== "paused") return "Only a paused membership can be resumed"
   return null

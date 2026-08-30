@@ -9,14 +9,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Ban, Edit, Eye, Loader2, MoreHorizontal, Pause, Play, RotateCw } from "lucide-react"
+import { Armchair, Ban, Edit, Eye, Loader2, MoreHorizontal, Pause, Play, RotateCw } from "lucide-react"
 import type { MembershipDto } from "@/lib/service/HsService"
+import { AssignmentFormDialog } from "@/components/assignments/assignment-form-dialog"
 import { CancelMembershipAlert } from "./cancel-membership-alert"
 import { PauseMembershipDialog } from "./pause-membership-dialog"
 import { RenewMembershipAlert } from "./renew-membership-alert"
 import { ResumeMembershipAlert } from "./resume-membership-alert"
 import type { MembershipActions } from "./use-membership-mutations"
-import { useMembershipMutations } from "./use-membership-mutations"
+import { assignBlocker, useMembershipMutations } from "./use-membership-mutations"
 
 interface MembershipRowActionsProps {
   membership: MembershipDto
@@ -59,8 +60,10 @@ export function MembershipRowActions({
   const [renewOpen, setRenewOpen] = useState(false)
   const [pauseOpen, setPauseOpen] = useState(false)
   const [resumeOpen, setResumeOpen] = useState(false)
+  const [assignOpen, setAssignOpen] = useState(false)
 
   const isPaused = membership.status === "paused"
+  const assignHint = assignBlocker(membership)
 
   return (
     <>
@@ -82,6 +85,13 @@ export function MembershipRowActions({
           <DropdownMenuItem onSelect={() => onEdit(membership)}>
             <Edit />
             Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem disabled={assignHint !== null} title={assignHint ?? "Allocate a resource for a period"} onSelect={() => setAssignOpen(true)}>
+            <Armchair />
+            <span className="flex flex-col">
+              <span>Assign resource</span>
+              {assignHint && <span className="text-xs text-muted-foreground">{assignHint}</span>}
+            </span>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           {/* `title` still helps on the enabled case, but dropdown-menu.tsx sets
@@ -171,6 +181,10 @@ export function MembershipRowActions({
             if (await resume(fields)) setResumeOpen(false)
           }}
         />
+      )}
+
+      {assignOpen && (
+        <AssignmentFormDialog anchor={{ kind: "membership", membership }} open={assignOpen} onOpenChange={setAssignOpen} />
       )}
     </>
   )

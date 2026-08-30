@@ -1,22 +1,22 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
+import { MEMBER_ROUTE_PATTERN } from "@/app/community/members/[id]/member-route"
+import { COMPANY_ROUTE_PATTERN } from "@/app/community/companies/[id]/company-route"
 import { createAssignment, endAssignment, relocateAssignment } from "@/lib/service"
 import type { CreateAssignmentDto } from "@/lib/service/HsService"
+import { type ActionState, problem, text } from "@/lib/action-state"
 
-export type ActionState = {
-  success?: boolean
-  error?: string
-}
-
-function text(formData: FormData, field: string): string | undefined {
-  const value = formData.get(field)
-  return typeof value === "string" && value.trim() ? value.trim() : undefined
-}
-
+/**
+ * Assignments surface inside the membership and resource dialogs, and a
+ * resource's derived status moves with them, so every page that renders
+ * either list refreshes.
+ */
 function revalidate() {
-  revalidatePath("/booking/assignments")
+  revalidatePath("/community/memberships")
   revalidatePath("/space/resources")
+  revalidatePath(MEMBER_ROUTE_PATTERN, "page")
+  revalidatePath(COMPANY_ROUTE_PATTERN, "page")
 }
 
 export async function createAssignmentAction(
@@ -45,10 +45,7 @@ export async function createAssignmentAction(
     revalidate()
     return { success: true }
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to create assignment",
-    }
+    return problem(error, "Failed to create assignment")
   }
 }
 
@@ -68,10 +65,7 @@ export async function endAssignmentAction(
     revalidate()
     return { success: true }
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to end assignment",
-    }
+    return problem(error, "Failed to end assignment")
   }
 }
 
@@ -93,9 +87,6 @@ export async function relocateAssignmentAction(
     revalidate()
     return { success: true }
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to relocate assignment",
-    }
+    return problem(error, "Failed to relocate assignment")
   }
 }

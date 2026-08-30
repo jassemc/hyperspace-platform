@@ -23,7 +23,6 @@ import {
     FileText,
     Ticket,
     DoorOpen,
-    Armchair,
     Sparkles,
     LayoutGrid,
     Package,
@@ -239,11 +238,6 @@ export const navigationConfig: NavigationConfig = {
                     title: "Check-ins",
                     url: "/booking/checkins",
                     icon: DoorOpen,
-                },
-                {
-                    title: "Assignments",
-                    url: "/booking/assignments",
-                    icon: Armchair,
                 },
             ]
         },

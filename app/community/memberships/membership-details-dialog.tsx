@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { CopyId, Section } from "@/components/details-dialog-parts"
-import { Ban, Mail, Pause, Pencil, Play, RotateCw } from "lucide-react"
+import { Armchair, Ban, Mail, Pause, Pencil, Play, RotateCw } from "lucide-react"
 import { getListMembershipPauses } from "@/lib/service"
 import type { MembershipDto, MembershipPauseDto } from "@/lib/service/HsService"
 import { formatDate, formatEnumLabel, formatPriceHt, formatVatRate } from "@/lib/format"
@@ -27,7 +27,8 @@ import { PauseMembershipDialog } from "./pause-membership-dialog"
 import { RenewMembershipAlert } from "./renew-membership-alert"
 import { ResumeMembershipAlert } from "./resume-membership-alert"
 import type { MembershipActions } from "./use-membership-mutations"
-import { useMembershipMutations } from "./use-membership-mutations"
+import { assignBlocker, useMembershipMutations } from "./use-membership-mutations"
+import { AssignmentsSection } from "@/components/assignments/assignments-section"
 
 /** A row of the frozen terms table — same rhythm as the edit drawer's. */
 function Term({ label, value }: Readonly<{ label: string; value: React.ReactNode }>) {
@@ -107,6 +108,8 @@ export function MembershipDetailsDialog({
   const [renewOpen, setRenewOpen] = useState(false)
   const [pauseOpen, setPauseOpen] = useState(false)
   const [resumeOpen, setResumeOpen] = useState(false)
+  const [assignOpen, setAssignOpen] = useState(false)
+  const assignHint = assignBlocker(membership)
 
   const label = membership.name || "This membership"
   const snapshot = membershipSnapshot(membership)
@@ -173,6 +176,14 @@ export function MembershipDetailsDialog({
               )}
             </div>
           </Section>
+
+          <AssignmentsSection
+            anchor={{ kind: "membership", membership }}
+            open={open}
+            assignBlocker={assignHint}
+            createOpen={assignOpen}
+            onCreateOpenChange={setAssignOpen}
+          />
 
           <Section title="Customer">
             {membership.company ? (
@@ -310,6 +321,16 @@ export function MembershipDetailsDialog({
           <Button variant="outline" size="sm" onClick={onEdit} disabled={busy}>
             <Pencil className="mr-1.5 h-4 w-4" />
             Edit
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={assignHint !== null}
+            title={assignHint ?? "Allocate a resource for a period"}
+            onClick={() => setAssignOpen(true)}
+          >
+            <Armchair className="mr-1.5 h-4 w-4" />
+            Assign
           </Button>
           <Button
             variant="outline"

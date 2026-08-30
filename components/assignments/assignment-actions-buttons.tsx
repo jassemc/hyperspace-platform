@@ -24,12 +24,15 @@ interface AssignmentActionButtonsProps {
   assignmentId: string
   resourceName: string
   resources: ResourceDto[]
+  /** Fired after a successful end or relocate so an inline list can refetch. */
+  onChanged?: () => void
 }
 
 export function AssignmentActionButtons({
   assignmentId,
   resourceName,
   resources,
+  onChanged,
 }: Readonly<AssignmentActionButtonsProps>) {
   const router = useRouter()
   const [pending, setPending] = useState<"end" | "relocate" | null>(null)
@@ -46,6 +49,7 @@ export function AssignmentActionButtons({
       const result = await endAssignmentAction({}, formData)
       if (result.success) {
         toast.success("Assignment ended")
+        onChanged?.()
         router.refresh()
       } else {
         toast.error(result.error ?? "Failed to end assignment")
@@ -65,6 +69,7 @@ export function AssignmentActionButtons({
       const result = await relocateAssignmentAction({}, formData)
       if (result.success) {
         toast.success("Assignment relocated")
+        onChanged?.()
         router.refresh()
       } else {
         toast.error(result.error ?? "Failed to relocate assignment")
