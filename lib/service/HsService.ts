@@ -2351,6 +2351,18 @@ export interface CreateCheckinDto {
    * check-in without entitlements or credits.
    */
   force?: "visitor" | "trial";
+  /**
+   * Staff-only. When the visit started; defaults to now. Authorization
+   * (opening hours, half-day window) is evaluated at this instant.
+   * @example "2026-07-13T09:00:00Z"
+   */
+  checkedInAt?: string;
+  /**
+   * Staff-only. When the visit ended; omit to leave the check-in open.
+   * Must be after `checkedInAt`.
+   * @example "2026-07-13T12:30:00Z"
+   */
+  checkedOutAt?: string;
 }
 
 export interface OccupancyBucketDto {
