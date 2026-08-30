@@ -23,6 +23,8 @@ import { toast } from "sonner"
 interface AddCreditFormProps {
   /** Opened from a member's page: only their memberships are offered. */
   defaultMemberId?: string
+  /** Opened from a company's page: only the company's memberships are offered. */
+  defaultCompanyId?: string
   isOpen: boolean
   onClose: () => void
 }
@@ -39,7 +41,12 @@ function SubmitButton() {
   )
 }
 
-export function AddCreditForm({ isOpen, onClose, defaultMemberId }: Readonly<AddCreditFormProps>) {
+export function AddCreditForm({
+  isOpen,
+  onClose,
+  defaultMemberId,
+  defaultCompanyId,
+}: Readonly<AddCreditFormProps>) {
   const [state, formAction] = useActionState(grantCreditAction, {})
   const [memberships, setMemberships] = useState<MembershipDto[]>([])
   const [membershipId, setMembershipId] = useState("")
@@ -52,8 +59,14 @@ export function AddCreditForm({ isOpen, onClose, defaultMemberId }: Readonly<Add
 
     let cancelled = false
     Promise.all([
-      // memberId narrows to the member's own memberships (undefined = all).
-      getListMemberships({ limit: 100, offset: 0, sort: "ASC", memberId: defaultMemberId }),
+      // memberId/companyId narrow to the customer's own memberships (undefined = all).
+      getListMemberships({
+        limit: 100,
+        offset: 0,
+        sort: "ASC",
+        memberId: defaultMemberId,
+        companyId: defaultCompanyId,
+      }),
       getListResourceTypes({ limit: 100, offset: 0, sort: "ASC" }),
     ])
       .then(([membershipPage, typePage]) => {
@@ -61,7 +74,7 @@ export function AddCreditForm({ isOpen, onClose, defaultMemberId }: Readonly<Add
         const loaded = (membershipPage.results ?? []) as MembershipDto[]
         setMemberships(loaded)
         // One candidate needs no choosing.
-        if (defaultMemberId && loaded.length === 1) setMembershipId(loaded[0].id)
+        if ((defaultMemberId || defaultCompanyId) && loaded.length === 1) setMembershipId(loaded[0].id)
         setResourceTypes((typePage.results ?? []) as ResourceTypeDto[])
       })
       .catch((error) => console.error("Failed to load credit options", error))
@@ -69,7 +82,7 @@ export function AddCreditForm({ isOpen, onClose, defaultMemberId }: Readonly<Add
     return () => {
       cancelled = true
     }
-  }, [isOpen, defaultMemberId])
+  }, [isOpen, defaultMemberId, defaultCompanyId])
 
   useEffect(() => {
     if (state.success && !notifiedRef.current) {
@@ -101,6 +114,7 @@ export function AddCreditForm({ isOpen, onClose, defaultMemberId }: Readonly<Add
               Adds credit to a membership. Consumption is recorded automatically by bookings and
               check-ins.
               {defaultMemberId && " Only this member's memberships are listed."}
+              {defaultCompanyId && " Only this company's memberships are listed."}
             </DrawerDescription>
           </DrawerHeader>
 

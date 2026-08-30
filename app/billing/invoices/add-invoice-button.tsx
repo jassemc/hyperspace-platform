@@ -7,7 +7,8 @@ import { AddInvoiceForm } from "./add-invoice-form"
 
 export function AddInvoiceButton({
   defaultMemberId,
-}: Readonly<{ defaultMemberId?: string }> = {}) {
+  defaultCompanyId,
+}: Readonly<{ defaultMemberId?: string; defaultCompanyId?: string }> = {}) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
   return (
@@ -21,6 +22,7 @@ export function AddInvoiceButton({
           isOpen={isDrawerOpen}
           onClose={() => setIsDrawerOpen(false)}
           defaultMemberId={defaultMemberId}
+          defaultCompanyId={defaultCompanyId}
         />
       )}
     </>

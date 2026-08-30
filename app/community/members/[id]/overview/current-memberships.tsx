@@ -1,11 +1,14 @@
 import { Badge } from "@/components/ui/badge"
-import type { MemberDetailsDto, MembershipDto } from "@/lib/service/HsService"
+import type {
+  MemberCreditsSummaryDto,
+  MemberMembershipsSummaryDto,
+  MembershipDto,
+} from "@/lib/service/HsService"
 import { formatDate, formatEnumLabel } from "@/lib/format"
 import {
   MEMBERSHIP_STATUS_CLASSES,
   MEMBERSHIP_STATUS_LABELS,
 } from "@/app/community/memberships/membership-status"
-import { memberPath } from "../member-route"
 import { Empty, Row, Rows, Section } from "./section"
 
 /** Active first, then the rest of the lifecycle in order. */
@@ -20,21 +23,29 @@ const STATUS_RANK: Record<MembershipDto["status"], number> = {
  * What the member holds right now, with each membership's credit balances
  * inline — the balances block is keyed by membershipId, so the join is free.
  */
-export function CurrentMemberships({ member }: Readonly<{ member: MemberDetailsDto }>) {
+export function CurrentMemberships({
+  memberships,
+  credits,
+  viewAllHref,
+}: Readonly<{
+  memberships: MemberMembershipsSummaryDto
+  credits: MemberCreditsSummaryDto
+  viewAllHref: string
+}>) {
   const balancesByMembership = new Map(
-    member.credits.balances.map((block) => [block.membershipId, block.balances])
+    credits.balances.map((block) => [block.membershipId, block.balances])
   )
-  const rows = [...member.memberships.items]
+  const rows = [...memberships.items]
     .filter((membership) => membership.status !== "ended")
     .sort((a, b) => STATUS_RANK[a.status] - STATUS_RANK[b.status])
 
   return (
     <Section
       title="Current memberships"
-      viewAllHref={memberPath(member.id, "memberships")}
+      viewAllHref={viewAllHref}
       aside={
         <span className="text-xs text-muted-foreground">
-          {member.memberships.active} active · {member.memberships.total} total
+          {memberships.active} active · {memberships.total} total
         </span>
       }
     >

@@ -186,3 +186,23 @@ The repo has no test runner. Done means:
    pre-selected and, after submit, the page reflects the change without a
    manual reload; Edit and Set status work from the card; a company member
    shows the company link; a bogus id renders the 404 page.
+
+## 8. Company page — same concept (added 2026-08-30)
+
+`GET /companies/{id}` → `CompanyDetailsDto extends CompanyDto` from a new
+`company-overview` backend module (DECISIONS #113). Blocks: `members`
+(`companyId`), `memberships` (**`forCompanyId`** — the whole roster the Plans
+tab always showed), `bookings`, `credits`, `charges`, `invoices` (`companyId`).
+No check-ins block.
+
+`/community/companies/[id]` mirrors the member page: header band (name,
+status, since, tax id, Edit; Contact · Billing · Tags & description strip),
+the shared `DetailTabs` strip with count pills, tabs Overview · Members ·
+Memberships (was "Plans"; `?tab=plans` still resolves) · Bookings · Credits ·
+Charges · Invoices. The Overview reuses the member overview parts
+(`CurrentMemberships`, `OpenBilling`, `RecentActivity` without check-ins)
+plus a **Key people** section (billing/contact persons linking to their
+member pages) and four KPI tiles (Members, Memberships, Credits, Outstanding).
+Add forms accept `defaultCompanyId`; the domains' server actions revalidate
+`/community/companies/[id]` as well.
+

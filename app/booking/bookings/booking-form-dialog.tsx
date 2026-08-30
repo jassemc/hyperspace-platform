@@ -47,6 +47,7 @@ interface BookingFormDialogProps {
     /** Read off the calendar payload so the select never flashes blank. */
     resourceName?: string
     memberId?: string
+    companyId?: string
   }
   /** Zone every wall-clock string in this form is written in. */
   timeZone: string
@@ -380,6 +381,7 @@ export function BookingFormDialog({
             }}
             prefillResourceName={prefill?.resourceName}
             defaultMemberId={prefill?.memberId}
+            defaultCompanyId={prefill?.companyId}
             disabled={Boolean(editingBooking)}
             onExtrasChange={invalidateQuote}
             initialExtraIds={(editingBooking?.extras ?? []).map((extra) => extra.extraId)}

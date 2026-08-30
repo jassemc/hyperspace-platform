@@ -36,6 +36,8 @@ interface MembershipFormDialogProps {
   editingMembership?: MembershipDto | null
   /** Opened from a member's page: the member select starts on them. */
   defaultMemberId?: string
+  /** Opened from a company's page: customer type starts on Company, select on it. */
+  defaultCompanyId?: string
 }
 
 type CustomerKind = "member" | "company"
@@ -103,6 +105,7 @@ export function MembershipFormDialog({
   onClose,
   editingMembership,
   defaultMemberId,
+  defaultCompanyId,
 }: Readonly<MembershipFormDialogProps>) {
   const [memberOptions, setMemberOptions] = useState<Record<string, string>>({})
   const [companyNames, setCompanyNames] = useState<Record<string, string>>({})
@@ -131,7 +134,9 @@ export function MembershipFormDialog({
 
   useEffect(() => {
     if (isOpen) {
-      setCustomerKind(editingMembership?.companyId ? "company" : "member")
+      setCustomerKind(
+        editingMembership?.companyId || (!editingMembership && defaultCompanyId) ? "company" : "member"
+      )
       setPlanId(editingMembership?.planId ?? "")
       setDiscountId(editingMembership?.discountId ?? "")
       setSelectedExtraIds([])
@@ -139,7 +144,7 @@ export function MembershipFormDialog({
       setAssignedDiscount(null)
       setDiscountsError(false)
     }
-  }, [isOpen, editingMembership])
+  }, [isOpen, editingMembership, defaultCompanyId])
 
   // Discounts are scoped to a plan (or applied to every plan, with an
   // optional validity window), so the whole active catalog is fetched once
@@ -434,7 +439,13 @@ export function MembershipFormDialog({
                   ) : (
                     <div className="grid gap-2">
                       <Label htmlFor="companyId">Company</Label>
-                      <select id="companyId" name="companyId" className={selectClassName} required>
+                      <select
+                        id="companyId"
+                        name="companyId"
+                        className={selectClassName}
+                        defaultValue={defaultCompanyId ?? ""}
+                        required
+                      >
                         <option value="">Select company</option>
                         {Object.entries(companyNames).map(([id, name]) => (
                           <option key={id} value={id}>

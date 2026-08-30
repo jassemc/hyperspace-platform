@@ -10,6 +10,7 @@ export function AddBookingButton({
   timeZone,
   lookups,
   defaultMemberId,
+  defaultCompanyId,
 }: Readonly<{
   /** Fetched by the page so opening the dialog issues no requests. */
   lookups: BookingLookups
@@ -18,6 +19,8 @@ export function AddBookingButton({
   timeZone: string
   /** Opened from a member's page: the member select starts on them. */
   defaultMemberId?: string
+  /** Opened from a company's page: the customer starts on the company. */
+  defaultCompanyId?: string
 }>) {
   const [isOpen, setIsOpen] = useState(false)
 
@@ -35,7 +38,11 @@ export function AddBookingButton({
           members={lookups.members}
           companies={lookups.companies}
           timeZone={timeZone}
-          prefill={defaultMemberId ? { memberId: defaultMemberId } : undefined}
+          prefill={
+            defaultMemberId || defaultCompanyId
+              ? { memberId: defaultMemberId, companyId: defaultCompanyId }
+              : undefined
+          }
         />
       )}
     </>

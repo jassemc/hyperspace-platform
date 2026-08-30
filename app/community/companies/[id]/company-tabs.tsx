@@ -1,101 +1,21 @@
 "use client"
 
-import { useEffect, useState, useTransition, type ReactNode } from "react"
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Skeleton } from "@/components/ui/skeleton"
-import { useRouter, useSearchParams } from "next/navigation"
-import { TableSkeleton } from "@/components/table-skeleton"
+import type { ReactNode } from "react"
+import { DetailTabs } from "@/components/detail-tabs"
+import { COMPANY_TABS, COMPANY_TAB_LABELS, type CompanyTab } from "./company-route"
 
-const TABS = [
-  { value: "overview", label: "Overview" },
-  { value: "members", label: "Members" },
-  { value: "plans", label: "Plans" },
-]
+const TABS = COMPANY_TABS.map((value) => ({ value, label: COMPANY_TAB_LABELS[value] }))
 
-function OverviewSkeleton() {
-  return (
-    <div className="grid gap-4 px-4 md:grid-cols-2">
-      {Array.from({ length: 4 }).map((_, index) => (
-        <Skeleton key={index} className="h-64 w-full rounded-xl" />
-      ))}
-    </div>
-  )
-}
+export type CompanyTabCounts = Partial<Record<CompanyTab, number>>
 
-function TabContentSkeleton({ tab }: Readonly<{ tab: string }>) {
-  if (tab === "overview") return <OverviewSkeleton />
-
-  return (
-    <div className="w-full">
-      <div className="flex items-center justify-between px-4 pb-2">
-        <div className="grid gap-2">
-          <Skeleton className="h-6 w-28" />
-          <Skeleton className="h-4 w-64" />
-        </div>
-        <Skeleton className="h-9 w-40" />
-      </div>
-      <div className="px-4">
-        <TableSkeleton rows={5} />
-      </div>
-    </div>
-  )
-}
-
-/**
- * The active tab lives in the URL, so switching is a server navigation. The
- * highlight moves optimistically on click and the body shows a skeleton until
- * the new tab's payload lands, instead of the page appearing frozen.
- */
 export function CompanyTabs({
   activeTab,
+  counts,
   children,
-}: Readonly<{ activeTab: string; children: ReactNode }>) {
-  const router = useRouter()
-  const searchParams = useSearchParams()
-  const [isPending, startTransition] = useTransition()
-  const [selectedTab, setSelectedTab] = useState(activeTab)
-
-  // Re-sync once the navigation resolves, and on browser back/forward.
-  useEffect(() => {
-    setSelectedTab(activeTab)
-  }, [activeTab])
-
-  const onValueChange = (value: string) => {
-    if (value === selectedTab) return
-
-    setSelectedTab(value)
-
-    const params = new URLSearchParams(searchParams.toString())
-    params.set("tab", value)
-    // Table state belongs to the tab that was left behind — including
-    // `status`, which only the Plans tab owns.
-    params.delete("page")
-    params.delete("pageSize")
-    params.delete("name")
-    params.delete("status")
-
-    startTransition(() => {
-      router.push(`?${params.toString()}`)
-    })
-  }
-
-  const isSwitching = isPending || selectedTab !== activeTab
-
+}: Readonly<{ activeTab: CompanyTab; counts?: CompanyTabCounts; children: ReactNode }>) {
   return (
-    <>
-      <div className="px-4 pb-4">
-        <Tabs value={selectedTab} onValueChange={onValueChange} className="w-full">
-          <TabsList className="w-full justify-start overflow-x-auto">
-            {TABS.map((tab) => (
-              <TabsTrigger key={tab.value} value={tab.value}>
-                {tab.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-      </div>
-
-      {isSwitching ? <TabContentSkeleton tab={selectedTab} /> : children}
-    </>
+    <DetailTabs tabs={TABS} activeTab={activeTab} counts={counts}>
+      {children}
+    </DetailTabs>
   )
 }

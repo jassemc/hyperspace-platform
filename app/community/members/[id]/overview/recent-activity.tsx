@@ -1,17 +1,19 @@
 import type { ReactNode } from "react"
 import { Badge } from "@/components/ui/badge"
 import { CalendarClock, Coins, DoorOpen } from "lucide-react"
-import type { MemberDetailsDto } from "@/lib/service/HsService"
+import type {
+  MemberBookingsSummaryDto,
+  MemberCheckinsSummaryDto,
+  MemberCreditsSummaryDto,
+} from "@/lib/service/HsService"
 import { formatDate, formatDateTime, formatEnumLabel } from "@/lib/format"
 import { BOOKING_STATUS_CLASSES, BOOKING_STATUS_LABELS } from "@/app/booking/bookings/booking-status"
-import { memberPath, type MemberTab } from "../member-route"
 import { Empty, Row, Rows, Section } from "./section"
 
 interface ActivityEntry {
   key: string
   /** Sort key. Upcoming bookings sort by start, everything else by when it happened. */
   at: string
-  tab: MemberTab
   icon: ReactNode
   primary: ReactNode
   secondary: string
@@ -25,16 +27,24 @@ const MAX_ENTRIES = 8
  * so "what has this member been doing" is a glance rather than three tabs.
  */
 export function RecentActivity({
-  member,
+  bookings,
+  checkins,
+  credits,
+  viewAllHref,
   timeZone,
-}: Readonly<{ member: MemberDetailsDto; timeZone: string }>) {
-  const { checkins, bookings, credits } = member
+}: Readonly<{
+  bookings: MemberBookingsSummaryDto
+  /** Absent for a company: check-ins belong to people. */
+  checkins?: MemberCheckinsSummaryDto
+  credits: MemberCreditsSummaryDto
+  viewAllHref: string
+  timeZone: string
+}>) {
 
   const entries: ActivityEntry[] = [
     ...bookings.items.map((booking) => ({
       key: `booking-${booking.id}`,
       at: booking.startsAt,
-      tab: "bookings" as const,
       icon: <CalendarClock className="h-4 w-4" />,
       primary: booking.title || booking.resource.name,
       secondary: `Booking · ${formatDateTime(booking.startsAt, timeZone)}`,
@@ -44,10 +54,9 @@ export function RecentActivity({
         </Badge>
       ),
     })),
-    ...checkins.items.map((checkin) => ({
+    ...(checkins?.items ?? []).map((checkin) => ({
       key: `checkin-${checkin.id}`,
       at: checkin.checkedInAt,
-      tab: "checkins" as const,
       icon: <DoorOpen className="h-4 w-4" />,
       primary: checkin.checkedOutAt ? "Visit" : "Checked in — still inside",
       secondary: `${formatDateTime(checkin.checkedInAt, timeZone)}${
@@ -60,7 +69,6 @@ export function RecentActivity({
     ...credits.recent.map((row) => ({
       key: `credit-${row.id}`,
       at: row.occurredAt,
-      tab: "credits" as const,
       icon: <Coins className="h-4 w-4" />,
       primary: `${row.delta > 0 ? "Credit granted" : "Credit used"} · ${formatEnumLabel(row.creditType)}`,
       secondary: `${formatDateTime(row.occurredAt, timeZone)}${row.reason ? ` · ${row.reason}` : ""}`,
@@ -76,7 +84,7 @@ export function RecentActivity({
     .sort((a, b) => Date.parse(b.at) - Date.parse(a.at))
     .slice(0, MAX_ENTRIES)
 
-  const presence = checkins.onSite ? (
+  const presence = !checkins ? null : checkins.onSite ? (
     <Badge variant="secondary" className="border-0 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200">
       On site
     </Badge>
@@ -87,7 +95,7 @@ export function RecentActivity({
   ) : null
 
   return (
-    <Section title="Recent activity" viewAllHref={memberPath(member.id, "checkins")} aside={presence}>
+    <Section title="Recent activity" viewAllHref={viewAllHref} aside={presence}>
       {entries.length === 0 ? (
         <Empty>No activity yet</Empty>
       ) : (

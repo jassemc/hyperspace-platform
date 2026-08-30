@@ -24,6 +24,8 @@ import { toast } from "sonner"
 interface AddInvoiceFormProps {
   /** Opened from a member's page: the customer starts on them, charges included. */
   defaultMemberId?: string
+  /** Opened from a company's page: bill-to starts on the company. */
+  defaultCompanyId?: string
   isOpen: boolean
   onClose: () => void
 }
@@ -42,10 +44,17 @@ function SubmitButton() {
   )
 }
 
-export function AddInvoiceForm({ isOpen, onClose, defaultMemberId }: Readonly<AddInvoiceFormProps>) {
+export function AddInvoiceForm({
+  isOpen,
+  onClose,
+  defaultMemberId,
+  defaultCompanyId,
+}: Readonly<AddInvoiceFormProps>) {
   const [state, formAction] = useActionState(createInvoiceAction, {})
-  const [customerKind, setCustomerKind] = useState<CustomerKind>("member")
-  const [customerId, setCustomerId] = useState(defaultMemberId ?? "")
+  const [customerKind, setCustomerKind] = useState<CustomerKind>(
+    defaultCompanyId ? "company" : "member"
+  )
+  const [customerId, setCustomerId] = useState(defaultCompanyId ?? defaultMemberId ?? "")
   const [members, setMembers] = useState<MemberDto[]>([])
   const [companies, setCompanies] = useState<CompanyDto[]>([])
   const [charges, setCharges] = useState<ChargeDto[]>([])
@@ -63,7 +72,7 @@ export function AddInvoiceForm({ isOpen, onClose, defaultMemberId }: Readonly<Ad
     }
 
     notifiedRef.current = false
-    setCustomerId(defaultMemberId ?? "")
+    setCustomerId(defaultCompanyId ?? defaultMemberId ?? "")
     let cancelled = false
 
     Promise.all([
@@ -80,7 +89,7 @@ export function AddInvoiceForm({ isOpen, onClose, defaultMemberId }: Readonly<Ad
     return () => {
       cancelled = true
     }
-  }, [isOpen, defaultMemberId])
+  }, [isOpen, defaultMemberId, defaultCompanyId])
 
   useEffect(() => {
     if (state.success && !notifiedRef.current) {

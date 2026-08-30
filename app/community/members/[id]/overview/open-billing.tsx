@@ -1,19 +1,28 @@
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
-import type { MemberDetailsDto } from "@/lib/service/HsService"
+import type { MemberChargesSummaryDto, MemberInvoicesSummaryDto } from "@/lib/service/HsService"
 import { formatDate, formatPriceHt } from "@/lib/format"
 import { INVOICE_STATUS_CLASSES, INVOICE_STATUS_LABELS } from "@/app/billing/invoices/invoice-status"
-import { memberPath } from "../member-route"
 import { Empty, Row, Rows, Section } from "./section"
 
 /** What is still owed or not yet billed — the two things billing staff chase. */
-export function OpenBilling({ member }: Readonly<{ member: MemberDetailsDto }>) {
-  const { invoices, charges } = member
+export function OpenBilling({
+  invoices,
+  charges,
+  invoicesHref,
+  uninvoicedHref,
+}: Readonly<{
+  invoices: MemberInvoicesSummaryDto
+  charges: MemberChargesSummaryDto
+  invoicesHref: string
+  /** The charges tab, pre-filtered to what still needs an invoice. */
+  uninvoicedHref: string
+}>) {
 
   return (
     <Section
       title="Open billing"
-      viewAllHref={memberPath(member.id, "invoices")}
+      viewAllHref={invoicesHref}
       aside={
         invoices.outstandingTtc > 0 && (
           <span className="text-xs font-medium text-rose-600 dark:text-rose-400">
@@ -61,7 +70,7 @@ export function OpenBilling({ member }: Readonly<{ member: MemberDetailsDto }>) 
           <p className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Uninvoiced charges
             <Link
-              href={`${memberPath(member.id, "charges")}&uninvoiced=true`}
+              href={uninvoicedHref}
               className="font-normal normal-case tracking-normal text-primary hover:underline"
             >
               {charges.uninvoiced} to invoice

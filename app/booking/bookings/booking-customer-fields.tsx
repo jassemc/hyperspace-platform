@@ -49,6 +49,8 @@ interface BookingCustomerFieldsProps {
   requestedDiscountCode?: string | null
   /** Opened from a member's page: the member select starts on them. */
   defaultMemberId?: string
+  /** Opened from a company's page: customer type starts on Company, select on it. */
+  defaultCompanyId?: string
 }
 
 /**
@@ -77,6 +79,7 @@ export function BookingCustomerFields({
   initialDiscountSnapshot = null,
   requestedDiscountCode = null,
   defaultMemberId,
+  defaultCompanyId,
 }: Readonly<BookingCustomerFieldsProps>) {
   const [resources, setResources] = useState<ResourceDto[]>(seedResources ?? [])
   const [memberNames, setMemberNames] = useState<Record<string, string>>(() =>
@@ -85,7 +88,9 @@ export function BookingCustomerFields({
   const [companyNames, setCompanyNames] = useState<Record<string, string>>(() =>
     namesOf(seedCompanies)
   )
-  const [customerKind, setCustomerKind] = useState<CustomerKind>("member")
+  const [customerKind, setCustomerKind] = useState<CustomerKind>(
+    defaultCompanyId ? "company" : "member"
+  )
   // Controlled so the tags know their own state; the picker posts the
   // selection as hidden `extraIds` inputs, which is what the action reads.
   const [extraIds, setExtraIds] = useState<string[]>(initialExtraIds)
@@ -361,7 +366,12 @@ export function BookingCustomerFields({
           {customerKind === "company" && (
             <div className="grid gap-2">
               <Label htmlFor="companyId">Company</Label>
-              <NativeSelect id="companyId" name="companyId" required>
+              <NativeSelect
+                id="companyId"
+                name="companyId"
+                defaultValue={defaultCompanyId ?? ""}
+                required
+              >
                 <option value="">Select company</option>
                 {Object.entries(companyNames).map(([id, name]) => (
                   <option key={id} value={id}>

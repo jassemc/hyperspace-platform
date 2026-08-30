@@ -7,7 +7,8 @@ import { MembershipFormDialog } from "./membership-form-dialog"
 
 export function AddMembershipButton({
   defaultMemberId,
-}: Readonly<{ defaultMemberId?: string }> = {}) {
+  defaultCompanyId,
+}: Readonly<{ defaultMemberId?: string; defaultCompanyId?: string }> = {}) {
   const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   return (
@@ -21,6 +22,7 @@ export function AddMembershipButton({
           isOpen={isDialogOpen}
           onClose={() => setIsDialogOpen(false)}
           defaultMemberId={defaultMemberId}
+          defaultCompanyId={defaultCompanyId}
         />
       )}
     </>

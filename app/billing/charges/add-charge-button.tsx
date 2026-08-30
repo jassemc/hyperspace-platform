@@ -7,7 +7,8 @@ import { AddChargeForm } from "./add-charge-form"
 
 export function AddChargeButton({
   defaultMemberId,
-}: Readonly<{ defaultMemberId?: string }> = {}) {
+  defaultCompanyId,
+}: Readonly<{ defaultMemberId?: string; defaultCompanyId?: string }> = {}) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
   return (
@@ -21,6 +22,7 @@ export function AddChargeButton({
           isOpen={isDrawerOpen}
           onClose={() => setIsDrawerOpen(false)}
           defaultMemberId={defaultMemberId}
+          defaultCompanyId={defaultCompanyId}
         />
       )}
     </>

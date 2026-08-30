@@ -16,11 +16,13 @@ import type {
 } from "@/lib/service/HsService"
 import { type ActionState, problem, text, clearableText, tags } from "@/lib/action-state"
 import { MEMBER_ROUTE_PATTERN } from "./[id]/member-route"
+import { COMPANY_ROUTE_PATTERN } from "@/app/community/companies/[id]/company-route"
 
 
 function revalidate() {
   revalidatePath("/community/members")
   revalidatePath(MEMBER_ROUTE_PATTERN, "page")
+  revalidatePath(COMPANY_ROUTE_PATTERN, "page")
   // A member's employer change moves company figures too.
   revalidateTag("stats:members")
   revalidateTag("stats:companies")

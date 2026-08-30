@@ -13,7 +13,7 @@ import { membershipStats } from "@/app/community/memberships/stats"
 import { CompanyPlansTable } from "./company-plans-table"
 import { SubscribePlanButton } from "./subscribe-plan-button"
 
-export async function PlansTab({
+export async function MembershipsTab({
   companyId,
   companyName,
   searchParams,
@@ -54,7 +54,7 @@ export async function PlansTab({
     <div className="w-full">
       <div className="flex items-center justify-between px-4 pb-2">
         <div>
-          <h2 className="text-lg font-semibold">Plans</h2>
+          <h2 className="text-lg font-semibold">Memberships</h2>
           <p className="text-sm text-muted-foreground">
             Memberships held by {companyName} or its members.
           </p>

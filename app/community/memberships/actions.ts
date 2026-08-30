@@ -2,6 +2,7 @@
 
 import { revalidatePath, revalidateTag } from "next/cache"
 import { MEMBER_ROUTE_PATTERN } from "@/app/community/members/[id]/member-route"
+import { COMPANY_ROUTE_PATTERN } from "@/app/community/companies/[id]/company-route"
 import {
   createMembership,
   updateMembership,
@@ -24,6 +25,7 @@ function revalidate() {
   revalidatePath("/community/members")
   revalidatePath("/community/companies")
   revalidatePath(MEMBER_ROUTE_PATTERN, "page")
+  revalidatePath(COMPANY_ROUTE_PATTERN, "page")
   revalidateTag("stats:memberships")
   // Member/company status derive from memberships.
   revalidateTag("stats:members")

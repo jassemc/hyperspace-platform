@@ -1,136 +1,130 @@
-import type { AddressDto, CompanyDto } from "@/lib/service/HsService"
+import Link from "next/link"
+import { StatCards } from "@/components/stat-cards"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { formatDate } from "@/lib/format"
-import { COMPANY_STATUS_CLASSES, COMPANY_STATUS_LABELS } from "../company-status"
+import { CalendarClock, CreditCard, Receipt, Users } from "lucide-react"
+import type { CompanyDetailsDto } from "@/lib/service/HsService"
+import { formatPriceHt } from "@/lib/format"
+import { primaryTimeZone } from "@/lib/locations"
+import { MEMBER_STATUS_CLASSES, MEMBER_STATUS_LABELS } from "@/app/community/members/member-status"
+import { memberPath } from "@/app/community/members/[id]/member-route"
+import { CurrentMemberships } from "@/app/community/members/[id]/overview/current-memberships"
+import { OpenBilling } from "@/app/community/members/[id]/overview/open-billing"
+import { RecentActivity } from "@/app/community/members/[id]/overview/recent-activity"
+import { Empty, Row, Rows, Section } from "@/app/community/members/[id]/overview/section"
+import { companyPath } from "./company-route"
 
-function formatAddress(address?: AddressDto | null): string | null {
-  if (!address) return null
-  if (address.formattedAddress) return address.formattedAddress
-
-  const parts = [
-    address.street,
-    [address.zip, address.city].filter(Boolean).join(" "),
-    address.state,
-    address.country,
-  ].filter((part) => Boolean(part && part.trim()))
-
-  return parts.length > 0 ? parts.join(", ") : null
+/** Available credit across every membership the company holds. */
+function creditsAvailable(company: CompanyDetailsDto): number {
+  return company.credits.balances
+    .flatMap((block) => block.balances)
+    .reduce((sum, balance) => sum + balance.available, 0)
 }
 
-function Field({ label, value }: Readonly<{ label: string; value: React.ReactNode }>) {
-  return (
-    <div className="grid gap-1">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <span className="text-sm font-medium break-words">{value}</span>
-    </div>
-  )
-}
-
-export function OverviewTab({ company }: Readonly<{ company: CompanyDto }>) {
-  const address = formatAddress(company.billingAddress)
-  const metadataEntries = Object.entries(company.metadata ?? {})
+/**
+ * The company twin of the member overview: numbers on top, state on the
+ * left (people, memberships, billing), what happened on the right.
+ */
+export async function OverviewTab({ company }: Readonly<{ company: CompanyDetailsDto }>) {
+  const timeZone = await primaryTimeZone().catch(() => "UTC")
+  const { members, memberships, bookings, invoices, charges } = company
+  const keyPeople = members.items.filter((m) => m.isBillingPerson || m.isContactPerson)
 
   return (
-    <div className="grid gap-4 px-4 md:grid-cols-2">
-      <Card>
-        <CardHeader>
-          <CardTitle>Identity</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <Field label="Name" value={company.name} />
-          <Field
-            label="Status"
-            value={
-              <Badge variant="secondary" className={`${COMPANY_STATUS_CLASSES[company.status] ?? ""} border-0`}>
-                {COMPANY_STATUS_LABELS[company.status] ?? company.status}
-              </Badge>
-            }
-          />
-          <Field label="Start date" value={formatDate(company.startDate)} />
-          <Field label="Tax ID" value={company.taxId || "-"} />
-          <Field label="Billing name" value={company.billingName || "-"} />
-          <Field label="Registration number" value={company.registrationNumber || "-"} />
-          <Field
-            label="Description"
-            value={company.description || "-"}
-          />
-          <Field
-            label="Tags"
-            value={
-              company.tags?.length ? (
-                <span className="flex flex-wrap gap-1">
-                  {company.tags.map((tag) => (
-                    <Badge key={tag} variant="secondary" className="border-0 capitalize">
-                      {tag}
-                    </Badge>
-                  ))}
-                </span>
-              ) : (
-                "-"
-              )
-            }
-          />
-        </CardContent>
-      </Card>
+    <div>
+      <StatCards
+        cards={[
+          {
+            label: "Members",
+            value: members.active,
+            unit: "active",
+            icon: Users,
+            footer: `${members.total} in total`,
+          },
+          {
+            label: "Memberships",
+            value: memberships.active,
+            unit: "active",
+            icon: CalendarClock,
+            footer: `${memberships.total} across the company and its members`,
+          },
+          {
+            label: "Credits",
+            value: creditsAvailable(company),
+            unit: "available",
+            icon: CreditCard,
+            footer: `${bookings.upcoming} upcoming booking${bookings.upcoming === 1 ? "" : "s"}`,
+          },
+          {
+            label: "Outstanding",
+            value: formatPriceHt(invoices.outstandingTtc),
+            icon: Receipt,
+            footer: `${invoices.open} open invoice${invoices.open === 1 ? "" : "s"} · ${
+              charges.uninvoiced
+            } uninvoiced charge${charges.uninvoiced === 1 ? "" : "s"}`,
+          },
+        ]}
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Contact</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <Field label="Email" value={company.email || "-"} />
-          <Field label="Phone" value={company.phone || "-"} />
-          <Field
-            label="Website"
-            value={
-              company.website ? (
-                <a
-                  href={company.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 hover:underline dark:text-blue-400"
-                >
-                  {company.website}
-                </a>
-              ) : (
-                "-"
-              )
+      <div className="grid gap-4 px-4 xl:grid-cols-2">
+        <div className="space-y-4">
+          <Section
+            title="Key people"
+            viewAllHref={companyPath(company.id, "members")}
+            aside={
+              <span className="text-xs text-muted-foreground">
+                {members.active} active · {members.total} total
+              </span>
             }
+          >
+            {keyPeople.length === 0 ? (
+              <Empty>No billing or contact person set</Empty>
+            ) : (
+              <Rows>
+                {keyPeople.map((member) => (
+                  <Row
+                    key={member.id}
+                    primary={
+                      <Link href={memberPath(member.id)} className="font-medium hover:underline">
+                        {member.fullName}
+                      </Link>
+                    }
+                    secondary={[member.email, member.phone].filter(Boolean).join(" · ") || undefined}
+                    aside={
+                      <span className="flex items-center gap-1">
+                        {member.isBillingPerson && <Badge variant="outline">Billing</Badge>}
+                        {member.isContactPerson && <Badge variant="outline">Contact</Badge>}
+                        <Badge
+                          variant="secondary"
+                          className={`${MEMBER_STATUS_CLASSES[member.status]} border-0`}
+                        >
+                          {MEMBER_STATUS_LABELS[member.status]}
+                        </Badge>
+                      </span>
+                    }
+                  />
+                ))}
+              </Rows>
+            )}
+          </Section>
+          <CurrentMemberships
+            memberships={memberships}
+            credits={company.credits}
+            viewAllHref={companyPath(company.id, "memberships")}
           />
-          <Field label="Billing address" value={address || "-"} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Record</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          <Field label="Company ID" value={<span className="font-mono text-xs">{company.id}</span>} />
-          <Field label="Created" value={new Date(company.createdAt).toLocaleString()} />
-          <Field label="Last updated" value={new Date(company.updatedAt).toLocaleString()} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Metadata</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4">
-          {metadataEntries.length > 0 ? (
-            metadataEntries.map(([key, value]) => (
-              <Field
-                key={key}
-                label={key}
-                value={typeof value === "string" ? value : JSON.stringify(value)}
-              />
-            ))
-          ) : (
-            <span className="text-sm text-muted-foreground">No metadata recorded.</span>
-          )}
-        </CardContent>
-      </Card>
+          <OpenBilling
+            invoices={invoices}
+            charges={charges}
+            invoicesHref={companyPath(company.id, "invoices")}
+            uninvoicedHref={`${companyPath(company.id, "charges")}&uninvoiced=true`}
+          />
+        </div>
+        <RecentActivity
+          bookings={bookings}
+          credits={company.credits}
+          viewAllHref={companyPath(company.id, "bookings")}
+          timeZone={timeZone}
+        />
+      </div>
     </div>
   )
 }

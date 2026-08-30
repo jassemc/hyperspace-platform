@@ -25,6 +25,8 @@ import { toast } from "sonner"
 interface AddChargeFormProps {
   /** Opened from a member's page: the customer select starts on them. */
   defaultMemberId?: string
+  /** Opened from a company's page: charge-to starts on Company, select on it. */
+  defaultCompanyId?: string
   isOpen: boolean
   onClose: () => void
 }
@@ -43,9 +45,16 @@ function SubmitButton() {
   )
 }
 
-export function AddChargeForm({ isOpen, onClose, defaultMemberId }: Readonly<AddChargeFormProps>) {
+export function AddChargeForm({
+  isOpen,
+  onClose,
+  defaultMemberId,
+  defaultCompanyId,
+}: Readonly<AddChargeFormProps>) {
   const [state, formAction] = useActionState(createChargeAction, {})
-  const [customerKind, setCustomerKind] = useState<CustomerKind>("member")
+  const [customerKind, setCustomerKind] = useState<CustomerKind>(
+    defaultCompanyId ? "company" : "member"
+  )
   const [members, setMembers] = useState<MemberDto[]>([])
   const [companies, setCompanies] = useState<CompanyDto[]>([])
   const notifiedRef = useRef(false)
@@ -142,7 +151,9 @@ export function AddChargeForm({ isOpen, onClose, defaultMemberId }: Readonly<Add
                     id="customerId"
                     name={customerKind === "member" ? "memberId" : "companyId"}
                     className={selectClassName}
-                    defaultValue={customerKind === "member" ? (defaultMemberId ?? "") : ""}
+                    defaultValue={
+                      customerKind === "member" ? (defaultMemberId ?? "") : (defaultCompanyId ?? "")
+                    }
                     required
                   >
                     <option value="">Select {customerKind}</option>

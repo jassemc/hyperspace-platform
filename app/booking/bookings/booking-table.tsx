@@ -33,8 +33,9 @@ interface BookingTableProps {
   /** Member page: every row is theirs, so no Customer column and no filters. */
   hideCustomer?: boolean
   showFilters?: boolean
-  /** Forwarded to the create dialog so the member select starts on them. */
+  /** Forwarded to the create dialog so the customer starts on them. */
   defaultMemberId?: string
+  defaultCompanyId?: string
 }
 
 export function BookingTable({
@@ -53,6 +54,7 @@ export function BookingTable({
   hideCustomer = false,
   showFilters = true,
   defaultMemberId,
+  defaultCompanyId,
 }: Readonly<BookingTableProps>) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
   const [editingBooking, setEditingBooking] = useState<BookingDto | null>(null)
@@ -149,7 +151,11 @@ export function BookingTable({
           members={members}
           companies={companies}
           timeZone={timeZone}
-          prefill={defaultMemberId ? { memberId: defaultMemberId } : undefined}
+          prefill={
+            defaultMemberId || defaultCompanyId
+              ? { memberId: defaultMemberId, companyId: defaultCompanyId }
+              : undefined
+          }
         />
       )}
     </>

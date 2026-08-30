@@ -2,20 +2,21 @@ import { Suspense } from "react"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { getCompany } from "@/lib/service"
-import type { CompanyDto } from "@/lib/service/HsService"
+import type { CompanyDetailsDto } from "@/lib/service/HsService"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { ArrowLeft } from "lucide-react"
-import { CompanyTabs } from "./company-tabs"
-import { OverviewTab } from "./overview-tab"
-import { MembersTab } from "./members-tab"
-import { PlansTab } from "./plans-tab"
-import { EditCompanyButton } from "./edit-company-button"
 import { TableSkeleton } from "@/components/table-skeleton"
 import { firstParam } from "@/lib/search-params"
-import { COMPANY_STATUS_CLASSES, COMPANY_STATUS_LABELS } from "../company-status"
-
-const VALID_TABS = ["overview", "members", "plans"]
+import { resolveCompanyTab } from "./company-route"
+import { CompanyTabs, type CompanyTabCounts } from "./company-tabs"
+import { CompanyHeader } from "./company-header"
+import { OverviewTab } from "./overview-tab"
+import { MembersTab } from "./members-tab"
+import { MembershipsTab } from "./memberships-tab"
+import { BookingsTab } from "./bookings-tab"
+import { CreditsTab } from "./credits-tab"
+import { ChargesTab } from "./charges-tab"
+import { InvoicesTab } from "./invoices-tab"
 
 export default async function CompanyDetailsPage({
   params,
@@ -26,16 +27,24 @@ export default async function CompanyDetailsPage({
 }>) {
   const { id } = await params
   const resolvedSearchParams = await searchParams
+  const activeTab = resolveCompanyTab(firstParam(resolvedSearchParams?.tab))
 
-  const requestedTab = firstParam(resolvedSearchParams?.tab)
-  const activeTab = requestedTab && VALID_TABS.includes(requestedTab) ? requestedTab : "overview"
-
-  let company: CompanyDto
+  // One request: the company row plus every Overview block.
+  let company: CompanyDetailsDto
   try {
-    company = (await getCompany(id)) as CompanyDto
+    company = (await getCompany(id)) as CompanyDetailsDto
   } catch (error) {
     console.warn(`Failed to load company ${id}`, error)
     notFound()
+  }
+
+  const counts: CompanyTabCounts = {
+    members: company.members.total,
+    memberships: company.memberships.total,
+    bookings: company.bookings.upcoming,
+    credits: company.credits.recent.length,
+    charges: company.charges.uninvoiced,
+    invoices: company.invoices.open,
   }
 
   return (
@@ -49,40 +58,39 @@ export default async function CompanyDetailsPage({
         </Button>
       </div>
 
-      <div className="flex items-center justify-between py-2 px-4 mb-6">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-5xl font-semibold">{company.name}</h1>
-            <Badge variant="secondary" className={`${COMPANY_STATUS_CLASSES[company.status] ?? ""} border-0`}>
-              {COMPANY_STATUS_LABELS[company.status] ?? company.status}
-            </Badge>
-          </div>
-          {company.taxId && (
-            <p className="mt-2 text-sm text-muted-foreground">Tax ID {company.taxId}</p>
+      <CompanyHeader company={company} />
+
+      <div className="min-w-0">
+        <CompanyTabs activeTab={activeTab} counts={counts}>
+          {activeTab === "overview" && <OverviewTab company={company} />}
+          {activeTab === "members" && (
+            <Suspense fallback={<TableSkeleton rows={5} />}>
+              <MembersTab companyId={id} searchParams={resolvedSearchParams} />
+            </Suspense>
           )}
-        </div>
-        <EditCompanyButton company={company} />
+          {activeTab === "memberships" && (
+            <Suspense fallback={<TableSkeleton rows={5} />}>
+              <MembershipsTab
+                companyId={id}
+                companyName={company.name}
+                searchParams={resolvedSearchParams}
+              />
+            </Suspense>
+          )}
+          {activeTab === "bookings" && (
+            <BookingsTab company={company} searchParams={resolvedSearchParams} />
+          )}
+          {activeTab === "credits" && (
+            <CreditsTab company={company} searchParams={resolvedSearchParams} />
+          )}
+          {activeTab === "charges" && (
+            <ChargesTab company={company} searchParams={resolvedSearchParams} />
+          )}
+          {activeTab === "invoices" && (
+            <InvoicesTab company={company} searchParams={resolvedSearchParams} />
+          )}
+        </CompanyTabs>
       </div>
-
-      <CompanyTabs activeTab={activeTab}>
-        {activeTab === "overview" && <OverviewTab company={company} />}
-
-        {activeTab === "members" && (
-          <Suspense fallback={<TableSkeleton rows={5} />}>
-            <MembersTab companyId={id} searchParams={resolvedSearchParams} />
-          </Suspense>
-        )}
-
-        {activeTab === "plans" && (
-          <Suspense fallback={<TableSkeleton rows={5} />}>
-            <PlansTab
-              companyId={id}
-              companyName={company.name}
-              searchParams={resolvedSearchParams}
-            />
-          </Suspense>
-        )}
-      </CompanyTabs>
     </div>
   )
 }
