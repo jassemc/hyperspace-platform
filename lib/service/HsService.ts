@@ -3001,6 +3001,68 @@ export interface MemberDetailsDto {
   updatedAt: string;
 }
 
+export interface CompanyMembersSummaryDto {
+  /** @example 8 */
+  total: number;
+  /**
+   * Members whose derived status is active.
+   * @example 6
+   */
+  active: number;
+  /** Newest five by creation. */
+  items: Array<MemberDto>;
+}
+
+export interface CompanyDetailsDto {
+  /**
+   * Unique identifier
+   * @format uuid
+   * @example "9df3cd63-ad9a-48fb-8d48-2744da103c39"
+   */
+  id: string;
+  /** @example "Acme Consulting SARL" */
+  name: string;
+  /**
+   * Tunisian matricule fiscal.
+   * @example "1234567/A/M/000"
+   */
+  taxId?: string | null;
+  /** @example "2026-08-01" */
+  startDate?: string | null;
+  billingName?: string | null;
+  registrationNumber?: string | null;
+  billingAddress?: AddressDto | null;
+  email?: string | null;
+  phone?: string | null;
+  description?: string | null;
+  website?: string | null;
+  /**
+   * DERIVED status (OfficeRnD vocabulary) — computed from membership,
+   * charge and opportunity data, never stored, never manually set.
+   */
+  status: CompanyStatus;
+  tags: Array<string>;
+  metadata: Record<string, any>;
+  members: CompanyMembersSummaryDto;
+  memberships: MemberMembershipsSummaryDto;
+  bookings: MemberBookingsSummaryDto;
+  credits: MemberCreditsSummaryDto;
+  charges: MemberChargesSummaryDto;
+  invoices: MemberInvoicesSummaryDto;
+  /**
+   * The date of creation of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  createdAt: string;
+  /**
+   * The date of the last update of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  updatedAt: string;
+}
+
 export interface OpportunityMemberDto {
   /** @format uuid */
   id: string;
@@ -4774,32 +4836,6 @@ export namespace Api {
   }
 
   /**
-   * @description `status` is derived from membership/charge/opportunity data — never stored.
-   * @tags Companies
-   * @name GetCompany
-   * @summary Get a company
-   * @request GET:/api/v1/companies/{id}
-   * @secure
-   * @response `200` `(CompanyDto)` 200
-   * @response `401` `(ResponseErrorDto)` Unauthorized
-   * @response `403` `((ResponseErrorDto))` 403
-   * @response `404` `(ResponseErrorDto)` Not Found
-   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
-   * @response `429` `(ResponseErrorDto)` Too Many Requests
-   * @response `500` `(ResponseErrorDto)` Internal Server Error
-   * @response `default` `CompanyDto`
-   */
-  export namespace GetCompany {
-    export type RequestParams = {
-      id: string;
-    };
-    export type RequestQuery = {};
-    export type RequestBody = never;
-    export type RequestHeaders = {};
-    export type ResponseBody = CompanyDto;
-  }
-
-  /**
    * @description `status` is derived from membership/charge/opportunity data — never stored. `startDate: null` clears the date and with it the membership start-date floor.
    * @tags Companies
    * @name UpdateCompany
@@ -4823,6 +4859,32 @@ export namespace Api {
     export type RequestBody = UpdateCompanyDto;
     export type RequestHeaders = {};
     export type ResponseBody = CompanyDto;
+  }
+
+  /**
+   * @description The company row plus one block per domain — members, memberships, bookings, credits, charges, invoices — each a count and its five most relevant rows. Memberships cover the whole roster (the company’s own plans plus seats held by its members, as `?forCompanyId=` lists them); every other block is the company’s own rows. Use the list endpoints for the full, paginated history.
+   * @tags Companies
+   * @name GetCompany
+   * @summary Get a company with its overview
+   * @request GET:/api/v1/companies/{id}
+   * @secure
+   * @response `200` `(CompanyDetailsDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `CompanyDetailsDto`
+   */
+  export namespace GetCompany {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = CompanyDetailsDto;
   }
 
   /**
@@ -8829,32 +8891,6 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description `status` is derived from membership/charge/opportunity data — never stored.
-     *
-     * @tags Companies
-     * @name GetCompany
-     * @summary Get a company
-     * @request GET:/api/v1/companies/{id}
-     * @secure
-     * @response `200` `(CompanyDto)` 200
-     * @response `401` `(ResponseErrorDto)` Unauthorized
-     * @response `403` `((ResponseErrorDto))` 403
-     * @response `404` `(ResponseErrorDto)` Not Found
-     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
-     * @response `429` `(ResponseErrorDto)` Too Many Requests
-     * @response `500` `(ResponseErrorDto)` Internal Server Error
-     * @response `default` `CompanyDto`
-     */
-    getCompany: (id: string, params: RequestParams = {}) =>
-      this.http.request<CompanyDto, ResponseErrorDto | CompanyDto>({
-        path: `/api/v1/companies/${id}`,
-        method: "GET",
-        secure: true,
-        format: "json",
-        ...params,
-      }),
-
-    /**
      * @description `status` is derived from membership/charge/opportunity data — never stored. `startDate: null` clears the date and with it the membership start-date floor.
      *
      * @tags Companies
@@ -8878,6 +8914,32 @@ export class HsService<SecurityDataType extends unknown> {
         body: data,
         secure: true,
         type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The company row plus one block per domain — members, memberships, bookings, credits, charges, invoices — each a count and its five most relevant rows. Memberships cover the whole roster (the company’s own plans plus seats held by its members, as `?forCompanyId=` lists them); every other block is the company’s own rows. Use the list endpoints for the full, paginated history.
+     *
+     * @tags Companies
+     * @name GetCompany
+     * @summary Get a company with its overview
+     * @request GET:/api/v1/companies/{id}
+     * @secure
+     * @response `200` `(CompanyDetailsDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `CompanyDetailsDto`
+     */
+    getCompany: (id: string, params: RequestParams = {}) =>
+      this.http.request<CompanyDetailsDto, ResponseErrorDto | CompanyDetailsDto>({
+        path: `/api/v1/companies/${id}`,
+        method: "GET",
+        secure: true,
         format: "json",
         ...params,
       }),

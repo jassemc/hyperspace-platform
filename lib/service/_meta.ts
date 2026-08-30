@@ -95,19 +95,6 @@ const meta = {
 
     {
       namespace: "api",
-      method: "GET",
-      usage: "getCompany",
-      path: "/api/v1/companies/${id}",
-      functionName: "getCompany",
-      pathParams: [{ name: "id", type: "string", optional: false }],
-      requestParams: [],
-      combinedPathAndRequestParams: [],
-      payload: null,
-      responseType: "(CompanyDto)",
-    },
-
-    {
-      namespace: "api",
       method: "PATCH",
       usage: "updateCompany",
       path: "/api/v1/companies/${id}",
@@ -117,6 +104,19 @@ const meta = {
       combinedPathAndRequestParams: [],
       payload: { name: "data", optional: false, type: "UpdateCompanyDto" },
       responseType: "(CompanyDto)",
+    },
+
+    {
+      namespace: "api",
+      method: "GET",
+      usage: "getCompany",
+      path: "/api/v1/companies/${id}",
+      functionName: "getCompany",
+      pathParams: [{ name: "id", type: "string", optional: false }],
+      requestParams: [],
+      combinedPathAndRequestParams: [],
+      payload: null,
+      responseType: "(CompanyDetailsDto)",
     },
 
     {

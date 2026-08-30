@@ -114,12 +114,12 @@ export async function getCompanyStats(query: CompanyStatsParams, params?: Reques
   return hsService.api.companyStats(query, params);
 }
 
-export async function getCompany(id: string, params?: RequestParams) {
-  return hsService.api.getCompany(id, params);
-}
-
 export async function updateCompany(id: string, data: UpdateCompanyDto, params?: RequestParams) {
   return hsService.api.updateCompany(id, data, params);
+}
+
+export async function getCompany(id: string, params?: RequestParams) {
+  return hsService.api.getCompany(id, params);
 }
 
 export async function getListMembers(query: ListMembersParams, params?: RequestParams) {
