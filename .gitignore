@@ -49,3 +49,23 @@ swagger.json
 
 # Claude Code worktrees
 .claude/worktrees/
+
+# editors / IDEs
+.idea
+.vscode
+
+# local tooling
+.ripgreprc
+
+# stray shell config files in the repo root
+.bashrc
+.bash_profile
+.profile
+.zshrc
+.zprofile
+.gitconfig
+
+# scratch output
+scratch_*.log
+.github/copilot-instructions.md
+.gitmodules
