@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
 import { PlaceholderImage } from "@/components/placeholder-image"
-import { ArrowRight, Ban, Building2, Check, Clock, Copy, Eye, Mail, Pencil, User, Users } from "lucide-react"
+import { ArrowRight, Ban, Building2, Check, Clock, Copy, Eye, Mail, Pencil, User, Users, UserX } from "lucide-react"
 import { toast } from "sonner"
 import type {
   BookingDto,
@@ -33,6 +33,7 @@ import {
 import { getIconFromFontAwesome } from "@/lib/icon-utils"
 import { getBookingDetailsAction, type BookingDetails } from "./actions"
 import { CancelBookingAlert } from "./cancel-booking-alert"
+import { MarkNoShowAlert } from "./mark-no-show-alert"
 import { useBookingMutations } from "./use-booking-mutations"
 import { BOOKING_SOURCE_LABELS, BOOKING_STATUS_CLASSES, BOOKING_STATUS_LABELS } from "./booking-status"
 
@@ -196,8 +197,10 @@ export function BookingDetailsDialog({
     }
   }, [isOpen, booking.id, booking.resource.id])
 
-  const { label, pending, canConfirm, canCancel, confirm, cancel } = useBookingMutations(booking)
+  const { label, pending, canConfirm, canCancel, canMarkNoShow, confirm, cancel, markNoShow } =
+    useBookingMutations(booking)
   const [cancelOpen, setCancelOpen] = useState(false)
+  const [noShowOpen, setNoShowOpen] = useState(false)
 
   const customer = booking.member?.fullName ?? booking.company?.name
   const email = booking.member?.email
@@ -416,6 +419,17 @@ export function BookingDetailsDialog({
               {pending === "confirm" ? "Confirming..." : "Confirm"}
             </Button>
           )}
+          {canMarkNoShow && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setNoShowOpen(true)}
+              disabled={pending !== null}
+            >
+              <UserX className="mr-1.5 h-4 w-4" />
+              Mark as no-show
+            </Button>
+          )}
           {canCancel && (
             <Button
               variant="destructive"
@@ -428,6 +442,15 @@ export function BookingDetailsDialog({
             </Button>
           )}
         </DialogFooter>
+        <MarkNoShowAlert
+          open={noShowOpen}
+          onOpenChange={setNoShowOpen}
+          label={label}
+          pending={pending === "no_show"}
+          onConfirm={async () => {
+            if (await markNoShow()) setNoShowOpen(false)
+          }}
+        />
         <CancelBookingAlert
           open={cancelOpen}
           onOpenChange={setCancelOpen}
