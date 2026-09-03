@@ -1,9 +1,9 @@
-import { cache } from "react"
 import { getOpportunityStats } from "@/lib/service"
 import type {
   OpportunityInterest,
   OpportunityStatsDto,
 } from "@/lib/service/HsService"
+import { cachedStats } from "@/lib/cached-stats"
 
 /**
  * The tabs and the summary cards both want the pipeline. Memoised per request,
@@ -18,23 +18,22 @@ import type {
  * so this stays positional on purpose. Resist folding it back into an
  * options object; it would silently double the request.
  */
-export const opportunityStats = cache(
-  async (
+export const opportunityStats = cachedStats(
+  "stats:opportunities",
+  (
+    params,
     q: string | undefined,
     interest: OpportunityInterest | undefined,
     createdFrom: string | undefined,
     createdTo: string | undefined
-  ): Promise<OpportunityStatsDto | null> => {
-    try {
-      return (await getOpportunityStats({
+  ) =>
+    getOpportunityStats(
+      {
         q,
         interest,
         createdFrom,
         createdTo,
-      })) as OpportunityStatsDto
-    } catch (error) {
-      console.warn("Failed to load opportunity stats", error)
-      return null
-    }
-  }
+      },
+      params
+    ) as Promise<OpportunityStatsDto>
 )

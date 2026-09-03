@@ -1,9 +1,8 @@
-import { getListBookings, getListResources } from "@/lib/service"
+import { getListBookings } from "@/lib/service"
 import type {
   BookingDto,
   BookingSource,
   BookingStatus,
-  ResourceDto,
 } from "@/lib/service/HsService"
 import {
   asEnum,
@@ -17,6 +16,7 @@ import { primaryTimeZone } from "@/lib/locations"
 import { BookingTable } from "./booking-table"
 import { BOOKING_SOURCE_VALUES, BOOKING_STATUS_VALUES } from "./booking-status"
 import { bookingStats } from "./stats"
+import { bookingLookups, type BookingLookups } from "./lookups"
 
 export async function BookingTableSection({
   searchParams,
@@ -61,23 +61,24 @@ export async function BookingTableSection({
 
   // The rows name their own resource and customer; this list is for the
   // resource filter's options, which need every resource, bookable or not.
-  let resources: ResourceDto[] = []
+  let lookups: BookingLookups = { resources: [], members: [], companies: [] }
   // Table rows may span locations; the column formatter needs one zone, so
   // the first location wins — the single rule, and the single request, that
   // primaryTimeZone() holds for the whole page.
   let timeZone = "UTC"
 
   try {
-    const [resourcePage, zone] = await Promise.all([
+    const [loaded, zone] = await Promise.all([
       // canBook: the filter offers only bookable resources (user call,
       // 2026-08-27, overriding the CRUD-parity spec's keep-everything
       // stance) — bookings on a since-retired resource stay visible in
       // the table, they are just no longer filterable by that resource.
-      // The same list seeds the create dialog, which wants exactly this.
-      getListResources({ limit: 100, offset: 0, sort: "ASC", canBook: true }),
+      // The same list seeds the create dialog, which wants exactly this;
+      // cache() makes this the page's call, not a second one.
+      bookingLookups(),
       primaryTimeZone(),
     ])
-    resources = (resourcePage?.results ?? []) as ResourceDto[]
+    lookups = loaded
     // The calendar, which is per-location, uses the zone the API puts on
     // its envelope instead.
     timeZone = zone
@@ -89,7 +90,9 @@ export async function BookingTableSection({
     <BookingTable
       data={results}
       totalCount={total}
-      resources={resources}
+      resources={lookups.resources}
+      members={lookups.members}
+      companies={lookups.companies}
       timeZone={timeZone}
       stats={stats}
       activeStatus={status}

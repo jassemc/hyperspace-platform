@@ -1,6 +1,6 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
 import {
   createMember,
   updateMember,
@@ -14,26 +14,18 @@ import type {
   MemberStatusUpdate,
   UpdateMemberDto,
 } from "@/lib/service/HsService"
+import { type ActionState, problem, text, clearableText, tags } from "@/lib/action-state"
+import { MEMBER_ROUTE_PATTERN } from "./[id]/member-route"
+import { COMPANY_ROUTE_PATTERN } from "@/app/community/companies/[id]/company-route"
 
-export type ActionState = {
-  success?: boolean
-  error?: string
-  fieldErrors?: Record<string, string[]>
-}
 
-function emptyToUndefined(value: FormDataEntryValue | null): string | undefined {
-  if (typeof value !== "string") return undefined
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : undefined
-}
-
-function tags(formData: FormData): string[] | undefined {
-  const raw = emptyToUndefined(formData.get("tags"))
-  if (!raw) return undefined
-  return raw
-    .split(",")
-    .map((tag) => tag.trim())
-    .filter(Boolean)
+function revalidate() {
+  revalidatePath("/community/members")
+  revalidatePath(MEMBER_ROUTE_PATTERN, "page")
+  revalidatePath(COMPANY_ROUTE_PATTERN, "page")
+  // A member's employer change moves company figures too.
+  revalidateTag("stats:members")
+  revalidateTag("stats:companies")
 }
 
 /**
@@ -41,18 +33,19 @@ function tags(formData: FormData): string[] | undefined {
  * employment moves through PUT /members/:id/company, not the member patch.
  */
 function parseMemberPayload(formData: FormData): UpdateMemberDto {
-  const fullName = emptyToUndefined(formData.get("fullName"))
+  const fullName = text(formData, "fullName")
   if (!fullName) {
     throw new Error("Full name is required")
   }
 
   return {
     fullName,
-    email: emptyToUndefined(formData.get("email")),
-    phone: emptyToUndefined(formData.get("phone")),
-    notes: emptyToUndefined(formData.get("notes")),
-    kindHint: (emptyToUndefined(formData.get("kindHint")) as MemberKindHint) || undefined,
-    segment: (emptyToUndefined(formData.get("segment")) as MemberSegment) || undefined,
+    // Format-validated by the API: "" fails @IsEmail/@IsUrl, so a blank field is omitted rather than cleared.
+    email: text(formData, "email"),
+    phone: clearableText(formData, "phone"),
+    notes: clearableText(formData, "notes"),
+    kindHint: (text(formData, "kindHint") as MemberKindHint) || undefined,
+    segment: (text(formData, "segment") as MemberSegment) || undefined,
     // Both roles are company-scoped and rejected without an employer.
     isBillingPerson: formData.get("isBillingPerson") === "on",
     isContactPerson: formData.get("isContactPerson") === "on",
@@ -60,20 +53,24 @@ function parseMemberPayload(formData: FormData): UpdateMemberDto {
   }
 }
 
+/** Both roles are company-scoped; the API refuses them without an employer. */
+function roleWithoutCompany(payload: UpdateMemberDto, companyId: string | undefined): ActionState | null {
+  if ((payload.isBillingPerson || payload.isContactPerson) && !companyId) {
+    return { success: false, error: "Billing and contact roles need an employer. Pick a company first." }
+  }
+  return null
+}
+
 export async function createMemberAction(
   prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   try {
-    const companyId = emptyToUndefined(formData.get("companyId"))
+    const companyId = text(formData, "companyId")
     const payload = parseMemberPayload(formData)
 
-    if (!companyId && (payload.isBillingPerson || payload.isContactPerson)) {
-      return {
-        success: false,
-        error: "Billing and contact roles require an employer company",
-      }
-    }
+    const roleError = roleWithoutCompany(payload, companyId)
+    if (roleError) return roleError
 
     const data: CreateMemberDto = {
       ...payload,
@@ -82,13 +79,10 @@ export async function createMemberAction(
     }
 
     await createMember(data)
-    revalidatePath("/community/members")
+    revalidate()
     return { success: true }
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to create member",
-    }
+    return problem(error, "Failed to create member")
   }
 }
 
@@ -103,22 +97,23 @@ export async function updateMemberAction(
     }
 
     const data: UpdateMemberDto = parseMemberPayload(formData)
+    const companyId = text(formData, "companyId")
+
+    const roleError = roleWithoutCompany(data, companyId)
+    if (roleError) return roleError
+
     await updateMember(id, data)
 
     // Employment is a separate endpoint; only call it when the form changed it.
-    const companyId = emptyToUndefined(formData.get("companyId"))
-    const previousCompanyId = emptyToUndefined(formData.get("previousCompanyId"))
+    const previousCompanyId = text(formData, "previousCompanyId")
     if (companyId !== previousCompanyId) {
       await updateMemberCompany(id, { companyId: companyId ?? null })
     }
 
-    revalidatePath("/community/members")
+    revalidate()
     return { success: true }
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to update member",
-    }
+    return problem(error, "Failed to update member")
   }
 }
 
@@ -136,18 +131,15 @@ export async function updateMemberStatusAction(
       return { success: false, error: "Member id is required" }
     }
 
-    const status = emptyToUndefined(formData.get("status")) as MemberStatusUpdate | undefined
+    const status = text(formData, "status") as MemberStatusUpdate | undefined
     if (!status) {
       return { success: false, error: "Status is required" }
     }
 
     await updateMemberStatus(id, { status })
-    revalidatePath("/community/members")
+    revalidate()
     return { success: true }
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to update member status",
-    }
+    return problem(error, "Failed to update status")
   }
 }

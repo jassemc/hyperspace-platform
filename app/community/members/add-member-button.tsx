@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
-import { AddMemberForm } from "./add-member-form"
+import { MemberFormDialog } from "./member-form-dialog"
 
 export function AddMemberButton() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
@@ -15,7 +15,7 @@ export function AddMemberButton() {
         Add Member
       </Button>
       {isDrawerOpen && (
-        <AddMemberForm
+        <MemberFormDialog
           isOpen={isDrawerOpen}
           onClose={() => setIsDrawerOpen(false)}
         />

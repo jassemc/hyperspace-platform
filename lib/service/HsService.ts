@@ -248,6 +248,46 @@ export interface CompanyDto {
   updatedAt: string;
 }
 
+export interface CompanyStatusCountDto {
+  status: CompanyStatus;
+  /** @example 12 */
+  count: number;
+}
+
+export interface CompanyWeekStatsDto {
+  /**
+   * Monday of the week, as a business date in Africa/Tunis.
+   * @example "2026-08-24"
+   */
+  week: string;
+  /**
+   * Companies added that week, by created_at.
+   * @example 3
+   */
+  created: number;
+}
+
+export interface CompanyStatsDto {
+  /** @example 120 */
+  total: number;
+  /**
+   * Every status, always — a zero reads as empty, a gap reads as broken.
+   * Resolved, not grouped: status is derived, not a column.
+   */
+  byStatus: Array<CompanyStatusCountDto>;
+  /**
+   * Companies with at least one non-deleted member.
+   * @example 80
+   */
+  withMembers: number;
+  /**
+   * The last eight weeks, oldest first, always all eight — a week nothing
+   * happened in reads as zero rather than going missing and bending the
+   * shape of a chart drawn from it.
+   */
+  byWeek: Array<CompanyWeekStatsDto>;
+}
+
 export interface CreateCompanyDto {
   /** @example "Acme Consulting SARL" */
   name: string;
@@ -321,6 +361,13 @@ export interface UpdateCompanyDto {
   startDate?: string | null;
 }
 
+export interface MemberCompanyDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Hyperspace SARL" */
+  name: string;
+}
+
 export type MemberSegment =
   | "student"
   | "freelancer"
@@ -356,6 +403,7 @@ export interface MemberDto {
   phone?: string | null;
   /** @format uuid */
   companyId?: string | null;
+  company?: MemberCompanyDto | null;
   /** True if this member receives their company's invoices. */
   isBillingPerson: boolean;
   /** True if this member is their company's contact person. */
@@ -386,6 +434,61 @@ export interface MemberDto {
    * @example "2025-05-25T10:03:33.169Z"
    */
   updatedAt: string;
+}
+
+export interface MemberStatusCountDto {
+  status: MemberStatus;
+  /** @example 12 */
+  count: number;
+}
+
+export interface MemberKindHintCountDto {
+  kindHint: MemberKindHint;
+  /** @example 4 */
+  count: number;
+}
+
+export interface MemberWeekStatsDto {
+  /**
+   * Monday of the week, as a business date in Africa/Tunis.
+   * @example "2026-08-24"
+   */
+  week: string;
+  /**
+   * Members added that week, by created_at.
+   * @example 3
+   */
+  created: number;
+  /**
+   * Members whose FIRST membership of their own starts that week, by
+   * starts_at — the week they stopped being a lead or a walk-in. A
+   * membership billed through the employer company is not theirs, so a
+   * member covered only by a company plan never counts here.
+   * @example 2
+   */
+  joined: number;
+}
+
+export interface MemberStatsDto {
+  /** @example 120 */
+  total: number;
+  /**
+   * Every status, always — a zero reads as empty, a gap reads as broken.
+   * Resolved, not grouped: status is derived, not a column.
+   */
+  byStatus: Array<MemberStatusCountDto>;
+  byKindHint: Array<MemberKindHintCountDto>;
+  /**
+   * Members attached to a company.
+   * @example 80
+   */
+  withCompany: number;
+  /**
+   * The last eight weeks, oldest first, always all eight — a week nothing
+   * happened in reads as zero rather than going missing and bending the
+   * shape of a chart drawn from it.
+   */
+  byWeek: Array<MemberWeekStatsDto>;
 }
 
 export interface CreateMemberDto {
@@ -1030,6 +1133,57 @@ export interface PlanBenefitDto {
   updatedAt: string;
 }
 
+export type DiscountKind = "plan" | "resource_rate";
+
+export type DiscountStatus = "active" | "archived";
+
+export interface DiscountDto {
+  /**
+   * Unique identifier
+   * @format uuid
+   * @example "9df3cd63-ad9a-48fb-8d48-2744da103c39"
+   */
+  id: string;
+  /** @example "Loyalty 10 %" */
+  name: string;
+  /** @example "10LOYALTY" */
+  code: string;
+  kind: DiscountKind;
+  /** @example 10 */
+  percentOff?: number | null;
+  /** @example null */
+  amountOffHt?: number | null;
+  /** @example "2026-09-01" */
+  validFrom?: string | null;
+  /** @example "2026-12-31" */
+  validUntil?: string | null;
+  status: DiscountStatus;
+  planIds: Array<string>;
+  resourceRateIds: Array<string>;
+  /**
+   * Targets every plan (kind=plan) or every rate (kind=resource_rate).
+   * @example false
+   */
+  appliesToAll: boolean;
+  /**
+   * "Show on the website" — only kind = plan may be true.
+   * @example false
+   */
+  isPublic: boolean;
+  /**
+   * The date of creation of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  createdAt: string;
+  /**
+   * The date of the last update of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  updatedAt: string;
+}
+
 export interface PlanDto {
   /**
    * Unique identifier
@@ -1072,6 +1226,12 @@ export interface PlanDto {
   terms: Record<string, any>;
   benefits: Array<PlanBenefitDto>;
   extras: Array<ExtraDto>;
+  /**
+   * Resource-rate discounts every membership on this plan receives at
+   * booking (spec §5.3). Not contractual — edited in place, never
+   * triggers archive+clone.
+   */
+  rateDiscounts: Array<DiscountDto>;
   /**
    * OfficeRnD "Active" column: memberships on this plan that are not yet
    * ended (currently active + pending). 0 for a plan nothing points at
@@ -1171,6 +1331,12 @@ export interface CreatePlanDto {
    * update, like benefits.
    */
   extraIds?: Array<string>;
+  /**
+   * Resource-rate discounts granted to every membership on this plan.
+   * Full replace on update; not contractual (no archive+clone) — each
+   * id must be an active `resource_rate` discount.
+   */
+  rateDiscountIds?: Array<string>;
 }
 
 export interface UpdatePlanDto {
@@ -1220,6 +1386,12 @@ export interface UpdatePlanDto {
    * update, like benefits.
    */
   extraIds?: Array<string>;
+  /**
+   * Resource-rate discounts granted to every membership on this plan.
+   * Full replace on update; not contractual (no archive+clone) — each
+   * id must be an active `resource_rate` discount.
+   */
+  rateDiscountIds?: Array<string>;
 }
 
 export interface CreatePlanCategoryDto {
@@ -1330,7 +1502,87 @@ export interface UpdateExtraDto {
   amenityId?: string | null;
 }
 
-export type ChargeKind = "plan_fee" | "booking" | "store" | "one_off" | "deposit" | "setup_fee";
+export interface CreateDiscountDto {
+  /** @example "Loyalty 10 %" */
+  name: string;
+  /**
+   * Unique, case-insensitive. Shown on invoices and typed by visitors as a discount code.
+   * @example "10LOYALTY"
+   */
+  code: string;
+  kind: DiscountKind;
+  /** @example 10 */
+  percentOff?: number;
+  /** @example 15 */
+  amountOffHt?: number;
+  /**
+   * Any kind may be time-boxed (amendment 2026-08-29).
+   * @example "2026-09-01"
+   */
+  validFrom?: string;
+  /** @example "2026-12-31" */
+  validUntil?: string;
+  planIds?: Array<string>;
+  resourceRateIds?: Array<string>;
+  /**
+   * Targets every plan (kind=plan) or every resource rate
+   * (kind=resource_rate) without maintaining a list — the replacement for
+   * the dropped `promo` kind's implicit "applies to everything". A kind
+   * needs either its own target list OR this flag (422
+   * discount_targets_invalid otherwise).
+   * @example false
+   */
+  appliesToAll?: boolean;
+  /**
+   * "Show on the website" (amendment 2026-08-29) — a marketing offer for
+   * the landing/pricing pages and the public booking page. Only kind =
+   * plan may be public (422 discount_targets_invalid otherwise).
+   * Defaults false.
+   * @default false
+   * @example false
+   */
+  isPublic?: boolean;
+}
+
+export interface UpdateDiscountDto {
+  /** @example "Loyalty 10 %" */
+  name?: string;
+  /**
+   * Unique, case-insensitive. Shown on invoices and typed by visitors as a discount code.
+   * @example "10LOYALTY"
+   */
+  code?: string;
+  planIds?: Array<string>;
+  resourceRateIds?: Array<string>;
+  /**
+   * Targets every plan (kind=plan) or every resource rate
+   * (kind=resource_rate) without maintaining a list — the replacement for
+   * the dropped `promo` kind's implicit "applies to everything". A kind
+   * needs either its own target list OR this flag (422
+   * discount_targets_invalid otherwise).
+   * @example false
+   */
+  appliesToAll?: boolean;
+  /**
+   * "Show on the website" (amendment 2026-08-29) — a marketing offer for
+   * the landing/pricing pages and the public booking page. Only kind =
+   * plan may be public (422 discount_targets_invalid otherwise).
+   * Defaults false.
+   * @default false
+   * @example false
+   */
+  isPublic?: boolean;
+  /** @example 10 */
+  percentOff?: number | null;
+  /** @example 15 */
+  amountOffHt?: number | null;
+  /** @example "2026-09-01" */
+  validFrom?: string | null;
+  /** @example "2026-12-31" */
+  validUntil?: string | null;
+}
+
+export type ChargeKind = "plan_fee" | "booking" | "store" | "one_off" | "deposit" | "setup_fee" | "discount";
 
 export interface ChargeDto {
   /**
@@ -1668,11 +1920,46 @@ export interface UpdateCreditDto {
   reason?: string;
 }
 
+export interface MembershipMemberDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Mohamed Ali May" */
+  fullName: string;
+  email?: string | null;
+}
+
+export interface MembershipCompanyDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Hyperspace SARL" */
+  name: string;
+}
+
 /** Who receives this membership's charges. */
 export type MembershipBillTo = "member" | "company";
 
+export interface MembershipPlanDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Flex Desk" */
+  name: string;
+  /** @example "FLEX" */
+  code?: string | null;
+}
+
 /** Derived from dates on every read. */
 export type MembershipStatus = "pending" | "active" | "paused" | "ended";
+
+export interface MembershipDiscountDto {
+  /** @format uuid */
+  discountId: string;
+  /** @example "10LOYALTY" */
+  code: string;
+  /** @example 10 */
+  percentOff?: number | null;
+  /** @example null */
+  amountOffHt?: number | null;
+}
 
 export interface MembershipDto {
   /**
@@ -1683,8 +1970,10 @@ export interface MembershipDto {
   id: string;
   /** @format uuid */
   memberId?: string | null;
+  member?: MembershipMemberDto | null;
   /** @format uuid */
   companyId?: string | null;
+  company?: MembershipCompanyDto | null;
   /** Who receives this membership's charges. */
   billTo: MembershipBillTo;
   /**
@@ -1692,6 +1981,8 @@ export interface MembershipDto {
    * @format uuid
    */
   planId: string;
+  /** The LIVE plan's summary — never null; blank name when unjoined. */
+  plan: MembershipPlanDto;
   /** The contractual terms this membership runs on — frozen at creation. */
   planSnapshot: Record<string, any>;
   /**
@@ -1709,6 +2000,13 @@ export interface MembershipDto {
   status: MembershipStatus;
   notes?: string | null;
   /**
+   * Soft reference to the discount snapshotted in planSnapshot.plan.discount.
+   * @format uuid
+   */
+  discountId?: string | null;
+  /** Snapshot copy of the applied discount (planSnapshot.plan.discount ?? null). */
+  discount?: MembershipDiscountDto | null;
+  /**
    * The date of creation of the resource
    * @format date-time
    * @example "2025-05-25T10:03:33.169Z"
@@ -1720,6 +2018,69 @@ export interface MembershipDto {
    * @example "2025-05-25T10:03:33.169Z"
    */
   updatedAt: string;
+}
+
+export interface MembershipStatusCountDto {
+  status: MembershipStatus;
+  /** @example 12 */
+  count: number;
+}
+
+export interface MembershipBillToCountDto {
+  billTo: MembershipBillTo;
+  /** @example 8 */
+  count: number;
+}
+
+export interface MembershipPlanCountDto {
+  /** @format uuid */
+  planId: string;
+  /**
+   * The LIVE plan's name — blank if the plan row has since vanished.
+   * @example "Flex Desk"
+   */
+  name: string;
+  /** @example 5 */
+  count: number;
+}
+
+export interface MembershipWeekStatsDto {
+  /**
+   * Monday of the week, as a business date in Africa/Tunis.
+   * @example "2026-08-24"
+   */
+  week: string;
+  /**
+   * Memberships created that week, by created_at.
+   * @example 3
+   */
+  created: number;
+  /**
+   * Memberships whose term begins that week, by starts_at.
+   * @example 2
+   */
+  starting: number;
+}
+
+export interface MembershipStatsDto {
+  /** @example 120 */
+  total: number;
+  /**
+   * All four statuses, always — a zero reads as empty, a gap reads as
+   * broken. Derived in SQL from the same dates and pauses
+   * `MembershipMapper.deriveStatus` reads.
+   */
+  byStatus: Array<MembershipStatusCountDto>;
+  /** Both bill-to values, always. */
+  byBillTo: Array<MembershipBillToCountDto>;
+  /** Plans with at least one matching membership, busiest first. */
+  byPlan: Array<MembershipPlanCountDto>;
+  /**
+   * The last eight weeks, oldest first, always all eight — a week nothing
+   * happened in reads as zero rather than going missing and bending the
+   * shape of a chart drawn from it.
+   */
+  byWeek: Array<MembershipWeekStatsDto>;
 }
 
 export interface CreateMembershipDto {
@@ -1779,6 +2140,11 @@ export interface CreateMembershipDto {
    * @example 0
    */
   setupFee?: number;
+  /**
+   * Plan discount to apply on every cycle (spec §5.2).
+   * @format uuid
+   */
+  discountId?: string;
 }
 
 export interface UpdateMembershipDto {
@@ -1788,6 +2154,20 @@ export interface UpdateMembershipDto {
    */
   name?: string;
   notes?: string;
+  /**
+   * Replace (uuid) or clear (null) the discount — affects future, non-invoiced cycles only.
+   * @format uuid
+   */
+  discountId?: string | null;
+  /**
+   * Move the INCLUSIVE last active day, or `null` to make the membership
+   * open-ended again. Unlike cancel, no notice period applies — today (or
+   * a past date) ends it at once. Open assignments are capped at
+   * endsAt + 1 in the same transaction; a later end never re-extends
+   * assignments that were capped earlier.
+   * @example "2027-01-31"
+   */
+  endsAt?: string | null;
 }
 
 export interface MembershipPauseDto {
@@ -1971,6 +2351,18 @@ export interface CreateCheckinDto {
    * check-in without entitlements or credits.
    */
   force?: "visitor" | "trial";
+  /**
+   * Staff-only. When the visit started; defaults to now. Authorization
+   * (opening hours, half-day window) is evaluated at this instant.
+   * @example "2026-07-13T09:00:00Z"
+   */
+  checkedInAt?: string;
+  /**
+   * Staff-only. When the visit ended; omit to leave the check-in open.
+   * Must be after `checkedInAt`.
+   * @example "2026-07-13T12:30:00Z"
+   */
+  checkedOutAt?: string;
 }
 
 export interface OccupancyBucketDto {
@@ -2038,6 +2430,27 @@ export interface QuoteExtraDto {
   totalTtc: number;
 }
 
+export interface DiscountRateScopeDto {
+  /** @example false */
+  all: boolean;
+  rateIds: Array<string>;
+}
+
+export interface BookingDiscountDto {
+  /** @format uuid */
+  discountId: string;
+  /** @example "ROOM10" */
+  code: string;
+  /** @example null */
+  percentOff: number | null;
+  /** @example null */
+  amountOffHt: number | null;
+  /** Missing on a booking confirmed before the rateScope field existed. */
+  rateScope?: DiscountRateScopeDto | null;
+}
+
+export type BookingFreeReason = "partnership" | "internal_event" | "goodwill" | "staff";
+
 export interface BookingDto {
   /**
    * Unique identifier
@@ -2069,6 +2482,19 @@ export interface BookingDto {
   notes?: string | null;
   /** Snapshot of the extras priced at booking time (§6.3 Task 6). */
   extras?: Array<QuoteExtraDto>;
+  /**
+   * Discount code typed on the website, verbatim (a hint for staff — spec §5.4).
+   * @example "ROOM10"
+   */
+  requestedDiscountCode?: string | null;
+  /** The resource-rate discount staff applied at confirm, or null (spec §5.4). */
+  discount?: BookingDiscountDto | null;
+  /**
+   * Complimentary: no credits, no charges (spec 2026-08-28).
+   * @example false
+   */
+  isFree: boolean;
+  freeReason?: BookingFreeReason | null;
   /**
    * The date of creation of the resource
    * @format date-time
@@ -2246,6 +2672,23 @@ export interface CreateBookingDto {
   notes?: string;
   /** Extras offered by the booked resource's rates (§6.3 Task 6). */
   extraIds?: Array<string>;
+  /**
+   * Staff/admin only: waive the room AND the extras, consume no
+   * credits. Requires `freeReason`.
+   * @example false
+   */
+  isFree?: boolean;
+  freeReason?: BookingFreeReason;
+  /**
+   * Staff-picked discount (docs/superpowers/plans/2026-08-29-booking-
+   * discount-select.md): must resolve to an active, in-window,
+   * kind=resource_rate discount, else 404 discount_not_found (unknown id)
+   * or 422 discount_not_eligible (wrong kind/archived/out of window, or
+   * one that does not target this booking's winning rate). Also accepted
+   * by POST /bookings/validate (same DTO).
+   * @format uuid
+   */
+  discountId?: string;
 }
 
 export interface QuoteConsumptionDto {
@@ -2260,6 +2703,20 @@ export interface QuoteConsumptionDto {
 
 /** Which rate audience applies to the charged remainder. */
 export type RateAudience = "member" | "visitor";
+
+export interface QuoteDiscountDto {
+  /** @format uuid */
+  discountId: string;
+  /** @example "MEMBER10" */
+  code: string;
+  /** Which candidate won the single-discount rule (spec §5.4). */
+  source: "code" | "plan";
+  /**
+   * Negative HT amount taken off the room line.
+   * @example -5
+   */
+  amountHt: number;
+}
 
 export interface BookingQuoteDto {
   /** @format uuid */
@@ -2294,6 +2751,25 @@ export interface BookingQuoteDto {
   vatRate?: number | null;
   /** @example null */
   totalTtc?: number | null;
+  /**
+   * Room line at list price for the charged units (pro-rated frozen list when confirming a website request); null when free.
+   * @example 40
+   */
+  roomListHt?: number | null;
+  /** The one discount applied to the room line, or null. priceHt/totalTtc are already net. */
+  discount?: QuoteDiscountDto | null;
+  /**
+   * Whether the discount CODE passed to `quote()` (the 8th, `codeDiscount`
+   * param) targets the winning rate, independent of whether it actually
+   * won `discount` above — a plan rate discount can legitimately out-win
+   * an applicable code. Null when no code was given, or nothing was
+   * priced (fully credit-covered, no winning rate to check against).
+   * `BookingService.confirm` refuses (422) a code that resolves but
+   * targets a DIFFERENT rate — this is `false` in exactly that case
+   * (spec §5.4 amendment 2026-08-29).
+   * @example null
+   */
+  codeDiscountApplies?: boolean | null;
   /** Flat per-booking add-ons (§6.3 Task 6) — never credit-covered. */
   extras: Array<QuoteExtraDto>;
   /**
@@ -2312,7 +2788,27 @@ export interface UpdateBookingDto {
   /** @example "Sprint planning" */
   title?: string;
   notes?: string;
+  /** Extras offered by the booked resource's rates (§6.3 Task 6). */
+  extraIds?: Array<string>;
   status?: "no_show";
+  /**
+   * Change the booking's discount (docs/superpowers/plans/2026-08-29-
+   * booking-discount-select.md). Omitted = unchanged; `null` = remove the
+   * discount; an id resolves the same way as create's `discountId` (404
+   * `discount_not_found` for an unknown id, 422 `discount_not_eligible`
+   * for one that is not an active, in-window, kind=resource_rate discount
+   * or does not apply to this booking's rate). A CONFIRMED booking's
+   * money is reversed and re-applied with the new discount, exactly like
+   * an `extraIds` change; a PENDING booking has no money yet, so only its
+   * stored snapshot is replaced — confirm() prices and re-validates it
+   * then. Precedence at confirm (fix round 1, review of f443da4):
+   * `ConfirmBookingDto.discountId`/`discountCode`, when SENT, always
+   * override whatever was set here; confirm called with an EMPTY body
+   * (the common case — a website confirm never sends either field) falls
+   * back to this PATCHed snapshot instead of dropping it.
+   * @format uuid
+   */
+  discountId?: string | null;
   /**
    * Reschedule. Both times or neither — one alone is refused with
    * `reschedule_requires_both`, because "move the end" alone is far
@@ -2327,6 +2823,45 @@ export interface UpdateBookingDto {
   startsAt?: string;
   /** @example "2026-08-26T11:00:00Z" */
   endsAt?: string;
+}
+
+export interface ConfirmBookingDto {
+  /**
+   * Staff/admin only: waive the room AND the extras, consume no
+   * credits. Requires `freeReason`.
+   * @example false
+   */
+  isFree?: boolean;
+  freeReason?: BookingFreeReason;
+  /**
+   * Staff-picked discount (docs/superpowers/plans/2026-08-29-booking-
+   * discount-select.md): resolves the same 404/422 way as create's
+   * discountId. Precedence at confirm (fix round 1, review of f443da4):
+   * an explicit id here always wins over `discountCode`; explicit `null`
+   * drops any discount outright; OMITTING both fields falls back to
+   * whatever was already set on the booking via
+   * `PATCH /bookings/:id { discountId }` while it was still PENDING
+   * (docs/superpowers/plans/2026-08-29-booking-discount-select.md's
+   * PATCH extension) — a website confirm with an empty body is the
+   * common case, and that PATCHed discount must not silently vanish. The
+   * fallback is re-validated here exactly like an explicit id (422
+   * discount_not_eligible if the live rate no longer matches or the
+   * booking is now fully credit-covered), never re-resolved from the
+   * database — the snapshot IS the discount.
+   * @format uuid
+   */
+  discountId?: string | null;
+  /**
+   * Discount code to apply (spec §5.4): send the requested code to KEEP it,
+   * another code to replace it, null/omit to DROP it. Only an active,
+   * in-window resource_rate discount code is accepted → 422
+   * discount_code_invalid. Ignored when `discountId` is also sent —
+   * `discountId` (a staff pick, docs/superpowers/plans/2026-08-29-booking-
+   * discount-select.md) takes precedence over `discountCode` (a
+   * visitor-typed code kept/replaced/dropped by staff).
+   * @example "ROOM10"
+   */
+  discountCode?: string | null;
 }
 
 export interface BusyIntervalDto {
@@ -2357,6 +2892,187 @@ export interface AvailabilityDto {
   days: Array<AvailabilityDayDto>;
   /** Confirmed bookings overlapping the range, clipped to it. */
   busy: Array<BusyIntervalDto>;
+}
+
+export interface MemberMembershipsSummaryDto {
+  /** @example 3 */
+  total: number;
+  /**
+   * Memberships whose derived status is active today.
+   * @example 1
+   */
+  active: number;
+  /** Newest five by creation. */
+  items: Array<MembershipDto>;
+}
+
+export interface MemberBookingsSummaryDto {
+  /**
+   * Confirmed bookings starting from now.
+   * @example 2
+   */
+  upcoming: number;
+  /** Next five upcoming, soonest first. */
+  items: Array<BookingDto>;
+}
+
+export interface MemberCheckinsSummaryDto {
+  /** @example 40 */
+  total: number;
+  /** The open check-in when the member is on site right now. */
+  onSite?: CheckinDto | null;
+  /** Last five, newest first. */
+  items: Array<CheckinDto>;
+}
+
+export interface MemberCreditsSummaryDto {
+  /** Per-membership balances, as `GET /credits/balances?memberId=` returns them. */
+  balances: Array<MembershipCreditBalancesDto>;
+  /** Last five ledger rows, newest first. */
+  recent: Array<CreditTransactionDto>;
+}
+
+export interface MemberChargesSummaryDto {
+  /** @example 12 */
+  total: number;
+  /**
+   * Charges not yet on an invoice.
+   * @example 2
+   */
+  uninvoiced: number;
+  /** Latest five uninvoiced charges. */
+  items: Array<ChargeDto>;
+}
+
+export interface MemberInvoicesSummaryDto {
+  /** @example 9 */
+  total: number;
+  /**
+   * Issued (sent) and not yet paid.
+   * @example 1
+   */
+  open: number;
+  /**
+   * Σ (totalTtc − paid) over open invoices, in TND.
+   * @example 120.5
+   */
+  outstandingTtc: number;
+  /** Latest five open invoices. */
+  items: Array<InvoiceDto>;
+}
+
+export interface MemberDetailsDto {
+  /**
+   * Unique identifier
+   * @format uuid
+   * @example "9df3cd63-ad9a-48fb-8d48-2744da103c39"
+   */
+  id: string;
+  /** @example "Mohamed Ali May" */
+  fullName: string;
+  email?: string | null;
+  phone?: string | null;
+  /** @format uuid */
+  companyId?: string | null;
+  company?: MemberCompanyDto | null;
+  /** True if this member receives their company's invoices. */
+  isBillingPerson: boolean;
+  /** True if this member is their company's contact person. */
+  isContactPerson: boolean;
+  segment?: MemberSegment | null;
+  kindHint: MemberKindHint;
+  /**
+   * DERIVED status (OfficeRnD vocabulary) — computed on read, never stored.
+   * A manual `statusOverride` pin (`former`/`contact`) wins when set;
+   * otherwise it derives from memberships, then one-off charges, then open
+   * opportunities, then kindHint.
+   */
+  status: MemberStatus;
+  /** Manual lifecycle pin (staff-set via PUT /members/:id/status); null = auto. */
+  statusOverride?: MemberStatusOverride | null;
+  notes?: string | null;
+  tags: Array<string>;
+  metadata: Record<string, any>;
+  memberships: MemberMembershipsSummaryDto;
+  bookings: MemberBookingsSummaryDto;
+  checkins: MemberCheckinsSummaryDto;
+  credits: MemberCreditsSummaryDto;
+  charges: MemberChargesSummaryDto;
+  invoices: MemberInvoicesSummaryDto;
+  /**
+   * The date of creation of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  createdAt: string;
+  /**
+   * The date of the last update of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  updatedAt: string;
+}
+
+export interface CompanyMembersSummaryDto {
+  /** @example 8 */
+  total: number;
+  /**
+   * Members whose derived status is active.
+   * @example 6
+   */
+  active: number;
+  /** Newest five by creation. */
+  items: Array<MemberDto>;
+}
+
+export interface CompanyDetailsDto {
+  /**
+   * Unique identifier
+   * @format uuid
+   * @example "9df3cd63-ad9a-48fb-8d48-2744da103c39"
+   */
+  id: string;
+  /** @example "Acme Consulting SARL" */
+  name: string;
+  /**
+   * Tunisian matricule fiscal.
+   * @example "1234567/A/M/000"
+   */
+  taxId?: string | null;
+  /** @example "2026-08-01" */
+  startDate?: string | null;
+  billingName?: string | null;
+  registrationNumber?: string | null;
+  billingAddress?: AddressDto | null;
+  email?: string | null;
+  phone?: string | null;
+  description?: string | null;
+  website?: string | null;
+  /**
+   * DERIVED status (OfficeRnD vocabulary) — computed from membership,
+   * charge and opportunity data, never stored, never manually set.
+   */
+  status: CompanyStatus;
+  tags: Array<string>;
+  metadata: Record<string, any>;
+  members: CompanyMembersSummaryDto;
+  memberships: MemberMembershipsSummaryDto;
+  bookings: MemberBookingsSummaryDto;
+  credits: MemberCreditsSummaryDto;
+  charges: MemberChargesSummaryDto;
+  invoices: MemberInvoicesSummaryDto;
+  /**
+   * The date of creation of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  createdAt: string;
+  /**
+   * The date of the last update of the resource
+   * @format date-time
+   * @example "2025-05-25T10:03:33.169Z"
+   */
+  updatedAt: string;
 }
 
 export interface OpportunityMemberDto {
@@ -2449,6 +3165,13 @@ export interface OpportunityDto {
    * @example 200
    */
   requestedPlanPriceHt?: number | null;
+  /**
+   * What the website visitor typed, verbatim — a hint staff keep or
+   * drop at onboarding (spec §5.4). Never read for pricing. Null for
+   * opportunities not sourced from a plan request, or with no code.
+   * @example "SUMMER26"
+   */
+  requestedDiscountCode?: string | null;
   /**
    * The date of creation of the resource
    * @format date-time
@@ -2561,6 +3284,11 @@ export interface CreateOpportunityDto {
    * @example 200
    */
   requestedPlanPriceHt?: number;
+  /**
+   * Discount code typed on the website, stored verbatim (spec §5.4).
+   * @example "SUMMER26"
+   */
+  requestedDiscountCode?: string;
 }
 
 export interface UpdateOpportunityDto {
@@ -2582,6 +3310,11 @@ export interface UpdateOpportunityDto {
   requestedResourceId?: string | null;
   /** @example 200 */
   requestedPlanPriceHt?: number | null;
+  /**
+   * Staff can clear the requested code on the opportunity itself.
+   * @example "SUMMER26"
+   */
+  requestedDiscountCode?: string | null;
 }
 
 export interface OnboardingResultDto {
@@ -2612,6 +3345,14 @@ export interface OnboardLeadDto {
    * @example "2027-02-28"
    */
   endsAt?: string;
+  /**
+   * Discount code to apply to the new membership (spec §5.4):
+   * send the opportunity's requested code to KEEP it, another code to
+   * replace it, null/omit to DROP it. Resolved and checked for eligibility
+   * → 422 discount_code_invalid / discount_not_eligible.
+   * @example "SUMMER26"
+   */
+  discountCode?: string | null;
 }
 
 export interface RevenueBucketDto {
@@ -2716,6 +3457,29 @@ export interface PublicPlanExtraDto {
   amenityIcon?: string | null;
 }
 
+export interface PublicOfferDto {
+  /** @example "SUMMER26" */
+  code: string;
+  /** @example "Summer 2026" */
+  name: string;
+  /** @example 25 */
+  percentOff?: number | null;
+  /** @example null */
+  amountOffHt?: number | null;
+  /** @example "2026-12-31" */
+  validUntil?: string | null;
+  /**
+   * priceHt + the (negative) plan-fee reduction, rounded to millimes.
+   * @example 90
+   */
+  discountedPriceHt: number;
+  /**
+   * discountedPriceHt × (1 + the plan's VAT rate).
+   * @example 107.1
+   */
+  discountedPriceTtc: number;
+}
+
 export interface PublicPlanDto {
   /**
    * Unique identifier
@@ -2760,6 +3524,8 @@ export interface PublicPlanDto {
   benefits: Array<PublicPlanBenefitDto>;
   /** Paid add-ons offered with this plan. */
   extras: Array<PublicPlanExtraDto>;
+  /** The single best public offer on this plan, or null. */
+  offer?: PublicOfferDto | null;
   /**
    * The date of creation of the resource
    * @format date-time
@@ -2843,6 +3609,8 @@ export interface PublicTargetPlanDto {
    * @example 285.6
    */
   priceTtc: number;
+  /** The single best public offer on this plan, or null. */
+  offer?: PublicOfferDto | null;
 }
 
 export interface PublicResourceDto {
@@ -2941,6 +3709,12 @@ export interface BookingRequestResultDto {
    * @example 89.2
    */
   grandTotalTtc: number;
+  /**
+   * The code as typed (normalised), echoed back — not applied to any
+   * price on this path. Staff keep or drop it at confirm.
+   * @example "ROOM10"
+   */
+  discountCode?: string | null;
 }
 
 /**
@@ -2967,6 +3741,12 @@ export interface CreateBookingRequestDto {
   /** Extras offered by the booked resource's rates (§6.3 Task 6). */
   extraIds?: Array<string>;
   /**
+   * Discount code typed on the website. Stored verbatim for staff; not
+   * validated or priced here (spec §5.4).
+   * @example "ROOM10"
+   */
+  discountCode?: string;
+  /**
    * Which public frontend sent this request — recorded as the
    * opportunity's `source`. Omitted keeps the historical `website`.
    * @default "website"
@@ -2992,6 +3772,12 @@ export interface PlanRequestResultDto {
    * @example 273.7
    */
   totalTtc: number;
+  /**
+   * The code as typed (normalised), echoed back — not applied to any
+   * price on this path. Staff keep or drop it at onboarding.
+   * @example "SUMMER26"
+   */
+  discountCode?: string | null;
 }
 
 export interface CreatePlanRequestDto {
@@ -3027,6 +3813,12 @@ export interface CreatePlanRequestDto {
    * @default "coworking"
    */
   interest?: OpportunityInterest;
+  /**
+   * Discount code typed on the website. Stored verbatim for staff; not
+   * validated or priced here (spec §5.4).
+   * @example "SUMMER26"
+   */
+  discountCode?: string;
   /**
    * Which public frontend sent this request — recorded as the
    * opportunity's `source`. Omitted keeps the historical `website`.
@@ -3119,6 +3911,11 @@ export interface ListCompaniesParams {
   q?: string;
 }
 
+export interface CompanyStatsParams {
+  /** Matches name or email. */
+  q?: string;
+}
+
 export interface ListMembersParams {
   /**
    * The number of items to skip before starting to collect the result set, starting from 0.
@@ -3139,8 +3936,45 @@ export interface ListMembersParams {
   companyId?: string;
   /** Exact-match email filter (OfficeRnD-style); use `q` for fuzzy search. */
   email?: string;
+  /**
+   * Derived lifecycle status. Not a column: the list resolves every
+   * candidate's status first and pages the matches, so totals stay true.
+   */
+  status?: MemberStatus;
+  /**
+   * Instants, not dates — same rule as opportunities: the server has no
+   * timezone in which to decide what "a day" is for a member, so the
+   * client turns the day it means into a pair of instants.
+   * @example "2026-08-01T00:00:00Z"
+   */
+  createdFrom?: string;
+  /**
+   * Exclusive upper bound.
+   * @example "2026-08-08T00:00:00Z"
+   */
+  createdTo?: string;
   /** The search term to filter results. */
   q?: string;
+}
+
+export interface MemberStatsParams {
+  kindHint?: MemberKindHint;
+  /** @format uuid */
+  companyId?: string;
+  /** Matches fullName, email or phone. */
+  q?: string;
+  /**
+   * Instants, not dates — same rule as opportunities: the server has no
+   * timezone in which to decide what "a day" is for a member, so the
+   * client turns the day it means into a pair of instants.
+   * @example "2026-08-01T00:00:00Z"
+   */
+  createdFrom?: string;
+  /**
+   * Exclusive upper bound.
+   * @example "2026-08-08T00:00:00Z"
+   */
+  createdTo?: string;
 }
 
 export interface ListResourceTypesParams {
@@ -3294,6 +4128,30 @@ export interface ListExtrasParams {
   q?: string;
 }
 
+export interface ListDiscountsParams {
+  /**
+   * The number of items to skip before starting to collect the result set, starting from 0.
+   * @default 0
+   * @example 0
+   */
+  offset: number;
+  /**
+   * The number of items to retrieve per page.
+   * @default 10
+   * @example 10
+   */
+  limit: number;
+  /** The direction to sort the results, either 'ASC' or 'DESC'. */
+  sort: Sort;
+  kind?: DiscountKind;
+  status?: DiscountStatus;
+  /**
+   * The search term to filter results.
+   * @example "LOYAL"
+   */
+  q?: string;
+}
+
 export interface ListChargesParams {
   /**
    * The number of items to skip before starting to collect the result set, starting from 0.
@@ -3439,11 +4297,35 @@ export interface ListMembershipsParams {
   /** @format uuid */
   companyId?: string;
   /**
+   * Memberships billed to this company or held by any of its members. Mutually exclusive with companyId.
+   * @format uuid
+   */
+  forCompanyId?: string;
+  /**
    * Memberships whose ends_at falls on or before this date.
    * @example "2026-09-01"
    */
   expiringBefore?: string;
   /** The search term to filter results. */
+  q?: string;
+}
+
+export interface MembershipStatsParams {
+  /** @format uuid */
+  planId?: string;
+  /**
+   * Memberships held DIRECTLY by this member (no employer-company pooling).
+   * @format uuid
+   */
+  memberId?: string;
+  /** @format uuid */
+  companyId?: string;
+  /**
+   * Memberships billed to this company or held by any of its members. Mutually exclusive with companyId.
+   * @format uuid
+   */
+  forCompanyId?: string;
+  /** Matches the membership label, the member name or the company name. */
   q?: string;
 }
 
@@ -3541,6 +4423,11 @@ export interface ListBookingsParams {
   memberId?: string;
   /** @format uuid */
   companyId?: string;
+  /**
+   * Query strings arrive as text; "true"/"false" become booleans.
+   * @example true
+   */
+  isFree?: boolean;
   /** The search term to filter results. */
   q?: string;
 }
@@ -3558,6 +4445,11 @@ export interface GetBookingStatsParams {
   memberId?: string;
   /** @format uuid */
   companyId?: string;
+  /**
+   * Query strings arrive as text; "true"/"false" become booleans.
+   * @example true
+   */
+  isFree?: boolean;
 }
 
 export interface GetBookingCalendarParams {
@@ -3930,29 +4822,29 @@ export namespace Api {
   }
 
   /**
-   * @description `status` is derived from membership/charge/opportunity data — never stored.
+   * @description Counts by derived status plus companies with at least one member, plus an eight-week creation trend. Accepts the list filters minus `name` and pagination.
    * @tags Companies
-   * @name GetCompany
-   * @summary Get a company
-   * @request GET:/api/v1/companies/{id}
+   * @name CompanyStats
+   * @summary Company statistics
+   * @request GET:/api/v1/companies/stats
    * @secure
-   * @response `200` `(CompanyDto)` 200
+   * @response `200` `(CompanyStatsDto)` 200
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
-   * @response `404` `(ResponseErrorDto)` Not Found
    * @response `422` `(ResponseErrorDto)` Unprocessable Entity
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
-   * @response `default` `CompanyDto`
+   * @response `default` `CompanyStatsDto`
    */
-  export namespace GetCompany {
-    export type RequestParams = {
-      id: string;
+  export namespace CompanyStats {
+    export type RequestParams = {};
+    export type RequestQuery = {
+      /** Matches name or email. */
+      q?: string;
     };
-    export type RequestQuery = {};
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = CompanyDto;
+    export type ResponseBody = CompanyStatsDto;
   }
 
   /**
@@ -3982,7 +4874,33 @@ export namespace Api {
   }
 
   /**
- * @description Paginated list. `q` fuzzy-matches name/email/phone; `email` is exact-match; filter by `kindHint` and `companyId`. The `status` field on each result is derived on read, never stored: a manual `statusOverride` pin (set via PUT /members/:id/status) wins, otherwise it derives from memberships, then one-off charges, then open opportunities, then `kindHint`.
+   * @description The company row plus one block per domain — members, memberships, bookings, credits, charges, invoices — each a count and its five most relevant rows. Memberships cover the whole roster (the company’s own plans plus seats held by its members, as `?forCompanyId=` lists them); every other block is the company’s own rows. Use the list endpoints for the full, paginated history.
+   * @tags Companies
+   * @name GetCompany
+   * @summary Get a company with its overview
+   * @request GET:/api/v1/companies/{id}
+   * @secure
+   * @response `200` `(CompanyDetailsDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `CompanyDetailsDto`
+   */
+  export namespace GetCompany {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = CompanyDetailsDto;
+  }
+
+  /**
+ * @description Paginated list. `q` fuzzy-matches name/email/phone; `email` is exact-match; filter by `kindHint`, `companyId` and creation time with `createdFrom`/`createdTo` (ISO instants, upper bound exclusive). The `status` field on each result is derived on read, never stored: a manual `statusOverride` pin (set via PUT /members/:id/status) wins, otherwise it derives from memberships, then one-off charges, then open opportunities, then `kindHint`. `status` can also be used as a filter — since it is derived rather than a column, matching candidates are resolved before paging, so `totalItems` is always the exact count of matches, never a post-page approximation.
  * @tags Members
  * @name ListMembers
  * @summary List members
@@ -4022,6 +4940,23 @@ export namespace Api {
       companyId?: string;
       /** Exact-match email filter (OfficeRnD-style); use `q` for fuzzy search. */
       email?: string;
+      /**
+       * Derived lifecycle status. Not a column: the list resolves every
+       * candidate's status first and pages the matches, so totals stay true.
+       */
+      status?: MemberStatus;
+      /**
+       * Instants, not dates — same rule as opportunities: the server has no
+       * timezone in which to decide what "a day" is for a member, so the
+       * client turns the day it means into a pair of instants.
+       * @example "2026-08-01T00:00:00Z"
+       */
+      createdFrom?: string;
+      /**
+       * Exclusive upper bound.
+       * @example "2026-08-08T00:00:00Z"
+       */
+      createdTo?: string;
       /** The search term to filter results. */
       q?: string;
     };
@@ -4058,29 +4993,44 @@ export namespace Api {
   }
 
   /**
-   * @description Staff and admins can fetch any member; a member-role caller can only fetch the member record linked to their account.
+   * @description Counts by derived status, kind hint and employer, plus an eight-week creation trend. Accepts the list filters minus `status`, `email` and pagination, including `createdFrom`/`createdTo` (ISO instants, upper bound exclusive) so the cards match the rows on screen.
    * @tags Members
-   * @name GetMember
-   * @summary Get a member
-   * @request GET:/api/v1/members/{id}
+   * @name MemberStats
+   * @summary Member statistics
+   * @request GET:/api/v1/members/stats
    * @secure
-   * @response `200` `(MemberDto)` 200
+   * @response `200` `(MemberStatsDto)` 200
    * @response `401` `(ResponseErrorDto)` Unauthorized
-   * @response `403` `(ResponseErrorDto)` Forbidden
-   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `403` `((ResponseErrorDto))` 403
    * @response `422` `(ResponseErrorDto)` Unprocessable Entity
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
-   * @response `default` `MemberDto`
+   * @response `default` `MemberStatsDto`
    */
-  export namespace GetMember {
-    export type RequestParams = {
-      id: string;
+  export namespace MemberStats {
+    export type RequestParams = {};
+    export type RequestQuery = {
+      kindHint?: MemberKindHint;
+      /** @format uuid */
+      companyId?: string;
+      /** Matches fullName, email or phone. */
+      q?: string;
+      /**
+       * Instants, not dates — same rule as opportunities: the server has no
+       * timezone in which to decide what "a day" is for a member, so the
+       * client turns the day it means into a pair of instants.
+       * @example "2026-08-01T00:00:00Z"
+       */
+      createdFrom?: string;
+      /**
+       * Exclusive upper bound.
+       * @example "2026-08-08T00:00:00Z"
+       */
+      createdTo?: string;
     };
-    export type RequestQuery = {};
     export type RequestBody = never;
     export type RequestHeaders = {};
-    export type ResponseBody = MemberDto;
+    export type ResponseBody = MemberStatsDto;
   }
 
   /**
@@ -4107,6 +5057,32 @@ export namespace Api {
     export type RequestBody = UpdateMemberDto;
     export type RequestHeaders = {};
     export type ResponseBody = MemberDto;
+  }
+
+  /**
+   * @description Staff and admins can fetch any member; a member-role caller can only fetch the member record linked to their account. The response is the member row plus one block per domain (memberships, bookings, check-ins, credits, charges, invoices), each a count and its five most relevant rows. Blocks list DIRECT holdings only — rows naming this member — never the employer company’s own; use the list endpoints with `memberId` for the full, paginated history.
+   * @tags Members
+   * @name GetMember
+   * @summary Get a member with their overview
+   * @request GET:/api/v1/members/{id}
+   * @secure
+   * @response `200` `(MemberDetailsDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `(ResponseErrorDto)` Forbidden
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `MemberDetailsDto`
+   */
+  export namespace GetMember {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = MemberDetailsDto;
   }
 
   /**
@@ -5123,6 +6099,162 @@ export namespace Api {
   }
 
   /**
+ * @description Plan discounts (per membership) and resource-rate discounts (granted by plans and/or claimed by code at booking confirm). Either kind may target every plan/rate via appliesToAll and carry a validity window. Filter by kind, status or code fragment.
+ * @tags Billing — Discounts
+ * @name ListDiscounts
+ * @summary List discounts
+ * @request GET:/api/v1/discounts
+ * @secure
+ * @response `200` `{
+    results: Array<DiscountDto>,
+    meta: PageMetaDto,
+
+}` 200
+ * @response `401` `(ResponseErrorDto)` Unauthorized
+ * @response `403` `((ResponseErrorDto))` 403
+ * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+ * @response `429` `(ResponseErrorDto)` Too Many Requests
+ * @response `500` `(ResponseErrorDto)` Internal Server Error
+ * @response `default` `void`
+*/
+  export namespace ListDiscounts {
+    export type RequestParams = {};
+    export type RequestQuery = {
+      /**
+       * The number of items to skip before starting to collect the result set, starting from 0.
+       * @default 0
+       * @example 0
+       */
+      offset: number;
+      /**
+       * The number of items to retrieve per page.
+       * @default 10
+       * @example 10
+       */
+      limit: number;
+      /** The direction to sort the results, either 'ASC' or 'DESC'. */
+      sort: Sort;
+      kind?: DiscountKind;
+      status?: DiscountStatus;
+      /**
+       * The search term to filter results.
+       * @example "LOYAL"
+       */
+      q?: string;
+    };
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = {
+      results: Array<DiscountDto>;
+      meta: PageMetaDto;
+    };
+  }
+
+  /**
+   * No description
+   * @tags Billing — Discounts
+   * @name CreateDiscount
+   * @summary Create a discount
+   * @request POST:/api/v1/discounts
+   * @secure
+   * @response `201` `(DiscountDto)` 201
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `((ResponseErrorDto))` 404
+   * @response `409` `(ResponseErrorDto)` Conflict
+   * @response `422` `((ResponseErrorDto))` 422
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `DiscountDto`
+   */
+  export namespace CreateDiscount {
+    export type RequestParams = {};
+    export type RequestQuery = {};
+    export type RequestBody = CreateDiscountDto;
+    export type RequestHeaders = {};
+    export type ResponseBody = DiscountDto;
+  }
+
+  /**
+   * No description
+   * @tags Billing — Discounts
+   * @name GetDiscount
+   * @summary Get a discount
+   * @request GET:/api/v1/discounts/{id}
+   * @secure
+   * @response `200` `(DiscountDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `DiscountDto`
+   */
+  export namespace GetDiscount {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = DiscountDto;
+  }
+
+  /**
+   * @description kind is immutable. Changes never touch existing membership snapshots or charge rows.
+   * @tags Billing — Discounts
+   * @name UpdateDiscount
+   * @summary Update a discount
+   * @request PATCH:/api/v1/discounts/{id}
+   * @secure
+   * @response `200` `(DiscountDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `((ResponseErrorDto))` 404
+   * @response `409` `(ResponseErrorDto)` Conflict
+   * @response `422` `((ResponseErrorDto))` 422
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `DiscountDto`
+   */
+  export namespace UpdateDiscount {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = UpdateDiscountDto;
+    export type RequestHeaders = {};
+    export type ResponseBody = DiscountDto;
+  }
+
+  /**
+   * @description Stops new assignments; existing snapshots and charges keep their values.
+   * @tags Billing — Discounts
+   * @name ArchiveDiscount
+   * @summary Archive a discount
+   * @request POST:/api/v1/discounts/{id}/archive
+   * @secure
+   * @response `200` `(DiscountDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `DiscountDto`
+   */
+  export namespace ArchiveDiscount {
+    export type RequestParams = {
+      id: string;
+    };
+    export type RequestQuery = {};
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = DiscountDto;
+  }
+
+  /**
  * @description Staff/admin billing screen. Filter by customer, kind and `uninvoiced=true` (what the next invoice would pick up).
  * @tags Billing
  * @name ListCharges
@@ -5658,7 +6790,7 @@ export namespace Api {
   }
 
   /**
- * @description Staff/admin only. `status` filters the derived lifecycle; `expiringBefore` matches ends_at ≤ date (renewal follow-ups); `memberId`/`companyId` filter the direct holder (no employer-company pooling — query both for the pooled view).
+ * @description Staff/admin only. `status` filters the derived lifecycle in the query (dates and pauses), so the totals match the tabs; `expiringBefore` matches ends_at ≤ date (renewal follow-ups); `memberId`/`companyId` filter the direct holder (no employer-company pooling), while `forCompanyId` returns a company's whole roster — its own memberships plus those held by its members — and cannot be combined with `companyId`. `q` searches the membership label, the member name and the company name.
  * @tags Memberships
  * @name ListMemberships
  * @summary List memberships
@@ -5705,6 +6837,11 @@ export namespace Api {
       /** @format uuid */
       companyId?: string;
       /**
+       * Memberships billed to this company or held by any of its members. Mutually exclusive with companyId.
+       * @format uuid
+       */
+      forCompanyId?: string;
+      /**
        * Memberships whose ends_at falls on or before this date.
        * @example "2026-09-01"
        */
@@ -5744,6 +6881,46 @@ export namespace Api {
   }
 
   /**
+   * @description Counts by derived status (dates and pauses, in the query — the same rule the list filters on), by bill-to and by plan, plus an eight-week trend of memberships created and memberships starting. Accepts the list filters minus `status`, `expiringBefore` and pagination.
+   * @tags Memberships
+   * @name MembershipStats
+   * @summary Membership statistics
+   * @request GET:/api/v1/memberships/stats
+   * @secure
+   * @response `200` `(MembershipStatsDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `MembershipStatsDto`
+   */
+  export namespace MembershipStats {
+    export type RequestParams = {};
+    export type RequestQuery = {
+      /** @format uuid */
+      planId?: string;
+      /**
+       * Memberships held DIRECTLY by this member (no employer-company pooling).
+       * @format uuid
+       */
+      memberId?: string;
+      /** @format uuid */
+      companyId?: string;
+      /**
+       * Memberships billed to this company or held by any of its members. Mutually exclusive with companyId.
+       * @format uuid
+       */
+      forCompanyId?: string;
+      /** Matches the membership label, the member name or the company name. */
+      q?: string;
+    };
+    export type RequestBody = never;
+    export type RequestHeaders = {};
+    export type ResponseBody = MembershipStatsDto;
+  }
+
+  /**
    * @description Members reach only memberships held by themselves or their employer company. planSnapshot carries the contractual terms.
    * @tags Memberships
    * @name GetMembership
@@ -5770,17 +6947,17 @@ export namespace Api {
   }
 
   /**
-   * @description Cosmetic fields only — contractual terms are frozen in planSnapshot and cannot be edited.
+   * @description Cosmetic fields (name/notes) plus the two contractual levers editable post-creation. discountId: set to replace the snapshotted discount, or null to clear it — affects future, non-invoiced cycles only. endsAt: move the INCLUSIVE last active day with no notice period (today or a past date ends the membership at once), or null to make it open-ended; open assignments are capped at endsAt + 1 in the same transaction, and a later end never re-extends assignments capped earlier. Other contractual terms (startsAt included) are frozen in planSnapshot.
    * @tags Memberships
    * @name UpdateMembership
-   * @summary Update a membership label/notes
+   * @summary Update a membership label/notes/discount/end date
    * @request PATCH:/api/v1/memberships/{id}
    * @secure
    * @response `200` `(MembershipDto)` 200
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
    * @response `404` `(ResponseErrorDto)` Not Found
-   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
    * @response `default` `MembershipDto`
@@ -6200,7 +7377,7 @@ export namespace Api {
   }
 
   /**
- * @description Staff/admin see everything; member-role callers see their own and their employer company's bookings. Filters: resourceId, status, source, memberId, companyId, and from/to (interval overlap — a booking matches when it touches the range). `q` searches title, notes and the customer name.
+ * @description Staff/admin see everything; member-role callers see their own and their employer company's bookings. Filters: resourceId, status, source, memberId, companyId, isFree, and from/to (interval overlap — a booking matches when it touches the range). `q` searches title, notes and the customer name.
  * @tags Bookings
  * @name ListBookings
  * @summary List bookings
@@ -6250,6 +7427,11 @@ export namespace Api {
       memberId?: string;
       /** @format uuid */
       companyId?: string;
+      /**
+       * Query strings arrive as text; "true"/"false" become booleans.
+       * @example true
+       */
+      isFree?: boolean;
       /** The search term to filter results. */
       q?: string;
     };
@@ -6262,7 +7444,7 @@ export namespace Api {
   }
 
   /**
-   * @description Members book for themselves (source=portal); staff book for any member XOR company (source=staff). Pricing: room_hour credits first (scope from membership snapshots, drained soonest-expiring first), remainder at the member rate — or the visitor rate without a membership. price_ht is NULL when fully credit-covered. Conflicts are impossible at the database level (GiST exclusion constraint).
+   * @description Members book for themselves (source=portal); staff book for any member XOR company (source=staff). Pricing: room_hour credits first (scope from membership snapshots, drained soonest-expiring first), remainder at the member rate — or the visitor rate without a membership. price_ht is NULL when fully credit-covered. Conflicts are impossible at the database level (GiST exclusion constraint). Staff may pass isFree + freeReason: no credits are consumed and no charges written (room and extras alike).
    * @tags Bookings
    * @name CreateBooking
    * @summary Create a booking (§6.3 credit-first pricing)
@@ -6271,6 +7453,7 @@ export namespace Api {
    * @response `201` `(BookingDto)` 201
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
    * @response `409` `(ResponseErrorDto)` Conflict
    * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
@@ -6315,6 +7498,11 @@ export namespace Api {
       memberId?: string;
       /** @format uuid */
       companyId?: string;
+      /**
+       * Query strings arrive as text; "true"/"false" become booleans.
+       * @example true
+       */
+      isFree?: boolean;
     };
     export type RequestBody = never;
     export type RequestHeaders = {};
@@ -6392,10 +7580,10 @@ export namespace Api {
   }
 
   /**
-   * @description Title and notes anytime; staff may flag no_show after the start time. Passing startsAt AND endsAt reschedules: the slot is re-checked (ignoring this booking itself), the room is re-priced at the new duration and its credits and charges are reversed and re-applied. Extras keep the prices they were booked at. The resource cannot change — moving a booking between rooms is still cancel + rebook. Members may edit inside the cancellation window.
+   * @description Title and notes anytime; staff may flag no_show after the start time. Passing startsAt AND endsAt reschedules: the slot is re-checked (ignoring this booking itself), the room is re-priced at the new duration and its credits and charges are reversed and re-applied. Passing extraIds replaces the extras ([] removes them all; omitted leaves them alone) and re-runs the money the same way. Extras that stay keep the prices they were booked at; only newly added ones are priced live. Passing discountId changes the booking's discount (docs/superpowers/plans/2026-08-29-booking-patch-discount.md): null removes it, an id resolves the same way as create's discountId and re-runs the money like an extraIds change for a CONFIRMED booking; a PENDING booking has no money yet, so only its stored snapshot is replaced. The resource cannot change — moving a booking between rooms is still cancel + rebook. Members may edit inside the cancellation window.
    * @tags Bookings
    * @name UpdateBooking
-   * @summary Update a booking (metadata, no_show, or reschedule)
+   * @summary Update a booking (metadata, no_show, reschedule, extras)
    * @request PATCH:/api/v1/bookings/{id}
    * @secure
    * @response `200` `(BookingDto)` 200
@@ -6428,6 +7616,7 @@ export namespace Api {
    * @response `200` `(BookingQuoteDto)` 200
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
    * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
@@ -6468,7 +7657,7 @@ export namespace Api {
   }
 
   /**
-   * @description Staff-only. Re-checks availability, prices the booking per §6.3 (typically the visitor rate → a booking charge) and flips it to confirmed — from then on it blocks the slot.
+   * @description Staff-only. Re-checks availability, prices the booking per §6.3 (typically the visitor rate → a booking charge) and flips it to confirmed — from then on it blocks the slot. Optional body { isFree, freeReason } confirms a partner request as complimentary.
    * @tags Bookings
    * @name ConfirmBooking
    * @summary Staff confirmation of website booking requests (Phase 6).
@@ -6477,7 +7666,7 @@ export namespace Api {
    * @response `200` `(BookingDto)` 200
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
-   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `404` `((ResponseErrorDto))` 404
    * @response `409` `(ResponseErrorDto)` Conflict
    * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
@@ -6489,7 +7678,7 @@ export namespace Api {
       id: string;
     };
     export type RequestQuery = {};
-    export type RequestBody = never;
+    export type RequestBody = ConfirmBookingDto;
     export type RequestHeaders = {};
     export type ResponseBody = BookingDto;
   }
@@ -6815,7 +8004,7 @@ export namespace Api {
   }
 
   /**
-   * @description Active, non-hidden plans, cheapest first. Filter by ?category=<slug> for one service section (see GET /public/plan-categories). Server-to-server only.
+   * @description Active, non-hidden plans, cheapest first. Filter by ?category=<slug> for one service section (see GET /public/plan-categories). Each plan carries `offer`: the single best public, active, in-window discount targeting it, server-priced (discountedPriceHt/Ttc) — null when none applies. Server-to-server only.
    * @tags Public (website)
    * @name PublicListPlans
    * @summary Plans for the website pricing page
@@ -6905,7 +8094,7 @@ export namespace Api {
   }
 
   /**
-   * @description Active, visible, sellable spaces: bookable ones carry rates, plan-sold ones carry their target plans (cheapest first), pool parents carry live seat counts; every card has a derived status badge. Filter by ?resourceType=<slug> for one catalog tab, and/or ?planCode=<code> for the spaces sold under one plan. Server-to-server only.
+   * @description Active, visible, sellable spaces: bookable ones carry rates, plan-sold ones carry their target plans (cheapest first, each with its own `offer` — see GET /public/plans), pool parents carry live seat counts; every card has a derived status badge. Filter by ?resourceType=<slug> for one catalog tab, and/or ?planCode=<code> for the spaces sold under one plan. Server-to-server only.
    * @tags Public (website)
    * @name PublicListResources
    * @summary Space catalog for the website
@@ -6965,7 +8154,7 @@ export namespace Api {
   }
 
   /**
-   * @description Creates member (visitor) + PENDING booking + opportunity in one transaction; staff confirms (and prices) later. Identity comes only from the body — no user account involved.
+   * @description Creates member (visitor) + PENDING booking + opportunity in one transaction; staff confirms (and prices) later. Identity comes only from the body — no user account involved. `discountCode`, if sent, is stored verbatim on the booking for staff to review — it is never validated or priced on this path.
    * @tags Public (website)
    * @name PublicCreateBookingRequest
    * @summary Website booking request
@@ -6988,7 +8177,7 @@ export namespace Api {
   }
 
   /**
-   * @description Creates member (visitor) + opportunity carrying the requested plan, its selected extras and the quoted value in one transaction; staff convert it into a membership at the price the visitor saw. Send planId (pricing page) or resourceId (a catalog space card — the plan resolves via its target plans, and planId picks one when the space is sold under several). Identity comes only from the body — no user account involved.
+   * @description Creates member (visitor) + opportunity carrying the requested plan, its selected extras and the quoted value in one transaction; staff convert it into a membership at the price the visitor saw. Send planId (pricing page) or resourceId (a catalog space card — the plan resolves via its target plans, and planId picks one when the space is sold under several). Identity comes only from the body — no user account involved. `discountCode`, if sent, is stored verbatim on the opportunity for staff to review — it is never validated or priced on this path.
    * @tags Public (website)
    * @name PublicCreatePlanRequest
    * @summary Website plan request
@@ -7688,26 +8877,26 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description `status` is derived from membership/charge/opportunity data — never stored.
+     * @description Counts by derived status plus companies with at least one member, plus an eight-week creation trend. Accepts the list filters minus `name` and pagination.
      *
      * @tags Companies
-     * @name GetCompany
-     * @summary Get a company
-     * @request GET:/api/v1/companies/{id}
+     * @name CompanyStats
+     * @summary Company statistics
+     * @request GET:/api/v1/companies/stats
      * @secure
-     * @response `200` `(CompanyDto)` 200
+     * @response `200` `(CompanyStatsDto)` 200
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
-     * @response `404` `(ResponseErrorDto)` Not Found
      * @response `422` `(ResponseErrorDto)` Unprocessable Entity
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
-     * @response `default` `CompanyDto`
+     * @response `default` `CompanyStatsDto`
      */
-    getCompany: (id: string, params: RequestParams = {}) =>
-      this.http.request<CompanyDto, ResponseErrorDto | CompanyDto>({
-        path: `/api/v1/companies/${id}`,
+    companyStats: (query: CompanyStatsParams, params: RequestParams = {}) =>
+      this.http.request<CompanyStatsDto, ResponseErrorDto | CompanyStatsDto>({
+        path: `/api/v1/companies/stats`,
         method: "GET",
+        query: query,
         secure: true,
         format: "json",
         ...params,
@@ -7742,7 +8931,33 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
- * @description Paginated list. `q` fuzzy-matches name/email/phone; `email` is exact-match; filter by `kindHint` and `companyId`. The `status` field on each result is derived on read, never stored: a manual `statusOverride` pin (set via PUT /members/:id/status) wins, otherwise it derives from memberships, then one-off charges, then open opportunities, then `kindHint`.
+     * @description The company row plus one block per domain — members, memberships, bookings, credits, charges, invoices — each a count and its five most relevant rows. Memberships cover the whole roster (the company’s own plans plus seats held by its members, as `?forCompanyId=` lists them); every other block is the company’s own rows. Use the list endpoints for the full, paginated history.
+     *
+     * @tags Companies
+     * @name GetCompany
+     * @summary Get a company with its overview
+     * @request GET:/api/v1/companies/{id}
+     * @secure
+     * @response `200` `(CompanyDetailsDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `CompanyDetailsDto`
+     */
+    getCompany: (id: string, params: RequestParams = {}) =>
+      this.http.request<CompanyDetailsDto, ResponseErrorDto | CompanyDetailsDto>({
+        path: `/api/v1/companies/${id}`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+ * @description Paginated list. `q` fuzzy-matches name/email/phone; `email` is exact-match; filter by `kindHint`, `companyId` and creation time with `createdFrom`/`createdTo` (ISO instants, upper bound exclusive). The `status` field on each result is derived on read, never stored: a manual `statusOverride` pin (set via PUT /members/:id/status) wins, otherwise it derives from memberships, then one-off charges, then open opportunities, then `kindHint`. `status` can also be used as a filter — since it is derived rather than a column, matching candidates are resolved before paging, so `totalItems` is always the exact count of matches, never a post-page approximation.
  *
  * @tags Members
  * @name ListMembers
@@ -7806,26 +9021,26 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Staff and admins can fetch any member; a member-role caller can only fetch the member record linked to their account.
+     * @description Counts by derived status, kind hint and employer, plus an eight-week creation trend. Accepts the list filters minus `status`, `email` and pagination, including `createdFrom`/`createdTo` (ISO instants, upper bound exclusive) so the cards match the rows on screen.
      *
      * @tags Members
-     * @name GetMember
-     * @summary Get a member
-     * @request GET:/api/v1/members/{id}
+     * @name MemberStats
+     * @summary Member statistics
+     * @request GET:/api/v1/members/stats
      * @secure
-     * @response `200` `(MemberDto)` 200
+     * @response `200` `(MemberStatsDto)` 200
      * @response `401` `(ResponseErrorDto)` Unauthorized
-     * @response `403` `(ResponseErrorDto)` Forbidden
-     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `403` `((ResponseErrorDto))` 403
      * @response `422` `(ResponseErrorDto)` Unprocessable Entity
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
-     * @response `default` `MemberDto`
+     * @response `default` `MemberStatsDto`
      */
-    getMember: (id: string, params: RequestParams = {}) =>
-      this.http.request<MemberDto, ResponseErrorDto | MemberDto>({
-        path: `/api/v1/members/${id}`,
+    memberStats: (query: MemberStatsParams, params: RequestParams = {}) =>
+      this.http.request<MemberStatsDto, ResponseErrorDto | MemberStatsDto>({
+        path: `/api/v1/members/stats`,
         method: "GET",
+        query: query,
         secure: true,
         format: "json",
         ...params,
@@ -7855,6 +9070,32 @@ export class HsService<SecurityDataType extends unknown> {
         body: data,
         secure: true,
         type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Staff and admins can fetch any member; a member-role caller can only fetch the member record linked to their account. The response is the member row plus one block per domain (memberships, bookings, check-ins, credits, charges, invoices), each a count and its five most relevant rows. Blocks list DIRECT holdings only — rows naming this member — never the employer company’s own; use the list endpoints with `memberId` for the full, paginated history.
+     *
+     * @tags Members
+     * @name GetMember
+     * @summary Get a member with their overview
+     * @request GET:/api/v1/members/{id}
+     * @secure
+     * @response `200` `(MemberDetailsDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `(ResponseErrorDto)` Forbidden
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `MemberDetailsDto`
+     */
+    getMember: (id: string, params: RequestParams = {}) =>
+      this.http.request<MemberDetailsDto, ResponseErrorDto | MemberDetailsDto>({
+        path: `/api/v1/members/${id}`,
+        method: "GET",
+        secure: true,
         format: "json",
         ...params,
       }),
@@ -8826,6 +10067,152 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
+ * @description Plan discounts (per membership) and resource-rate discounts (granted by plans and/or claimed by code at booking confirm). Either kind may target every plan/rate via appliesToAll and carry a validity window. Filter by kind, status or code fragment.
+ *
+ * @tags Billing — Discounts
+ * @name ListDiscounts
+ * @summary List discounts
+ * @request GET:/api/v1/discounts
+ * @secure
+ * @response `200` `{
+    results: Array<DiscountDto>,
+    meta: PageMetaDto,
+
+}` 200
+ * @response `401` `(ResponseErrorDto)` Unauthorized
+ * @response `403` `((ResponseErrorDto))` 403
+ * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+ * @response `429` `(ResponseErrorDto)` Too Many Requests
+ * @response `500` `(ResponseErrorDto)` Internal Server Error
+ * @response `default` `void`
+ */
+    listDiscounts: (query: ListDiscountsParams, params: RequestParams = {}) =>
+      this.http.request<
+        {
+          results: Array<DiscountDto>;
+          meta: PageMetaDto;
+        },
+        ResponseErrorDto | void
+      >({
+        path: `/api/v1/discounts`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Billing — Discounts
+     * @name CreateDiscount
+     * @summary Create a discount
+     * @request POST:/api/v1/discounts
+     * @secure
+     * @response `201` `(DiscountDto)` 201
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `((ResponseErrorDto))` 404
+     * @response `409` `(ResponseErrorDto)` Conflict
+     * @response `422` `((ResponseErrorDto))` 422
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `DiscountDto`
+     */
+    createDiscount: (data: CreateDiscountDto, params: RequestParams = {}) =>
+      this.http.request<DiscountDto, ResponseErrorDto | DiscountDto>({
+        path: `/api/v1/discounts`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * No description
+     *
+     * @tags Billing — Discounts
+     * @name GetDiscount
+     * @summary Get a discount
+     * @request GET:/api/v1/discounts/{id}
+     * @secure
+     * @response `200` `(DiscountDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `DiscountDto`
+     */
+    getDiscount: (id: string, params: RequestParams = {}) =>
+      this.http.request<DiscountDto, ResponseErrorDto | DiscountDto>({
+        path: `/api/v1/discounts/${id}`,
+        method: "GET",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description kind is immutable. Changes never touch existing membership snapshots or charge rows.
+     *
+     * @tags Billing — Discounts
+     * @name UpdateDiscount
+     * @summary Update a discount
+     * @request PATCH:/api/v1/discounts/{id}
+     * @secure
+     * @response `200` `(DiscountDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `((ResponseErrorDto))` 404
+     * @response `409` `(ResponseErrorDto)` Conflict
+     * @response `422` `((ResponseErrorDto))` 422
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `DiscountDto`
+     */
+    updateDiscount: (id: string, data: UpdateDiscountDto, params: RequestParams = {}) =>
+      this.http.request<DiscountDto, ResponseErrorDto | DiscountDto>({
+        path: `/api/v1/discounts/${id}`,
+        method: "PATCH",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Stops new assignments; existing snapshots and charges keep their values.
+     *
+     * @tags Billing — Discounts
+     * @name ArchiveDiscount
+     * @summary Archive a discount
+     * @request POST:/api/v1/discounts/{id}/archive
+     * @secure
+     * @response `200` `(DiscountDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `DiscountDto`
+     */
+    archiveDiscount: (id: string, params: RequestParams = {}) =>
+      this.http.request<DiscountDto, ResponseErrorDto | DiscountDto>({
+        path: `/api/v1/discounts/${id}/archive`,
+        method: "POST",
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
  * @description Staff/admin billing screen. Filter by customer, kind and `uninvoiced=true` (what the next invoice would pick up).
  *
  * @tags Billing
@@ -9285,7 +10672,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
- * @description Staff/admin only. `status` filters the derived lifecycle; `expiringBefore` matches ends_at ≤ date (renewal follow-ups); `memberId`/`companyId` filter the direct holder (no employer-company pooling — query both for the pooled view).
+ * @description Staff/admin only. `status` filters the derived lifecycle in the query (dates and pauses), so the totals match the tabs; `expiringBefore` matches ends_at ≤ date (renewal follow-ups); `memberId`/`companyId` filter the direct holder (no employer-company pooling), while `forCompanyId` returns a company's whole roster — its own memberships plus those held by its members — and cannot be combined with `companyId`. `q` searches the membership label, the member name and the company name.
  *
  * @tags Memberships
  * @name ListMemberships
@@ -9348,6 +10735,32 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
+     * @description Counts by derived status (dates and pauses, in the query — the same rule the list filters on), by bill-to and by plan, plus an eight-week trend of memberships created and memberships starting. Accepts the list filters minus `status`, `expiringBefore` and pagination.
+     *
+     * @tags Memberships
+     * @name MembershipStats
+     * @summary Membership statistics
+     * @request GET:/api/v1/memberships/stats
+     * @secure
+     * @response `200` `(MembershipStatsDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `MembershipStatsDto`
+     */
+    membershipStats: (query: MembershipStatsParams, params: RequestParams = {}) =>
+      this.http.request<MembershipStatsDto, ResponseErrorDto | MembershipStatsDto>({
+        path: `/api/v1/memberships/stats`,
+        method: "GET",
+        query: query,
+        secure: true,
+        format: "json",
+        ...params,
+      }),
+
+    /**
      * @description Members reach only memberships held by themselves or their employer company. planSnapshot carries the contractual terms.
      *
      * @tags Memberships
@@ -9374,18 +10787,18 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Cosmetic fields only — contractual terms are frozen in planSnapshot and cannot be edited.
+     * @description Cosmetic fields (name/notes) plus the two contractual levers editable post-creation. discountId: set to replace the snapshotted discount, or null to clear it — affects future, non-invoiced cycles only. endsAt: move the INCLUSIVE last active day with no notice period (today or a past date ends the membership at once), or null to make it open-ended; open assignments are capped at endsAt + 1 in the same transaction, and a later end never re-extends assignments capped earlier. Other contractual terms (startsAt included) are frozen in planSnapshot.
      *
      * @tags Memberships
      * @name UpdateMembership
-     * @summary Update a membership label/notes
+     * @summary Update a membership label/notes/discount/end date
      * @request PATCH:/api/v1/memberships/{id}
      * @secure
      * @response `200` `(MembershipDto)` 200
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
      * @response `404` `(ResponseErrorDto)` Not Found
-     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
      * @response `default` `MembershipDto`
@@ -9779,7 +11192,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
- * @description Staff/admin see everything; member-role callers see their own and their employer company's bookings. Filters: resourceId, status, source, memberId, companyId, and from/to (interval overlap — a booking matches when it touches the range). `q` searches title, notes and the customer name.
+ * @description Staff/admin see everything; member-role callers see their own and their employer company's bookings. Filters: resourceId, status, source, memberId, companyId, isFree, and from/to (interval overlap — a booking matches when it touches the range). `q` searches title, notes and the customer name.
  *
  * @tags Bookings
  * @name ListBookings
@@ -9815,7 +11228,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Members book for themselves (source=portal); staff book for any member XOR company (source=staff). Pricing: room_hour credits first (scope from membership snapshots, drained soonest-expiring first), remainder at the member rate — or the visitor rate without a membership. price_ht is NULL when fully credit-covered. Conflicts are impossible at the database level (GiST exclusion constraint).
+     * @description Members book for themselves (source=portal); staff book for any member XOR company (source=staff). Pricing: room_hour credits first (scope from membership snapshots, drained soonest-expiring first), remainder at the member rate — or the visitor rate without a membership. price_ht is NULL when fully credit-covered. Conflicts are impossible at the database level (GiST exclusion constraint). Staff may pass isFree + freeReason: no credits are consumed and no charges written (room and extras alike).
      *
      * @tags Bookings
      * @name CreateBooking
@@ -9825,6 +11238,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `201` `(BookingDto)` 201
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
      * @response `409` `(ResponseErrorDto)` Conflict
      * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
@@ -9922,11 +11336,11 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Title and notes anytime; staff may flag no_show after the start time. Passing startsAt AND endsAt reschedules: the slot is re-checked (ignoring this booking itself), the room is re-priced at the new duration and its credits and charges are reversed and re-applied. Extras keep the prices they were booked at. The resource cannot change — moving a booking between rooms is still cancel + rebook. Members may edit inside the cancellation window.
+     * @description Title and notes anytime; staff may flag no_show after the start time. Passing startsAt AND endsAt reschedules: the slot is re-checked (ignoring this booking itself), the room is re-priced at the new duration and its credits and charges are reversed and re-applied. Passing extraIds replaces the extras ([] removes them all; omitted leaves them alone) and re-runs the money the same way. Extras that stay keep the prices they were booked at; only newly added ones are priced live. Passing discountId changes the booking's discount (docs/superpowers/plans/2026-08-29-booking-patch-discount.md): null removes it, an id resolves the same way as create's discountId and re-runs the money like an extraIds change for a CONFIRMED booking; a PENDING booking has no money yet, so only its stored snapshot is replaced. The resource cannot change — moving a booking between rooms is still cancel + rebook. Members may edit inside the cancellation window.
      *
      * @tags Bookings
      * @name UpdateBooking
-     * @summary Update a booking (metadata, no_show, or reschedule)
+     * @summary Update a booking (metadata, no_show, reschedule, extras)
      * @request PATCH:/api/v1/bookings/{id}
      * @secure
      * @response `200` `(BookingDto)` 200
@@ -9961,6 +11375,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `200` `(BookingQuoteDto)` 200
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
      * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
@@ -10004,7 +11419,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Staff-only. Re-checks availability, prices the booking per §6.3 (typically the visitor rate → a booking charge) and flips it to confirmed — from then on it blocks the slot.
+     * @description Staff-only. Re-checks availability, prices the booking per §6.3 (typically the visitor rate → a booking charge) and flips it to confirmed — from then on it blocks the slot. Optional body { isFree, freeReason } confirms a partner request as complimentary.
      *
      * @tags Bookings
      * @name ConfirmBooking
@@ -10014,18 +11429,20 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `200` `(BookingDto)` 200
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
-     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `404` `((ResponseErrorDto))` 404
      * @response `409` `(ResponseErrorDto)` Conflict
      * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
      * @response `default` `BookingDto`
      */
-    confirmBooking: (id: string, params: RequestParams = {}) =>
+    confirmBooking: (id: string, data?: ConfirmBookingDto, params: RequestParams = {}) =>
       this.http.request<BookingDto, ResponseErrorDto | BookingDto>({
         path: `/api/v1/bookings/${id}/confirm`,
         method: "POST",
+        body: data,
         secure: true,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),
@@ -10281,7 +11698,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Active, non-hidden plans, cheapest first. Filter by ?category=<slug> for one service section (see GET /public/plan-categories). Server-to-server only.
+     * @description Active, non-hidden plans, cheapest first. Filter by ?category=<slug> for one service section (see GET /public/plan-categories). Each plan carries `offer`: the single best public, active, in-window discount targeting it, server-priced (discountedPriceHt/Ttc) — null when none applies. Server-to-server only.
      *
      * @tags Public (website)
      * @name PublicListPlans
@@ -10346,7 +11763,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Active, visible, sellable spaces: bookable ones carry rates, plan-sold ones carry their target plans (cheapest first), pool parents carry live seat counts; every card has a derived status badge. Filter by ?resourceType=<slug> for one catalog tab, and/or ?planCode=<code> for the spaces sold under one plan. Server-to-server only.
+     * @description Active, visible, sellable spaces: bookable ones carry rates, plan-sold ones carry their target plans (cheapest first, each with its own `offer` — see GET /public/plans), pool parents carry live seat counts; every card has a derived status badge. Filter by ?resourceType=<slug> for one catalog tab, and/or ?planCode=<code> for the spaces sold under one plan. Server-to-server only.
      *
      * @tags Public (website)
      * @name PublicListResources
@@ -10389,7 +11806,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Creates member (visitor) + PENDING booking + opportunity in one transaction; staff confirms (and prices) later. Identity comes only from the body — no user account involved.
+     * @description Creates member (visitor) + PENDING booking + opportunity in one transaction; staff confirms (and prices) later. Identity comes only from the body — no user account involved. `discountCode`, if sent, is stored verbatim on the booking for staff to review — it is never validated or priced on this path.
      *
      * @tags Public (website)
      * @name PublicCreateBookingRequest
@@ -10412,7 +11829,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Creates member (visitor) + opportunity carrying the requested plan, its selected extras and the quoted value in one transaction; staff convert it into a membership at the price the visitor saw. Send planId (pricing page) or resourceId (a catalog space card — the plan resolves via its target plans, and planId picks one when the space is sold under several). Identity comes only from the body — no user account involved.
+     * @description Creates member (visitor) + opportunity carrying the requested plan, its selected extras and the quoted value in one transaction; staff convert it into a membership at the price the visitor saw. Send planId (pricing page) or resourceId (a catalog space card — the plan resolves via its target plans, and planId picks one when the space is sold under several). Identity comes only from the body — no user account involved. `discountCode`, if sent, is stored verbatim on the opportunity for staff to review — it is never validated or priced on this path.
      *
      * @tags Public (website)
      * @name PublicCreatePlanRequest

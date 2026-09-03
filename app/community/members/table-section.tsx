@@ -1,84 +1,63 @@
-import { getListMembers, getListCompanies } from "@/lib/service"
-import type {
-  CompanyDto,
-  ListMembersParams,
-  MemberDto,
-  MemberKindHint,
-} from "@/lib/service/HsService"
+import { getListMembers } from "@/lib/service"
+import type { MemberDto, MemberStatus } from "@/lib/service/HsService"
+import {
+  asEnum,
+  firstParam,
+  pageQuery,
+  pageResult,
+  resolveSearchParams,
+  type SearchParamsInput,
+} from "@/lib/search-params"
 import { MemberTable } from "./member-table"
-
-type MembersPage = {
-  results?: MemberDto[]
-  meta?: { totalItems?: number }
-}
-
-function firstParam(
-  value: string | string[] | undefined
-): string | undefined {
-  return Array.isArray(value) ? value[0] : value
-}
-
-const MEMBER_KIND_HINTS: MemberKindHint[] = ["lead", "visitor", "member"]
-
-function asKindHint(value: string | undefined): MemberKindHint | undefined {
-  return MEMBER_KIND_HINTS.includes(value as MemberKindHint)
-    ? (value as MemberKindHint)
-    : undefined
-}
+import { MEMBER_STATUS_VALUES } from "./member-status"
+import { memberStats, memberStatsArgs } from "./stats"
 
 export async function MemberTableSection({
   searchParams,
-}: Readonly<{
-  searchParams?:
-    | Promise<Record<string, string | string[] | undefined>>
-    | Record<string, string | string[] | undefined>
-}>) {
-  const resolvedSearchParams =
-    searchParams instanceof Promise ? await searchParams : searchParams
-
-  const page = Number(firstParam(resolvedSearchParams?.page)) || 1
-  const pageSize = Number(firstParam(resolvedSearchParams?.pageSize)) || 10
-  // The shared table writes its tab selection to `status`; for members that
-  // selection is a kindHint, the only lifecycle filter the endpoint accepts.
-  const kindHint = asKindHint(firstParam(resolvedSearchParams?.status))
-  const searchQuery = firstParam(resolvedSearchParams?.name)
-
-  const query: ListMembersParams = {
-    limit: pageSize,
-    offset: (page - 1) * pageSize,
-    sort: "ASC",
-    q: searchQuery || undefined,
-    kindHint,
-  }
+}: Readonly<{ searchParams?: SearchParamsInput }>) {
+  const params = await resolveSearchParams(searchParams)
+  const { limit, offset } = pageQuery(params)
+  // Same helper the cards use, so the two derive identical `q`/`kindHint`/
+  // created bounds and hit the same memberStats() cache entry instead of
+  // two requests.
+  const { q, kindHint, createdFrom, createdTo } = memberStatsArgs(params)
+  const status = asEnum<MemberStatus>(firstParam(params.status), MEMBER_STATUS_VALUES)
 
   let results: MemberDto[] = []
   let total = 0
 
-  try {
-    const response = (await getListMembers(query)) as MembersPage
-    results = response.results ?? []
-    total = response.meta?.totalItems ?? results.length
-  } catch (error) {
-    console.warn("Failed to load members", error)
-  }
+  const [response, stats] = await Promise.all([
+    getListMembers({
+      limit,
+      offset,
+      sort: "ASC",
+      q,
+      status,
+      kindHint,
+      createdFrom,
+      createdTo,
+    }).catch((error) => {
+      console.warn("Failed to load members", error)
+      return null
+    }),
+    // Positional, and in the same order as SectionCards' call: cache() keys
+    // primitives by value, so this must match section-cards.tsx exactly.
+    memberStats(q, kindHint, undefined, createdFrom, createdTo),
+  ])
 
-  // Members carry only `companyId`, so resolve employer names for the table.
-  const companyNames: Record<string, string> = {}
-  try {
-    const companies = await getListCompanies({ limit: 100, offset: 0, sort: "ASC" })
-    for (const company of (companies?.results ?? []) as CompanyDto[]) {
-      companyNames[company.id] = company.name
-    }
-  } catch (error) {
-    console.warn("Failed to load companies for member lookup", error)
+  if (response) {
+    ;({ results, total } = pageResult<MemberDto>(response))
   }
 
   return (
     <MemberTable
       data={results}
       totalCount={total}
-      companyNames={companyNames}
+      stats={stats}
+      activeStatus={status}
       activeKindHint={kindHint}
+      activeCreatedFrom={createdFrom}
+      activeCreatedTo={createdTo}
     />
   )
 }

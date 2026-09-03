@@ -1,6 +1,6 @@
-import { cache } from "react"
 import { getBookingStats } from "@/lib/service"
 import type { BookingSource, BookingStatsDto } from "@/lib/service/HsService"
+import { cachedStats } from "@/lib/cached-stats"
 
 /**
  * The tabs and the summary cards both want these counts. Memoised per
@@ -13,16 +13,18 @@ import type { BookingSource, BookingStatsDto } from "@/lib/service/HsService"
  * identical contents — so this stays positional on purpose. Resist folding
  * it back into an options object; it would silently double the request.
  */
-export const bookingStats = cache(
-  async (
+export const bookingStats = cachedStats(
+  "stats:bookings",
+  (
+    params,
     q: string | undefined,
     resourceId: string | undefined,
     from: string | undefined,
     to: string | undefined,
     source: string | undefined
-  ): Promise<BookingStatsDto | null> => {
-    try {
-      return (await getBookingStats({
+  ) =>
+    getBookingStats(
+      {
         q,
         resourceId,
         from,
@@ -30,40 +32,9 @@ export const bookingStats = cache(
         // The API's `source` is the narrower BookingSource enum; this
         // function stays plain strings so callers do not need to import it.
         source: source as BookingSource | undefined,
-      })) as BookingStatsDto
-    } catch (error) {
-      console.warn("Failed to load booking stats", error)
-      return null
-    }
-  }
+      },
+      params
+    ) as Promise<BookingStatsDto>
 )
 
-/** Tab counts, with `undefined` meaning "unknown" rather than "zero". */
-export function bookingTotals(stats: BookingStatsDto | null) {
-  const rows = stats?.byStatus ?? []
-  const byStatus = new Map<string, number>(rows.map((row) => [row.status, row.count]))
-  const valueByStatus = new Map<string, number>(rows.map((row) => [row.status, row.valueHt]))
-  const weeks = stats?.byWeek ?? []
-  const busiest = (stats?.byResource ?? [])[0]
-
-  /**
-   * Two complete weeks, compared. From nothing to something has no
-   * percentage to report, so it goes unsaid rather than being called 100%.
-   */
-  const changeIn = (key: "created" | "starting") => {
-    if (weeks.length < 2) return undefined
-    const previous = weeks[weeks.length - 2][key]
-    const latest = weeks[weeks.length - 1][key]
-    if (previous === 0) return undefined
-    return Math.round(((latest - previous) / previous) * 1000) / 10
-  }
-
-  return {
-    weeks,
-    changeIn,
-    countFor: (status: string) => (stats ? (byStatus.get(status) ?? 0) : undefined),
-    valueFor: (status: string) => valueByStatus.get(status) ?? 0,
-    total: stats?.total,
-    busiestResource: busiest ? { name: busiest.name, count: busiest.count } : null,
-  }
-}
+export { bookingTotals } from "./totals"

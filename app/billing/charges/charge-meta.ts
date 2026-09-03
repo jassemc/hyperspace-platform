@@ -1,7 +1,7 @@
 import type { ChargeKind, CreateChargeDto } from "@/lib/service/HsService"
 
 /** Every kind that can appear on a charge, for display and filtering. */
-export const CHARGE_KINDS: ChargeKind[] = ["plan_fee", "booking", "store", "one_off", "deposit"]
+export const CHARGE_KINDS: ChargeKind[] = ["plan_fee", "booking", "store", "one_off", "deposit", "discount"]
 
 /**
  * Only these can be raised by hand. `plan_fee`, `booking` and `deposit` are

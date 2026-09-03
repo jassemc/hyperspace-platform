@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
-import type { BookingDto } from "@/lib/service/HsService"
+import type { BookingDto, BookingFreeReason } from "@/lib/service/HsService"
 import { cancelBookingAction, confirmBookingAction, markNoShowAction } from "./actions"
 
 export type BookingMutationKind = "confirm" | "cancel" | "no_show"
@@ -49,12 +49,14 @@ export function useBookingMutations(booking: BookingDto) {
     kind: BookingMutationKind,
     action: typeof confirmBookingAction,
     done: string,
-    failed: string
+    failed: string,
+    fields: Record<string, string> = {}
   ): Promise<boolean> => {
     setPending(kind)
     try {
       const formData = new FormData()
       formData.set("id", booking.id)
+      for (const [key, value] of Object.entries(fields)) formData.set(key, value)
       const result = await action({}, formData)
       if (result.success) {
         toast.success(`${label} ${done}`)
@@ -78,7 +80,12 @@ export function useBookingMutations(booking: BookingDto) {
     canMarkNoShow: noShowHint === null,
     /** Set only when `canMarkNoShow` is false; suitable as a tooltip. */
     noShowHint: noShowHint ?? undefined,
-    confirm: () => run("confirm", confirmBookingAction, "confirmed", "Failed to confirm"),
+    confirm: (opts: { isFree: boolean; freeReason?: BookingFreeReason; discountId?: string } = { isFree: false }) =>
+      run("confirm", confirmBookingAction, opts.isFree ? "confirmed as free" : "confirmed", "Failed to confirm", {
+        ...(opts.isFree ? { isFree: "on", freeReason: opts.freeReason ?? "" } : {}),
+        // Omitted entirely when nothing was picked — see confirmBookingAction.
+        ...(opts.discountId ? { discountId: opts.discountId } : {}),
+      }),
     cancel: () => run("cancel", cancelBookingAction, "cancelled", "Failed to cancel"),
     markNoShow: () =>
       run("no_show", markNoShowAction, "marked as a no-show", "Failed to mark as no-show"),

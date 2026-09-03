@@ -4,22 +4,24 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { ColumnDef } from "@tanstack/react-table"
 import type { MembershipDto, MembershipStatus } from "@/lib/service/HsService"
-import { ArrowUpDown, Edit } from "lucide-react"
+import { ArrowUpDown } from "lucide-react"
 import { formatDate } from "@/lib/format"
 import { MEMBERSHIP_STATUS_CLASSES, MEMBERSHIP_STATUS_LABELS } from "./membership-status"
-import { LifecycleButtons } from "./lifecycle-buttons"
+import { MembershipRowActions } from "./membership-row-actions"
 
 interface ColumnsProps {
+  /** Off on a member's own page, where every row is theirs. */
+  hideCustomer?: boolean
+  onDetails: (membership: MembershipDto) => void
   onEdit: (membership: MembershipDto) => void
-  memberNames?: Record<string, string>
-  companyNames?: Record<string, string>
 }
 
 export const createColumns = ({
+  onDetails,
   onEdit,
-  memberNames = {},
-  companyNames = {},
-}: ColumnsProps): ColumnDef<MembershipDto>[] => [
+  hideCustomer = false,
+}: ColumnsProps): ColumnDef<MembershipDto>[] => {
+  const columns: ColumnDef<MembershipDto>[] = [
   {
     accessorKey: "name",
     header: ({ column }) => (
@@ -28,16 +30,21 @@ export const createColumns = ({
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
     ),
+    cell: ({ row }) => {
+      const membership = row.original
+      const planName = membership.plan?.name
+      return (
+        <div className="flex flex-col">
+          <span>{membership.name}</span>
+          {planName && <span className="text-xs text-muted-foreground">{planName}</span>}
+        </div>
+      )
+    },
   },
   {
     id: "customer",
     // A membership belongs to a member XOR a company.
-    accessorFn: (membership) =>
-      membership.memberId
-        ? memberNames[membership.memberId] ?? ""
-        : membership.companyId
-          ? companyNames[membership.companyId] ?? ""
-          : "",
+    accessorFn: (membership) => membership.member?.fullName ?? membership.company?.name ?? "",
     header: "Customer",
     cell: ({ row }) => {
       const membership = row.original
@@ -69,6 +76,16 @@ export const createColumns = ({
     },
   },
   {
+    id: "discount",
+    accessorFn: (membership) => membership.discount?.code ?? "",
+    header: "Discount",
+    cell: ({ row }) => {
+      const code = row.getValue<string>("discount")
+      if (!code) return <span className="text-muted-foreground">-</span>
+      return <code className="rounded bg-muted px-1 text-xs">{code}</code>
+    },
+  },
+  {
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => {
@@ -97,26 +114,10 @@ export const createColumns = ({
   {
     id: "actions",
     header: "Actions",
-    cell: ({ row }) => {
-      const membership = row.original
-      return (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onEdit(membership)}
-            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-950 dark:border-blue-800"
-          >
-            <Edit className="h-4 w-4" />
-            <span className="sr-only">Edit</span>
-          </Button>
-          <LifecycleButtons
-            membershipId={membership.id}
-            membershipName={membership.name}
-            canCancel={membership.status !== "ended" && !membership.cancelledAt}
-          />
-        </div>
-      )
-    },
+    cell: ({ row }) => (
+      <MembershipRowActions membership={row.original} onDetails={onDetails} onEdit={onEdit} />
+    ),
   },
-]
+  ]
+  return columns.filter((column) => !(hideCustomer && column.id === "customer"))
+}

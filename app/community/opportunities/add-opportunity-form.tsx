@@ -3,6 +3,7 @@
 import { useEffect, useActionState, useRef, useState } from "react"
 import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
+import { ExtraTagPicker } from "@/components/extra-tag-picker"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -145,13 +146,6 @@ export function AddOpportunityForm({
   const expectedValue =
     planFee === null || Number.isNaN(planFee) ? null : planFee + extrasTotal
 
-  const toggleExtra = (extraId: string) =>
-    setExtraIds((current) =>
-      current.includes(extraId)
-        ? current.filter((id) => id !== extraId)
-        : [...current, extraId]
-    )
-
   return (
     <Drawer open={isOpen} onOpenChange={onClose} direction="right">
       <DrawerContent className="h-full w-[460px] ml-auto">
@@ -291,25 +285,11 @@ export function AddOpportunityForm({
                         This plan offers no add-ons.
                       </p>
                     ) : (
-                      planExtras.map((extra) => (
-                        <label
-                          key={extra.id}
-                          className="flex items-center gap-2 text-sm"
-                          htmlFor={`extra-${extra.id}`}
-                        >
-                          <input
-                            id={`extra-${extra.id}`}
-                            type="checkbox"
-                            className="h-4 w-4"
-                            checked={extraIds.includes(extra.id)}
-                            onChange={() => toggleExtra(extra.id)}
-                          />
-                          <span>{extra.name}</span>
-                          <span className="text-muted-foreground">
-                            +{formatPriceHt(extra.priceHt)}
-                          </span>
-                        </label>
-                      ))
+                      <ExtraTagPicker
+                        extras={planExtras}
+                        value={extraIds}
+                        onChange={setExtraIds}
+                      />
                     )}
                   </div>
                 )}
@@ -382,6 +362,20 @@ export function AddOpportunityForm({
                               } (${formatPriceHt(extrasTotal)})`
                             : ""
                         }.`}
+                  </p>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="requestedDiscountCode">Discount code</Label>
+                  <Input
+                    id="requestedDiscountCode"
+                    name="requestedDiscountCode"
+                    placeholder="What the visitor typed, if anything"
+                    defaultValue={apiString(editingOpportunity?.requestedDiscountCode) ?? ""}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Never validated or priced here — staff keep, clear or correct it
+                    before converting the lead.
                   </p>
                 </div>
 

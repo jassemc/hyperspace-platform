@@ -11,6 +11,8 @@ interface InvoiceTableProps {
   memberNames?: Record<string, string>
   companyNames?: Record<string, string>
   activeStatus?: InvoiceStatus
+  /** Member page: every row is theirs. */
+  hideCustomer?: boolean
 }
 
 export function InvoiceTable({
@@ -19,8 +21,9 @@ export function InvoiceTable({
   memberNames = {},
   companyNames = {},
   activeStatus,
+  hideCustomer = false,
 }: Readonly<InvoiceTableProps>) {
-  const columns = createColumns({ memberNames, companyNames })
+  const columns = createColumns({ memberNames, companyNames, hideCustomer })
 
   return (
     <DataTable

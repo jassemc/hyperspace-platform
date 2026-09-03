@@ -23,11 +23,11 @@ import {
     FileText,
     Ticket,
     DoorOpen,
-    Armchair,
     Sparkles,
     LayoutGrid,
     Package,
     MapPin,
+    BadgePercent,
 } from "lucide-react"
 import type { LucideIcon } from "lucide-react"
 
@@ -203,6 +203,11 @@ export const navigationConfig: NavigationConfig = {
                     icon: Receipt,
                 },
                 {
+                    title: "Discounts",
+                    url: "/billing/discounts",
+                    icon: BadgePercent,
+                },
+                {
                     title: "Payment Methods",
                     url: "#",
                     icon: CreditCard,
@@ -233,11 +238,6 @@ export const navigationConfig: NavigationConfig = {
                     title: "Check-ins",
                     url: "/booking/checkins",
                     icon: DoorOpen,
-                },
-                {
-                    title: "Assignments",
-                    url: "/booking/assignments",
-                    icon: Armchair,
                 },
             ]
         },

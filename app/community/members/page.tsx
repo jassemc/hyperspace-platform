@@ -1,6 +1,6 @@
 import { Suspense } from "react"
 import { AddMemberButton } from "./add-member-button"
-import { TableSkeleton } from "./table-skeleton"
+import { TableSkeleton } from "@/components/table-skeleton"
 import { MemberTableSection } from "./table-section"
 import { SectionCards } from "./section-cards"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -27,7 +27,7 @@ export default async function CommunityMembersPage({
           </div>
         }
       >
-        <SectionCards />
+        <SectionCards searchParams={resolvedSearchParams} />
       </Suspense>
       <Suspense fallback={<TableSkeleton rows={10} />}>
         <MemberTableSection searchParams={resolvedSearchParams} />

@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import type { BookingCalendarDto, BookingDto, ResourceTypeDto } from "@/lib/service/HsService"
 import { getBooking } from "@/lib/service"
 import { BookingFormDialog } from "@/app/booking/bookings/booking-form-dialog"
+import type { BookingLookups } from "@/app/booking/bookings/lookups"
 import { BookingDetailsDialog } from "@/app/booking/bookings/booking-details-dialog"
 import { CalendarLegend } from "./calendar-legend"
 import { CalendarToolbar } from "./calendar-toolbar"
@@ -28,10 +29,13 @@ export function CalendarViews({
   calendar,
   state,
   bookableTypes,
+  lookups,
 }: Readonly<{
   calendar: BookingCalendarDto
   state: CalendarViewState
   bookableTypes: ResourceTypeDto[]
+  /** Fetched by the section so the cell-click dialog opens with no requests. */
+  lookups: BookingLookups
 }>) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -126,6 +130,9 @@ export function CalendarViews({
           isOpen
           onClose={() => setPrefill(null)}
           prefill={prefill}
+          resources={lookups.resources}
+          members={lookups.members}
+          companies={lookups.companies}
           timeZone={calendar.timezone}
         />
       )}

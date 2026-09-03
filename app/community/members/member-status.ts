@@ -1,4 +1,4 @@
-import type { MemberStatus, MemberStatusUpdate } from "@/lib/service/HsService"
+import type { MemberKindHint, MemberStatus, MemberStatusUpdate } from "@/lib/service/HsService"
 
 /**
  * `status` is derived by the API on read from the member's lifecycle. Staff can
@@ -35,4 +35,17 @@ export const MEMBER_STATUS_OVERRIDE_OPTIONS: { value: MemberStatusUpdate; label:
     { value: "auto", label: "Automatic", hint: "Derive from membership activity" },
     { value: "former", label: "Former", hint: "Pin as a past member" },
     { value: "contact", label: "Contact", hint: "Pin as a non-member contact" },
+]
+
+export const MEMBER_KIND_HINT_VALUES: MemberKindHint[] = ["lead", "visitor", "member"]
+
+/**
+ * These tabs filter by `kindHint`, a secondary filter alongside the status
+ * tabs — `status`, though derived server-side, is filterable on the list
+ * endpoint too.
+ */
+export const MEMBER_KIND_TABS = [
+    { value: "lead", label: "Lead" },
+    { value: "visitor", label: "Visitor" },
+    { value: "member", label: "Member" },
 ]

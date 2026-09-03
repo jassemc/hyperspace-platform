@@ -9,6 +9,8 @@ interface CheckinTableProps {
   totalCount?: number
   memberNames?: Record<string, string>
   locationNames?: Record<string, string>
+  /** Member page: every row is theirs. */
+  hideMember?: boolean
 }
 
 export function CheckinTable({
@@ -16,8 +18,9 @@ export function CheckinTable({
   totalCount,
   memberNames = {},
   locationNames = {},
+  hideMember = false,
 }: Readonly<CheckinTableProps>) {
-  const columns = createColumns({ memberNames, locationNames })
+  const columns = createColumns({ memberNames, locationNames, hideMember })
 
   return (
     <DataTable

@@ -1,70 +1,80 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
+import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import type { MemberDto, MemberStatus } from "@/lib/service/HsService"
 import type { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, Edit } from "lucide-react"
 import { formatDate, formatEnumLabel } from "@/lib/format"
 import { MEMBER_STATUS_CLASSES, MEMBER_STATUS_LABELS } from "./member-status"
-import { StatusButton } from "./status-button"
+import { MemberRowActions } from "./member-row-actions"
+import { memberPath } from "./[id]/member-route"
 
 interface ColumnsProps {
   onEdit: (member: MemberDto) => void
-  companyNames?: Record<string, string>
 }
 
-export const createColumns = ({ onEdit, companyNames = {} }: ColumnsProps): ColumnDef<MemberDto>[] => [
+/**
+ * Six columns, each answering one question: who (name + segment), how to
+ * reach them, who employs them, where they stand, since when, and what to
+ * do. Email and phone share a cell — either is often blank — and the
+ * company is named once, in its own column. Kind is not a column: it is
+ * the inline filter, and the derived status already says more.
+ */
+export const createColumns = ({ onEdit }: ColumnsProps): ColumnDef<MemberDto>[] => [
   {
     id: "name",
     accessorKey: "fullName",
-    header: ({ column }) => (
-      <Button
-        variant="ghost"
-        onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
-      >
-        Name
-        <ArrowUpDown className="ml-2 h-4 w-4" />
-      </Button>
-    ),
+    header: "Member",
     cell: ({ row }) => {
       const member = row.original
-      // Employers are referenced by id only. One outside the looked-up page
-      // still reads as employed rather than silently as solo.
-      const company = member.companyId
-        ? companyNames[member.companyId] ?? "Unknown company"
-        : null
-
       return (
         <div className="flex flex-col">
-          <span>{member.fullName}</span>
-          {company && (
-            <span className="text-xs text-muted-foreground">{company}</span>
+          {/* The name opens the member page — the row's most common action,
+              one click instead of a trip through the "⋯" menu. */}
+          <Link
+            href={memberPath(member.id)}
+            className="rounded-sm font-medium hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            {member.fullName}
+          </Link>
+          {member.segment && (
+            <span className="text-xs capitalize text-muted-foreground">
+              {formatEnumLabel(member.segment)}
+            </span>
           )}
         </div>
       )
     },
   },
   {
-    accessorKey: "email",
-    header: "Email",
+    id: "contact",
+    accessorFn: (member) => [member.email, member.phone].filter(Boolean).join(" "),
+    header: "Contact",
     cell: ({ row }) => {
-      const value = row.getValue<string | null>("email")
-      return <span>{value || "-"}</span>
-    },
-  },
-  {
-    accessorKey: "phone",
-    header: "Phone",
-    cell: ({ row }) => {
-      const value = row.getValue<string | null>("phone")
-      return <span>{value || "-"}</span>
+      const { email, phone } = row.original
+      if (!email && !phone) return <span className="text-muted-foreground">-</span>
+      return (
+        <div className="flex flex-col">
+          {email && (
+            <a href={`mailto:${email}`} className="text-primary hover:underline">
+              {email}
+            </a>
+          )}
+          {phone && (
+            <a
+              href={`tel:${phone.replace(/\s+/g, "")}`}
+              className={email ? "text-xs text-muted-foreground hover:underline" : "text-primary hover:underline"}
+            >
+              {phone}
+            </a>
+          )}
+        </div>
+      )
     },
   },
   {
     id: "company",
-    // Members reference their employer by id only.
-    accessorFn: (member) => (member.companyId ? companyNames[member.companyId] ?? "" : ""),
+    accessorFn: (member) => (member.companyId ? member.company?.name ?? "" : ""),
     header: "Company",
     cell: ({ row }) => {
       const member = row.original
@@ -88,14 +98,6 @@ export const createColumns = ({ onEdit, companyNames = {} }: ColumnsProps): Colu
           )}
         </div>
       )
-    },
-  },
-  {
-    accessorKey: "kindHint",
-    header: "Kind",
-    cell: ({ row }) => {
-      const value = row.getValue<string>("kindHint")
-      return <span className="capitalize">{value ? formatEnumLabel(value) : "-"}</span>
     },
   },
   {
@@ -128,25 +130,8 @@ export const createColumns = ({ onEdit, companyNames = {} }: ColumnsProps): Colu
   {
     id: "actions",
     header: "Actions",
-    cell: ({ row }) => {
-      const member = row.original
-      return (
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => onEdit(member)}
-            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-950 dark:border-blue-800"
-          >
-            <Edit className="h-4 w-4" />
-          </Button>
-          <StatusButton
-            memberId={member.id}
-            memberName={member.fullName}
-            statusOverride={member.statusOverride}
-          />
-        </div>
-      )
-    },
+    cell: ({ row }) => (
+      <MemberRowActions member={row.original} onEdit={onEdit} />
+    ),
   },
 ]

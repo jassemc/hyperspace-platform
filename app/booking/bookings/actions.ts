@@ -1,6 +1,8 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
+import { MEMBER_ROUTE_PATTERN } from "@/app/community/members/[id]/member-route"
+import { COMPANY_ROUTE_PATTERN } from "@/app/community/companies/[id]/company-route"
 import {
   createBooking,
   updateBooking,
@@ -11,6 +13,7 @@ import {
   getListCredits,
 } from "@/lib/service"
 import type {
+  ConfirmBookingDto,
   CreateBookingDto,
   CreditTransactionDto,
   ResourceDto,
@@ -83,6 +86,11 @@ function toUtcIso(value: string, timeZone: string | undefined): string {
 
 function revalidate() {
   revalidatePath("/booking/bookings")
+  revalidatePath(MEMBER_ROUTE_PATTERN, "page")
+  revalidatePath(COMPANY_ROUTE_PATTERN, "page")
+  revalidateTag("stats:bookings")
+  // Member status considers booking charges.
+  revalidateTag("stats:members")
 }
 
 function bookingPayload(formData: FormData): CreateBookingDto | { error: string } {
@@ -112,6 +120,9 @@ function bookingPayload(formData: FormData): CreateBookingDto | { error: string 
   if (!memberId && !companyId) {
     return { error: "Select a member or a company" }
   }
+  const isFree = formData.get("isFree") === "on"
+  const freeReason = text(formData, "freeReason")
+  if (isFree && !freeReason) return { error: "Pick a reason for the free booking" }
 
   return {
     resourceId,
@@ -122,6 +133,11 @@ function bookingPayload(formData: FormData): CreateBookingDto | { error: string 
     title: text(formData, "title"),
     notes: text(formData, "notes"),
     extraIds: formData.getAll("extraIds").map(String).filter(Boolean),
+    isFree,
+    freeReason: isFree ? (freeReason as CreateBookingDto["freeReason"]) : undefined,
+    // "No discount" posts "" — `text` turns that into `undefined`, which
+    // is exactly what an absent discountId means to the API.
+    discountId: text(formData, "discountId"),
   }
 }
 
@@ -187,6 +203,19 @@ export async function updateBookingAction(
       }
     }
 
+    // `currentDiscountId` is the hidden snapshot booking-customer-fields.tsx
+    // writes of the booking's own discount at open; `discountId` is the
+    // live select. PATCH assigns on `!== undefined`, so an untouched select
+    // — same value both fields — must omit the key rather than resend the
+    // id (a no-op, but see the doc on UpdateBookingDto.discountId: a
+    // CONFIRMED booking's money is reversed and re-applied on any supplied
+    // discountId, so resending it would re-price the booking for nothing).
+    // A changed selection sends the new id, or `null` for "No discount".
+    const currentDiscountId = clearableText(formData, "currentDiscountId") ?? ""
+    const selectedDiscountId = clearableText(formData, "discountId") ?? ""
+    const discountId: string | null | undefined =
+      selectedDiscountId === currentDiscountId ? undefined : selectedDiscountId || null
+
     const data: UpdateBookingDto = {
       // `clearableText`, not `text`: an emptied note must reach the API
       // as "" so it actually clears — see the helper above.
@@ -195,6 +224,13 @@ export async function updateBookingAction(
       status: formData.get("markNoShow") === "on" ? "no_show" : undefined,
       startsAt: startsAt ? toUtcIso(startsAt, timeZone) : undefined,
       endsAt: endsAt ? toUtcIso(endsAt, timeZone) : undefined,
+      // Only when the picker was rendered: `[]` then means "remove all",
+      // whereas a form without it must leave the extras alone.
+      extraIds:
+        formData.get("extrasEdited") === "1"
+          ? formData.getAll("extraIds").map(String).filter(Boolean)
+          : undefined,
+      discountId,
     }
 
     await updateBooking(id, data)
@@ -213,7 +249,18 @@ export async function confirmBookingAction(
     const id = text(formData, "id")
     if (!id) return { success: false, error: "Booking ID is required" }
 
-    await confirmBooking(id)
+    const isFree = formData.get("isFree") === "on"
+    const freeReason = text(formData, "freeReason")
+    if (isFree && !freeReason) return { success: false, error: "Pick a reason for the free booking" }
+    // "No discount" (the select's default) posts nothing here — omitting
+    // `discountId` is what confirms at the list price. Never sends
+    // `discountCode`: staff pick a discount from the select now, not a
+    // visitor-typed code kept or replaced.
+    const discountId = text(formData, "discountId")
+    await confirmBooking(id, {
+      ...(isFree ? { isFree, freeReason: freeReason as ConfirmBookingDto["freeReason"] } : {}),
+      ...(discountId ? { discountId } : {}),
+    })
     revalidate()
     return { success: true }
   } catch (error) {

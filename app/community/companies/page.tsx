@@ -1,6 +1,6 @@
 import { Suspense } from "react"
 import { AddCompanyButton } from "./add-company-button"
-import { TableSkeleton } from "./table-skeleton"
+import { TableSkeleton } from "@/components/table-skeleton"
 import { CompanyTableSection } from "./table-section"
 import { SectionCards } from "./section-cards"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -27,7 +27,7 @@ export default async function CommunityCompaniesPage({
           </div>
         }
       >
-        <SectionCards />
+        <SectionCards searchParams={resolvedSearchParams} />
       </Suspense>
       <Suspense fallback={<TableSkeleton rows={10} />}>
         <CompanyTableSection searchParams={resolvedSearchParams} />

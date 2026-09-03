@@ -3,19 +3,27 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
-import { AddMembershipForm } from "./add-membership-form"
+import { MembershipFormDialog } from "./membership-form-dialog"
 
-export function AddMembershipButton() {
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false)
+export function AddMembershipButton({
+  defaultMemberId,
+  defaultCompanyId,
+}: Readonly<{ defaultMemberId?: string; defaultCompanyId?: string }> = {}) {
+  const [isDialogOpen, setIsDialogOpen] = useState(false)
 
   return (
     <>
-      <Button onClick={() => setIsDrawerOpen(true)}>
+      <Button onClick={() => setIsDialogOpen(true)}>
         <Plus className="mr-2 h-4 w-4" />
         Add Membership
       </Button>
-      {isDrawerOpen && (
-        <AddMembershipForm isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
+      {isDialogOpen && (
+        <MembershipFormDialog
+          isOpen={isDialogOpen}
+          onClose={() => setIsDialogOpen(false)}
+          defaultMemberId={defaultMemberId}
+          defaultCompanyId={defaultCompanyId}
+        />
       )}
     </>
   )

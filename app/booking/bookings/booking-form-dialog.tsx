@@ -15,7 +15,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import type { BookingDto, ResourceDto } from "@/lib/service/HsService"
+import { NativeSelect } from "@/components/ui/native-select"
+import type { BookingDto, CompanyDto, MemberDto, ResourceDto } from "@/lib/service/HsService"
 import { formatPriceHt } from "@/lib/format"
 import { toWallClock } from "@/lib/slots"
 import {
@@ -27,20 +28,26 @@ import {
 import { BOOKING_STATUS_LABELS } from "./booking-status"
 import { BookingCustomerFields } from "./booking-customer-fields"
 import { BookingSlotPicker, type SlotValue } from "./booking-slot-picker"
+import { FREE_REASON_LABELS } from "./free-reason"
 import { toast } from "sonner"
 
 interface BookingFormDialogProps {
   isOpen: boolean
   onClose: () => void
   editingBooking?: BookingDto | null
+  /** Seeds for the customer fields (see lookups.ts); absent = fetched there. */
   resources?: ResourceDto[]
-  /** Set when opened from a calendar cell. */
+  members?: MemberDto[]
+  companies?: CompanyDto[]
+  /** Set when opened from a calendar cell (room + slot) or a member's page (member). */
   prefill?: {
-    resourceId: string
-    startsAt: string
-    endsAt: string
+    resourceId?: string
+    startsAt?: string
+    endsAt?: string
     /** Read off the calendar payload so the select never flashes blank. */
     resourceName?: string
+    memberId?: string
+    companyId?: string
   }
   /** Zone every wall-clock string in this form is written in. */
   timeZone: string
@@ -71,7 +78,8 @@ function seedSlot(
       endsAt: toWallClock(editingBooking.endsAt, timeZone),
     }
   }
-  if (prefill) {
+  // A member-only prefill (from the member page) carries no slot.
+  if (prefill?.startsAt && prefill.endsAt) {
     return {
       startsAt: toWallClock(prefill.startsAt, timeZone),
       endsAt: toWallClock(prefill.endsAt, timeZone),
@@ -122,6 +130,8 @@ export function BookingFormDialog({
   onClose,
   editingBooking,
   resources: seedResources,
+  members,
+  companies,
   prefill,
   timeZone,
 }: Readonly<BookingFormDialogProps>) {
@@ -139,6 +149,9 @@ export function BookingFormDialog({
   // The escape hatch: staff do book outside opening hours, and the API
   // allows it, so the availability grid must not be the only way in.
   const [manualTimes, setManualTimes] = useState(false)
+  // Create only — see the checkbox below. Affects the quote message, so
+  // it also has to invalidate the dry run.
+  const [isFree, setIsFree] = useState(false)
 
   const formRef = useRef<HTMLFormElement>(null)
   // The last state object each notify effect has already reacted to.
@@ -152,6 +165,7 @@ export function BookingFormDialog({
     if (isOpen) {
       setQuoteMessage(null)
       setManualTimes(false)
+      setIsFree(false)
       setResourceId(editingBooking?.resourceId ?? prefill?.resourceId ?? "")
       setSlot(seedSlot(editingBooking, prefill, timeZone))
     }
@@ -206,12 +220,20 @@ export function BookingFormDialog({
       const result = await validateBookingAction({}, new FormData(formRef.current))
       if (seq !== checkSeq.current) return
       if (result.success) {
-        const quote = result.quote as { priceHt?: number | null } | undefined
+        const quote = result.quote as
+          | { priceHt?: number | null; discount?: { code: string; amountHt: number } | null }
+          | undefined
         const price = quote?.priceHt
+        // Spec §8.4: name the rate discount the quote applied (plan-granted or by code).
+        const discountNote = quote?.discount
+          ? ` (${quote.discount.code}: ${formatPriceHt(quote.discount.amountHt)})`
+          : ""
         setQuoteMessage(
           price === null || price === undefined
             ? "Available — fully covered by credits."
-            : `Available — ${formatPriceHt(price)} excl. VAT.`
+            : isFree
+              ? `Available — free (would have been ${formatPriceHt(price)} excl. VAT).`
+              : `Available — ${formatPriceHt(price)} excl. VAT.${discountNote}`
         )
       } else {
         setQuoteMessage(messageFor(result, "The booking is not valid."))
@@ -219,7 +241,7 @@ export function BookingFormDialog({
     } finally {
       if (seq === checkSeq.current) setChecking(false)
     }
-  }, [])
+  }, [isFree])
 
   /**
    * The quote describes one exact resource, slot and set of extras. Once
@@ -348,6 +370,8 @@ export function BookingFormDialog({
 
           <BookingCustomerFields
             resources={seedResources}
+            members={members}
+            companies={companies}
             resourceId={resourceId}
             onResourceChange={(id) => {
               setResourceId(id)
@@ -356,8 +380,15 @@ export function BookingFormDialog({
               invalidateQuote()
             }}
             prefillResourceName={prefill?.resourceName}
+            defaultMemberId={prefill?.memberId}
+            defaultCompanyId={prefill?.companyId}
             disabled={Boolean(editingBooking)}
             onExtrasChange={invalidateQuote}
+            initialExtraIds={(editingBooking?.extras ?? []).map((extra) => extra.extraId)}
+            onDiscountChange={invalidateQuote}
+            initialDiscountId={editingBooking?.discount?.discountId ?? ""}
+            initialDiscountSnapshot={editingBooking?.discount ?? null}
+            requestedDiscountCode={editingBooking?.requestedDiscountCode ?? null}
           />
 
           <div className="grid gap-3" role="group" aria-labelledby="booking-when-label">
@@ -465,6 +496,34 @@ export function BookingFormDialog({
               <p className="text-xs text-muted-foreground">
                 Use the confirm and cancel actions in the table to change status otherwise.
               </p>
+            </div>
+          )}
+
+          {!editingBooking && (
+            <div className="grid gap-2">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="isFree"
+                  className="h-4 w-4 rounded border-input"
+                  checked={isFree}
+                  onChange={(e) => {
+                    setIsFree(e.target.checked)
+                    invalidateQuote()
+                  }}
+                />
+                Free booking (no credits, no charges)
+              </label>
+              {isFree && (
+                <div className="grid gap-2">
+                  <Label htmlFor="freeReason">Reason</Label>
+                  <NativeSelect id="freeReason" name="freeReason" required defaultValue="partnership">
+                    {Object.entries(FREE_REASON_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>{label}</option>
+                    ))}
+                  </NativeSelect>
+                </div>
+              )}
             </div>
           )}
 

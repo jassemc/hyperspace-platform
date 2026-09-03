@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { AddCheckinForm } from "./add-checkin-form"
 
-export function AddCheckinButton() {
+export function AddCheckinButton({
+  defaultMemberId,
+}: Readonly<{ defaultMemberId?: string }> = {}) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
   return (
@@ -15,7 +17,11 @@ export function AddCheckinButton() {
         Add Check-in
       </Button>
       {isDrawerOpen && (
-        <AddCheckinForm isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
+        <AddCheckinForm
+          isOpen={isDrawerOpen}
+          onClose={() => setIsDrawerOpen(false)}
+          defaultMemberId={defaultMemberId}
+        />
       )}
     </>
   )

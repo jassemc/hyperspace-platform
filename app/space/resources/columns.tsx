@@ -5,16 +5,17 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { ResourceDto, ResourceStatus } from "@/lib/service/HsService"
 import type { ColumnDef } from "@tanstack/react-table"
-import { ArrowUpDown, Edit } from "lucide-react"
-import { ArchiveButton } from "./archive-button"
+import { ArrowUpDown } from "lucide-react"
+import { ResourceRowActions } from "./resource-row-actions"
 import { RESOURCE_STATUS_CLASSES, RESOURCE_STATUS_LABELS } from "./resource-status"
 
 interface ColumnsProps {
+  onDetails: (resource: ResourceDto) => void
   onEdit: (resource: ResourceDto) => void
   resourceTypeNames?: Record<string, string>
 }
 
-export const createColumns = ({ onEdit, resourceTypeNames = {} }: ColumnsProps): ColumnDef<ResourceDto>[] => [
+export const createColumns = ({ onDetails, onEdit, resourceTypeNames = {} }: ColumnsProps): ColumnDef<ResourceDto>[] => [
     {
         id: "photo",
         header: "",
@@ -133,26 +134,9 @@ export const createColumns = ({ onEdit, resourceTypeNames = {} }: ColumnsProps):
     {
         id: "actions",
         header: "Actions",
-        cell: ({ row }) => {
-            const resource = row.original
-            return (
-                <div className="flex items-center gap-2">
-                    <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => onEdit(resource)}
-                        className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 border-blue-200 dark:text-blue-400 dark:hover:text-blue-300 dark:hover:bg-blue-950 dark:border-blue-800"
-                    >
-                        <Edit className="h-4 w-4" />
-                    </Button>
-                    <ArchiveButton
-                        resourceId={resource.id}
-                        resourceName={resource.name}
-                        active={resource.active}
-                    />
-                </div>
-            )
-        },
+        cell: ({ row }) => (
+            <ResourceRowActions resource={row.original} onDetails={onDetails} onEdit={onEdit} />
+        ),
     },
 ]
 

@@ -136,6 +136,12 @@ The membership **stays active until `endsAt` passes**. It is a notice, not a
 switch-off. Status becomes `ended` on its own; the member's status follows to
 `former` without you pinning anything.
 
+**No notice needed?** (a mutual termination, a mistyped fixed term) **Edit**
+the membership and set **Ends at** directly — today ends it tonight, a past
+date ends it at once, and a blank field reopens it. No notice period applies.
+Open assignments are capped the day after, exactly as Cancel does. A cancelled
+membership can have its end moved but not cleared.
+
 ---
 
 # Scenario B — Private office or dedicated desk
@@ -408,7 +414,7 @@ is what you want for accounting and for winning them back.
 ## Things that surprise people
 
 - **Cancel does not stop it today.** It schedules the end using the snapshot's
-  notice period.
+  notice period. To end it today, edit **Ends at** instead.
 - **The snapshot wins over the catalog.** Changing a plan's price or notice
   period never affects memberships already signed on it.
 - **A pending booking holds nothing.** Only confirmation blocks the slot.

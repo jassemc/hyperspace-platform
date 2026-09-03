@@ -9,6 +9,8 @@ interface ChargeTableProps {
   totalCount?: number
   memberNames?: Record<string, string>
   companyNames?: Record<string, string>
+  /** Member page: every row is theirs. */
+  hideCustomer?: boolean
 }
 
 export function ChargeTable({
@@ -16,8 +18,9 @@ export function ChargeTable({
   totalCount,
   memberNames = {},
   companyNames = {},
+  hideCustomer = false,
 }: Readonly<ChargeTableProps>) {
-  const columns = createColumns({ memberNames, companyNames })
+  const columns = createColumns({ memberNames, companyNames, hideCustomer })
 
   return (
     <DataTable

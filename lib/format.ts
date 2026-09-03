@@ -41,6 +41,11 @@ export function formatDate(value: string | null | undefined): string {
     return Number.isNaN(date.getTime()) ? "-" : date.toLocaleDateString()
 }
 
+/** The business date in Tunis, not the browser's, since the API works in it. */
+export function todayInTunis(): string {
+    return new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Tunis" }).format(new Date())
+}
+
 /**
  * Date and time in a given zone. `timeZone` is required, not defaulted:
  * a default is how a single region creeps back into a multi-region

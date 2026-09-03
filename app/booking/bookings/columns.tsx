@@ -8,13 +8,21 @@ import { ArrowUpDown } from "lucide-react"
 import { formatDateTime, formatEnumLabel, formatPriceHt } from "@/lib/format"
 import { BOOKING_STATUS_CLASSES, BOOKING_STATUS_LABELS } from "./booking-status"
 import { BookingRowActions } from "./booking-row-actions"
+import { FREE_REASON_LABELS } from "./free-reason"
 
 interface ColumnsProps {
+  /** Off on a member's own page, where every row is theirs. */
+  hideCustomer?: boolean
   onEdit: (booking: BookingDto) => void
   timeZone: string
 }
 
-export const createColumns = ({ onEdit, timeZone }: ColumnsProps): ColumnDef<BookingDto>[] => [
+export const createColumns = ({
+  onEdit,
+  timeZone,
+  hideCustomer = false,
+}: ColumnsProps): ColumnDef<BookingDto>[] => {
+  const columns: ColumnDef<BookingDto>[] = [
   {
     id: "title",
     accessorFn: (booking) => booking.title ?? "",
@@ -64,6 +72,15 @@ export const createColumns = ({ onEdit, timeZone }: ColumnsProps): ColumnDef<Boo
     accessorKey: "priceHt",
     header: "Price (HT)",
     cell: ({ row }) => {
+      const booking = row.original
+      if (booking.isFree) {
+        const reasonLabel = booking.freeReason ? FREE_REASON_LABELS[booking.freeReason] : undefined
+        return (
+          <Badge variant="secondary" className="font-normal" title={reasonLabel}>
+            {reasonLabel ? `Free · ${reasonLabel}` : "Free"}
+          </Badge>
+        )
+      }
       // NULL price means the booking is fully covered by credits.
       const value = row.getValue<number | null>("priceHt")
       return value === null || value === undefined ? (
@@ -95,10 +112,40 @@ export const createColumns = ({ onEdit, timeZone }: ColumnsProps): ColumnDef<Boo
     },
   },
   {
+    id: "discount",
+    header: "Discount",
+    cell: ({ row }) => {
+      const booking = row.original
+      // A pending booking shows the visitor-typed code (even once a
+      // discount is later applied on confirm), so staff always see what
+      // was actually requested until the booking is decided.
+      const requested = booking.status === "pending" ? booking.requestedDiscountCode : null
+      if (requested) {
+        return (
+          <div className="flex flex-col">
+            <code className="w-fit rounded bg-muted px-1 text-xs">{requested}</code>
+            <span className="text-xs text-muted-foreground">requested</span>
+          </div>
+        )
+      }
+      if (booking.discount) {
+        return (
+          <div className="flex flex-col">
+            <code className="w-fit rounded bg-muted px-1 text-xs">{booking.discount.code}</code>
+            <span className="text-xs text-muted-foreground">applied</span>
+          </div>
+        )
+      }
+      return <span className="text-muted-foreground">-</span>
+    },
+  },
+  {
     id: "actions",
     header: "Actions",
     cell: ({ row }) => (
       <BookingRowActions booking={row.original} timeZone={timeZone} onEdit={onEdit} />
     ),
   },
-]
+  ]
+  return columns.filter((column) => !(hideCustomer && column.id === "customer"))
+}

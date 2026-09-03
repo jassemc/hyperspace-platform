@@ -1,38 +1,29 @@
 "use client"
 
+import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import type { MemberDto, MemberStatus } from "@/lib/service/HsService"
 import type { ColumnDef } from "@tanstack/react-table"
 import { ArrowUpDown } from "lucide-react"
-import { ReassignMemberButton } from "./reassign-member-button"
-
-function statusBadgeClass(status: MemberStatus) {
-  switch (status) {
-    case "active":
-      return "bg-green-100 text-green-800 hover:bg-green-200 dark:bg-green-900 dark:text-green-200"
-    case "lead":
-      return "bg-sky-100 text-sky-800 hover:bg-sky-200 dark:bg-sky-900 dark:text-sky-200"
-    case "drop-in":
-      return "bg-blue-100 text-blue-800 hover:bg-blue-200 dark:bg-blue-900 dark:text-blue-200"
-    case "pending":
-      return "bg-orange-100 text-orange-800 hover:bg-orange-200 dark:bg-orange-900 dark:text-orange-200"
-    case "former":
-      return "bg-red-100 text-red-800 hover:bg-red-200 dark:bg-red-900 dark:text-red-200"
-    default:
-      return "bg-gray-100 text-gray-800 hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-200"
-  }
-}
-
-function formatLabel(value: string) {
-  return value.replaceAll("-", " ").replaceAll("_", " ")
-}
+import { formatDate, formatEnumLabel } from "@/lib/format"
+import { MEMBER_STATUS_CLASSES, MEMBER_STATUS_LABELS } from "@/app/community/members/member-status"
+import { CompanyMemberRowActions } from "./company-member-row-actions"
+import { memberPath } from "@/app/community/members/[id]/member-route"
 
 interface ColumnsProps {
-  companyId: string
+  onDetails: (member: MemberDto) => void
+  onEdit: (member: MemberDto) => void
+  onReassign: (member: MemberDto) => void
+  onDetach: (member: MemberDto) => void
 }
 
-export const createMemberColumns = ({ companyId }: ColumnsProps): ColumnDef<MemberDto>[] => [
+export const createMemberColumns = ({
+  onDetails,
+  onEdit,
+  onReassign,
+  onDetach,
+}: ColumnsProps): ColumnDef<MemberDto>[] => [
   {
     id: "name",
     accessorKey: "fullName",
@@ -44,6 +35,11 @@ export const createMemberColumns = ({ companyId }: ColumnsProps): ColumnDef<Memb
         Name
         <ArrowUpDown className="ml-2 h-4 w-4" />
       </Button>
+    ),
+    cell: ({ row }) => (
+      <Link href={memberPath(row.original.id)} className="font-medium hover:underline">
+        {row.original.fullName}
+      </Link>
     ),
   },
   {
@@ -60,7 +56,7 @@ export const createMemberColumns = ({ companyId }: ColumnsProps): ColumnDef<Memb
     accessorKey: "kindHint",
     header: "Kind",
     cell: ({ row }) => (
-      <span className="capitalize">{formatLabel(row.getValue<string>("kindHint") || "-")}</span>
+      <span className="capitalize">{formatEnumLabel(row.getValue<string>("kindHint") || "-")}</span>
     ),
   },
   {
@@ -71,8 +67,8 @@ export const createMemberColumns = ({ companyId }: ColumnsProps): ColumnDef<Memb
       if (!value) return <span>-</span>
 
       return (
-        <Badge variant="secondary" className={`${statusBadgeClass(value)} border-0 capitalize`}>
-          {formatLabel(value)}
+        <Badge variant="secondary" className={`${MEMBER_STATUS_CLASSES[value] ?? ""} border-0`}>
+          {MEMBER_STATUS_LABELS[value] ?? formatEnumLabel(value)}
         </Badge>
       )
     },
@@ -80,23 +76,19 @@ export const createMemberColumns = ({ companyId }: ColumnsProps): ColumnDef<Memb
   {
     accessorKey: "createdAt",
     header: "Created",
-    cell: ({ row }) => {
-      const value = row.getValue<string>("createdAt")
-      const date = value ? new Date(value) : null
-      return <span>{date ? date.toLocaleDateString() : "-"}</span>
-    },
+    cell: ({ row }) => <span>{formatDate(row.getValue<string>("createdAt"))}</span>,
   },
   {
     id: "actions",
     header: "Actions",
     cell: ({ row }) => (
-      <div className="flex items-center gap-2">
-        <ReassignMemberButton
-          memberId={row.original.id}
-          memberName={row.original.fullName}
-          currentCompanyId={companyId}
-        />
-      </div>
+      <CompanyMemberRowActions
+        member={row.original}
+        onDetails={onDetails}
+        onEdit={onEdit}
+        onReassign={onReassign}
+        onDetach={onDetach}
+      />
     ),
   },
 ]

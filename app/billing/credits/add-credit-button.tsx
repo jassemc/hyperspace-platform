@@ -5,7 +5,10 @@ import { Button } from "@/components/ui/button"
 import { Plus } from "lucide-react"
 import { AddCreditForm } from "./add-credit-form"
 
-export function AddCreditButton() {
+export function AddCreditButton({
+  defaultMemberId,
+  defaultCompanyId,
+}: Readonly<{ defaultMemberId?: string; defaultCompanyId?: string }> = {}) {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false)
 
   return (
@@ -15,7 +18,12 @@ export function AddCreditButton() {
         Add Credit
       </Button>
       {isDrawerOpen && (
-        <AddCreditForm isOpen={isDrawerOpen} onClose={() => setIsDrawerOpen(false)} />
+        <AddCreditForm
+          isOpen={isDrawerOpen}
+          onClose={() => setIsDrawerOpen(false)}
+          defaultMemberId={defaultMemberId}
+          defaultCompanyId={defaultCompanyId}
+        />
       )}
     </>
   )

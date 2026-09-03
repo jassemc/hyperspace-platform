@@ -6,6 +6,7 @@ import { X } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { DataTable } from "@/components/data-table"
 import { AddResourceForm } from "./add-resource-form"
+import { ResourceDetailsDialog } from "./resource-details-dialog"
 import type { ResourceDto, ResourceStatus } from "@/lib/service/HsService"
 import { createColumns } from "./columns"
 import { RESOURCE_STATUS_TABS } from "./resource-status"
@@ -21,6 +22,7 @@ interface ResourceTableProps {
 export function ResourceTable({ data, totalCount, resourceTypeNames = {}, activeResourceTypeId, activeStatus }: Readonly<ResourceTableProps>) {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false)
     const [editingResource, setEditingResource] = useState<ResourceDto | null>(null)
+    const [detailsResource, setDetailsResource] = useState<ResourceDto | null>(null)
 
     const [optimisticResources] = useOptimistic(
         data,
@@ -38,6 +40,7 @@ export function ResourceTable({ data, totalCount, resourceTypeNames = {}, active
     }
 
     const columns = createColumns({
+        onDetails: setDetailsResource,
         onEdit: handleEdit,
         resourceTypeNames,
     })
@@ -75,6 +78,23 @@ export function ResourceTable({ data, totalCount, resourceTypeNames = {}, active
                 onClose={handleClose}
                 editingResource={editingResource}
             />
+            {detailsResource && (
+                <ResourceDetailsDialog
+                    key={detailsResource.id}
+                    resource={detailsResource}
+                    open
+                    onOpenChange={(next) => {
+                        if (!next) setDetailsResource(null)
+                    }}
+                    // Hand over: the details dialog closes first so the two never stack.
+                    onEdit={() => {
+                        const resource = detailsResource
+                        setDetailsResource(null)
+                        handleEdit(resource)
+                    }}
+                    resourceTypeName={resourceTypeNames[detailsResource.resourceTypeId]}
+                />
+            )}
         </>
     )
 }

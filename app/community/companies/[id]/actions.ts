@@ -1,13 +1,11 @@
 "use server"
 
-import { revalidatePath } from "next/cache"
+import { revalidatePath, revalidateTag } from "next/cache"
 import {
-  cancelMembership,
   createMembership,
   getListCompanies,
   getListMembers,
   getListPlans,
-  renewMembership,
   updateMemberCompany,
 } from "@/lib/service"
 import type {
@@ -16,22 +14,22 @@ import type {
   MemberDto,
   PlanDto,
 } from "@/lib/service/HsService"
+import { type ActionState, problem, text } from "@/lib/action-state"
+import {
+  cancelMembershipAction as cancelMembership,
+  renewMembershipAction as renewMembership,
+  pauseMembershipAction as pauseMembership,
+  resumeMembershipAction as resumeMembership,
+} from "@/app/community/memberships/actions"
 
-export type ActionState = {
-  success?: boolean
-  error?: string
-}
-
-function emptyToUndefined(value: FormDataEntryValue | null): string | undefined {
-  if (typeof value !== "string") return undefined
-  const trimmed = value.trim()
-  return trimmed.length > 0 ? trimmed : undefined
-}
 
 function revalidateCompany(companyId: string) {
   revalidatePath(`/community/companies/${companyId}`)
   revalidatePath("/community/companies")
   revalidatePath("/community/members")
+  revalidateTag("stats:companies")
+  revalidateTag("stats:members")
+  revalidateTag("stats:memberships")
 }
 
 /**
@@ -107,8 +105,8 @@ export async function attachMemberAction(
   formData: FormData
 ): Promise<ActionState> {
   try {
-    const companyId = emptyToUndefined(formData.get("companyId"))
-    const memberId = emptyToUndefined(formData.get("memberId"))
+    const companyId = text(formData, "companyId")
+    const memberId = text(formData, "memberId")
 
     if (!companyId) return { success: false, error: "Company id is required" }
     if (!memberId) return { success: false, error: "Select a member to attach" }
@@ -117,41 +115,39 @@ export async function attachMemberAction(
     revalidateCompany(companyId)
     return { success: true }
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to attach member",
-    }
+    return problem(error, "Failed to attach member")
   }
 }
 
 /**
  * Moves a member to another company via PUT /members/:id/company. That
- * endpoint accepts null to detach a member into a solo membership.
+ * endpoint accepts null to detach a member into a solo membership — and now
+ * so does this action.
  */
 export async function reassignMemberAction(
   prevState: ActionState,
   formData: FormData
 ): Promise<ActionState> {
   try {
-    const memberId = emptyToUndefined(formData.get("memberId"))
-    const targetCompanyId = emptyToUndefined(formData.get("targetCompanyId"))
-    const currentCompanyId = emptyToUndefined(formData.get("currentCompanyId"))
+    const memberId = text(formData, "memberId")
+    const targetCompanyId = text(formData, "targetCompanyId")
+    const currentCompanyId = text(formData, "currentCompanyId")
+    const detach = formData.get("detach") === "on"
 
     if (!memberId) return { success: false, error: "Member id is required" }
-    if (!targetCompanyId) return { success: false, error: "Select a company" }
-    if (targetCompanyId === currentCompanyId) {
+    if (!detach && !targetCompanyId) {
+      return { success: false, error: "Select a company or choose to detach" }
+    }
+    if (targetCompanyId && targetCompanyId === currentCompanyId) {
       return { success: false, error: "Member already belongs to this company" }
     }
 
-    await updateMemberCompany(memberId, { companyId: targetCompanyId })
+    await updateMemberCompany(memberId, { companyId: detach ? null : targetCompanyId ?? null })
     if (currentCompanyId) revalidateCompany(currentCompanyId)
-    revalidateCompany(targetCompanyId)
+    if (targetCompanyId) revalidateCompany(targetCompanyId)
     return { success: true }
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to reassign member",
-    }
+    return problem(error, "Failed to reassign member")
   }
 }
 
@@ -165,10 +161,10 @@ export async function subscribeMemberToPlanAction(
   formData: FormData
 ): Promise<ActionState> {
   try {
-    const companyId = emptyToUndefined(formData.get("companyId"))
-    const memberId = emptyToUndefined(formData.get("memberId"))
-    const planId = emptyToUndefined(formData.get("planId"))
-    const startsAt = emptyToUndefined(formData.get("startsAt"))
+    const companyId = text(formData, "companyId")
+    const memberId = text(formData, "memberId")
+    const planId = text(formData, "planId")
+    const startsAt = text(formData, "startsAt")
 
     if (!memberId) return { success: false, error: "Select a member" }
     if (!planId) return { success: false, error: "Select a plan" }
@@ -178,56 +174,32 @@ export async function subscribeMemberToPlanAction(
       memberId,
       planId,
       startsAt,
-      notes: emptyToUndefined(formData.get("notes")),
+      notes: text(formData, "notes"),
     }
 
     await createMembership(data)
     if (companyId) revalidateCompany(companyId)
     return { success: true }
   } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to subscribe to plan",
-    }
+    return problem(error, "Failed to subscribe to plan")
   }
 }
 
-export async function cancelMembershipAction(
-  prevState: ActionState,
+/**
+ * The memberships module owns the lifecycle; these only add the company page
+ * to what gets revalidated, since the plans tab is what the user is looking at.
+ */
+async function onCompanyPage(
+  run: (prev: ActionState, formData: FormData) => Promise<ActionState>,
   formData: FormData
 ): Promise<ActionState> {
-  try {
-    const id = emptyToUndefined(formData.get("id"))
-    const companyId = emptyToUndefined(formData.get("companyId"))
-    if (!id) return { success: false, error: "Membership id is required" }
-
-    await cancelMembership(id)
-    if (companyId) revalidateCompany(companyId)
-    return { success: true }
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to cancel membership",
-    }
-  }
+  const result = await run({}, formData)
+  const companyId = text(formData, "companyId")
+  if (result.success && companyId) revalidateCompany(companyId)
+  return result
 }
 
-export async function renewMembershipAction(
-  prevState: ActionState,
-  formData: FormData
-): Promise<ActionState> {
-  try {
-    const id = emptyToUndefined(formData.get("id"))
-    const companyId = emptyToUndefined(formData.get("companyId"))
-    if (!id) return { success: false, error: "Membership id is required" }
-
-    await renewMembership(id)
-    if (companyId) revalidateCompany(companyId)
-    return { success: true }
-  } catch (error) {
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to renew membership",
-    }
-  }
-}
+export async function cancelCompanyMembershipAction(prev: ActionState, formData: FormData) { return onCompanyPage(cancelMembership, formData) }
+export async function renewCompanyMembershipAction(prev: ActionState, formData: FormData) { return onCompanyPage(renewMembership, formData) }
+export async function pauseCompanyMembershipAction(prev: ActionState, formData: FormData) { return onCompanyPage(pauseMembership, formData) }
+export async function resumeCompanyMembershipAction(prev: ActionState, formData: FormData) { return onCompanyPage(resumeMembership, formData) }

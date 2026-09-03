@@ -30,9 +30,12 @@ import {
   formatTimeOfDay,
   formatVatRate,
 } from "@/lib/format"
+import { formatDiscountValue } from "@/app/billing/discounts/discount-meta"
 import { getIconFromFontAwesome } from "@/lib/icon-utils"
 import { getBookingDetailsAction, type BookingDetails } from "./actions"
 import { CancelBookingAlert } from "./cancel-booking-alert"
+import { ConfirmBookingDialog } from "./confirm-booking-dialog"
+import { FREE_REASON_LABELS } from "./free-reason"
 import { MarkNoShowAlert } from "./mark-no-show-alert"
 import { useBookingMutations } from "./use-booking-mutations"
 import { BOOKING_SOURCE_LABELS, BOOKING_STATUS_CLASSES, BOOKING_STATUS_LABELS } from "./booking-status"
@@ -201,13 +204,14 @@ export function BookingDetailsDialog({
     useBookingMutations(booking)
   const [cancelOpen, setCancelOpen] = useState(false)
   const [noShowOpen, setNoShowOpen] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
   const customer = booking.member?.fullName ?? booking.company?.name
   const email = booking.member?.email
   const CustomerIcon = booking.member ? User : Building2
   const sameDay = dayKey(booking.startsAt, timeZone) === dayKey(booking.endsAt, timeZone)
   const extras = booking.extras ?? []
-  const creditCovered = booking.priceHt === null || booking.priceHt === undefined
+  const creditCovered = !booking.isFree && (booking.priceHt === null || booking.priceHt === undefined)
   const extrasHt = extras.reduce((s, e) => s + e.priceHt, 0)
   const extrasTtc = extras.reduce((s, e) => s + e.totalTtc, 0)
   const totalHt = (booking.priceHt ?? 0) + extrasHt
@@ -374,20 +378,57 @@ export function BookingDetailsDialog({
 
           <Section title="Pricing">
             <dl className="rounded-lg border text-sm">
-              <div className="flex justify-between px-3 py-2">
-                <dt className="text-muted-foreground">Room (HT)</dt>
-                <dd className="tabular-nums">
-                  {creditCovered ? "Covered by credits" : formatPriceHt(booking.priceHt)}
-                </dd>
-              </div>
-              <div className="flex justify-between border-t px-3 py-2">
-                <dt className="text-muted-foreground">Extras (HT)</dt>
-                <dd className="tabular-nums">{formatPriceHt(extrasHt)}</dd>
-              </div>
-              <div className="flex justify-between border-t bg-muted/40 px-3 py-2 font-semibold">
-                <dt>Total HT</dt>
-                <dd className="tabular-nums">{formatPriceHt(totalHt)}</dd>
-              </div>
+              {booking.isFree ? (
+                <div className="flex justify-between px-3 py-2">
+                  <dt className="text-muted-foreground">Complimentary</dt>
+                  <dd className="tabular-nums">
+                    {booking.freeReason
+                      ? `${FREE_REASON_LABELS[booking.freeReason]} — nothing charged`
+                      : "Nothing charged"}
+                  </dd>
+                </div>
+              ) : (
+                <>
+                  {booking.requestedDiscountCode && (
+                    <div className="flex justify-between px-3 py-2">
+                      <dt className="text-muted-foreground">Requested code</dt>
+                      <dd className="flex items-center gap-2">
+                        <code className="rounded bg-muted px-1">{booking.requestedDiscountCode}</code>
+                        <Badge variant="outline" className="font-normal text-muted-foreground">
+                          {booking.status === "pending"
+                            ? "awaiting confirmation"
+                            : booking.discount
+                              ? "applied"
+                              : "not applied"}
+                        </Badge>
+                      </dd>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t px-3 py-2 first:border-t-0">
+                    <dt className="text-muted-foreground">Room (HT)</dt>
+                    <dd className="tabular-nums">
+                      {creditCovered ? "Covered by credits" : formatPriceHt(booking.priceHt)}
+                    </dd>
+                  </div>
+                  {booking.discount && (
+                    <div className="flex justify-between border-t px-3 py-2">
+                      <dt className="text-muted-foreground">Discount ({booking.discount.code})</dt>
+                      <dd className="tabular-nums">{formatDiscountValue(booking.discount)}</dd>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t px-3 py-2">
+                    <dt className="text-muted-foreground">Extras (HT)</dt>
+                    <dd className="tabular-nums">{formatPriceHt(extrasHt)}</dd>
+                  </div>
+                  {/* booking.priceHt is already net of any discount (the API
+                      applies it once, server-side, at confirm), so totalHt
+                      below must not subtract the discount a second time. */}
+                  <div className="flex justify-between border-t bg-muted/40 px-3 py-2 font-semibold">
+                    <dt>Total HT</dt>
+                    <dd className="tabular-nums">{formatPriceHt(totalHt)}</dd>
+                  </div>
+                </>
+              )}
             </dl>
           </Section>
 
@@ -414,7 +455,7 @@ export function BookingDetailsDialog({
             </Button>
           )}
           {canConfirm && (
-            <Button size="sm" onClick={confirm} disabled={pending !== null}>
+            <Button size="sm" onClick={() => setConfirmOpen(true)} disabled={pending !== null}>
               <Check className="mr-1.5 h-4 w-4" />
               {pending === "confirm" ? "Confirming..." : "Confirm"}
             </Button>
@@ -460,6 +501,19 @@ export function BookingDetailsDialog({
             if (await cancel()) setCancelOpen(false)
           }}
         />
+        {/* Mounted only while open — see booking-row-actions.tsx for why. */}
+        {confirmOpen && (
+          <ConfirmBookingDialog
+            open={confirmOpen}
+            onOpenChange={setConfirmOpen}
+            booking={booking}
+            pending={pending === "confirm"}
+            partnerTagged={false}
+            onConfirm={async (opts) => {
+              if (await confirm(opts)) setConfirmOpen(false)
+            }}
+          />
+        )}
       </DialogContent>
     </Dialog>
   )
