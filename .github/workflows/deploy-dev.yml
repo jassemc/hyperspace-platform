@@ -1,0 +1,28 @@
+name: 🏷️🚀 Deploy Hyperspace Platform to Vercel (dev)
+
+on:
+  workflow_dispatch: # Manual trigger
+  push:
+    branches:
+      - develop
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: true
+
+jobs:
+  quality-gates:
+    name: Quality Gates
+    uses: ./.github/workflows/_quality.yml
+
+  deploy:
+    name: Deploy
+    needs: quality-gates
+    uses: ./.github/workflows/_deploy-vercel.yml
+    with:
+      environment: development
+    secrets: inherit
