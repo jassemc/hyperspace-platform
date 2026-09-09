@@ -45,6 +45,8 @@ interface DateFieldProps {
   /** Render the calendar in place — required inside a vaul drawer; see
    *  PopoverContent's portalled prop. */
   portalled?: boolean
+  /** Accessible name when no <label> points at the field. */
+  "aria-label"?: string
 }
 
 export function DateField({
@@ -57,6 +59,7 @@ export function DateField({
   required = false,
   clearable = false,
   portalled = true,
+  "aria-label": ariaLabel,
 }: Readonly<DateFieldProps>) {
   const [open, setOpen] = React.useState(false)
   const selected = toDate(value)
@@ -71,6 +74,7 @@ export function DateField({
           <Button
             id={id}
             type="button"
+            aria-label={ariaLabel}
             variant="outline"
             className={cn(
               "h-9 flex-1 justify-start font-normal",

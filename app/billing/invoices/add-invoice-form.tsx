@@ -3,7 +3,7 @@
 import { useEffect, useActionState, useRef, useState } from "react"
 import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Label } from "@/components/ui/label"
 import {
   Drawer,
@@ -62,6 +62,12 @@ export function AddInvoiceForm({
   const [selectedChargeIds, setSelectedChargeIds] = useState<string[]>([])
 
   const notifiedRef = useRef(false)
+  // The calendar picker is controlled; a fresh open starts blank.
+  const [dueAt, setDueAt] = useState("")
+
+  useEffect(() => {
+    if (isOpen) setDueAt("")
+  }, [isOpen])
 
   useEffect(() => {
     if (!isOpen) {
@@ -260,7 +266,17 @@ export function AddInvoiceForm({
 
                 <div className="grid gap-2">
                   <Label htmlFor="dueAt">Due date</Label>
-                  <Input id="dueAt" name="dueAt" type="date" />
+                  {/* In place, not portalled: inside the vaul drawer a portalled
+                      calendar renders but eats every click. */}
+                  <DateField
+                    id="dueAt"
+                    name="dueAt"
+                    value={dueAt}
+                    onChange={setDueAt}
+                    placeholder="Default terms"
+                    clearable
+                    portalled={false}
+                  />
                 </div>
 
                 {state.error && <div className="text-sm text-red-600">{state.error}</div>}

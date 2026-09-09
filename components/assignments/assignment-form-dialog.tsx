@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { toast } from "sonner"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Label } from "@/components/ui/label"
 import {
   Dialog,
@@ -44,6 +44,16 @@ export function AssignmentFormDialog({ anchor, open, onOpenChange, onCreated }: 
   const [loading, setLoading] = useState(false)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // The calendar pickers are controlled; a fresh open starts blank.
+  const [startsAt, setStartsAt] = useState("")
+  const [endsAt, setEndsAt] = useState("")
+
+  useEffect(() => {
+    if (open) {
+      setStartsAt("")
+      setEndsAt("")
+    }
+  }, [open])
 
   useEffect(() => {
     if (!open) return
@@ -136,12 +146,29 @@ export function AssignmentFormDialog({ anchor, open, onOpenChange, onCreated }: 
 
           <div className="grid gap-2">
             <Label htmlFor="assign-startsAt">Starts at</Label>
-            <Input id="assign-startsAt" name="startsAt" type="date" required />
+            {/* In a modal layer already, so the calendar renders in place. */}
+            <DateField
+              id="assign-startsAt"
+              name="startsAt"
+              value={startsAt}
+              onChange={setStartsAt}
+              required
+              portalled={false}
+            />
           </div>
 
           <div className="grid gap-2">
             <Label htmlFor="assign-endsAt">Ends at</Label>
-            <Input id="assign-endsAt" name="endsAt" type="date" />
+            <DateField
+              id="assign-endsAt"
+              name="endsAt"
+              value={endsAt}
+              onChange={setEndsAt}
+              min={startsAt}
+              placeholder="Open-ended"
+              clearable
+              portalled={false}
+            />
             <p className="text-xs text-muted-foreground">Optional planned end. Leave blank for open-ended.</p>
           </div>
 

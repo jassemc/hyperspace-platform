@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Label } from "@/components/ui/label"
 import { CalendarX, MoveRight } from "lucide-react"
 import { toast } from "sonner"
@@ -115,11 +115,12 @@ export function AssignmentActionButtons({
             </div>
             <div className="grid gap-2">
               <Label htmlFor={`effective-${assignmentId}`}>Effective date</Label>
-              <Input
+              <DateField
                 id={`effective-${assignmentId}`}
-                type="date"
+                name="effectiveDate"
                 value={effectiveDate}
-                onChange={(e) => setEffectiveDate(e.target.value)}
+                onChange={setEffectiveDate}
+                portalled={false}
               />
             </div>
           </div>
@@ -156,11 +157,12 @@ export function AssignmentActionButtons({
           </AlertDialogHeader>
           <div className="grid gap-2 py-2">
             <Label htmlFor={`ends-${assignmentId}`}>End date</Label>
-            <Input
+            <DateField
               id={`ends-${assignmentId}`}
-              type="date"
+              name="endsAt"
               value={endsAt}
-              onChange={(e) => setEndsAt(e.target.value)}
+              onChange={setEndsAt}
+              portalled={false}
             />
           </div>
           <AlertDialogFooter>

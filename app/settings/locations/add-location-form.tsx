@@ -4,6 +4,7 @@ import { useEffect, useActionState, useRef, useState } from "react"
 import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Label } from "@/components/ui/label"
 import {
   Drawer,
@@ -213,19 +214,24 @@ export function AddLocationForm({ isOpen, onClose, editingLocation }: Readonly<A
                   {closures.map((row, index) => (
                     <div key={index} className="grid gap-2 rounded-md border border-input p-3">
                       <div className="grid grid-cols-2 gap-2">
-                        <Input
+                        {/* In place, not portalled: inside the vaul drawer a
+                            portalled calendar renders but eats every click. */}
+                        <DateField
                           name="closedFrom"
-                          type="date"
                           value={row.from}
-                          onChange={(e) => updateClosure(index, { from: e.target.value })}
+                          onChange={(from) => updateClosure(index, { from })}
+                          placeholder="Closed from"
                           aria-label="Closed from"
+                          portalled={false}
                         />
-                        <Input
+                        <DateField
                           name="closedTo"
-                          type="date"
                           value={row.to}
-                          onChange={(e) => updateClosure(index, { to: e.target.value })}
+                          onChange={(to) => updateClosure(index, { to })}
+                          min={row.from}
+                          placeholder="Closed until"
                           aria-label="Closed until"
+                          portalled={false}
                         />
                       </div>
                       <Input

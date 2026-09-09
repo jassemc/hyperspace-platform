@@ -4,6 +4,7 @@ import { useEffect, useActionState, useRef, useState } from "react"
 import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Label } from "@/components/ui/label"
 import {
   Drawer,
@@ -44,6 +45,12 @@ export function EditCreditForm({ isOpen, onClose, editingCredit }: Readonly<Edit
   const [state, formAction] = useActionState(updateCreditAction, {})
   const [resourceTypes, setResourceTypes] = useState<ResourceTypeDto[]>([])
   const notifiedRef = useRef(false)
+  // The calendar picker is controlled, so the value is reset per open.
+  const [expiresAt, setExpiresAt] = useState("")
+
+  useEffect(() => {
+    if (isOpen) setExpiresAt(editingCredit?.expiresAt?.slice(0, 10) ?? "")
+  }, [isOpen, editingCredit])
 
   useEffect(() => {
     if (!isOpen) return
@@ -109,11 +116,16 @@ export function EditCreditForm({ isOpen, onClose, editingCredit }: Readonly<Edit
 
                 <div className="grid gap-2">
                   <Label htmlFor="expiresAt">Expires at</Label>
-                  <Input
+                  {/* In place, not portalled: inside the vaul drawer a portalled
+                      calendar renders but eats every click. */}
+                  <DateField
                     id="expiresAt"
                     name="expiresAt"
-                    type="date"
-                    defaultValue={editingCredit.expiresAt?.slice(0, 10) ?? ""}
+                    value={expiresAt}
+                    onChange={setExpiresAt}
+                    placeholder="Never lapses"
+                    clearable
+                    portalled={false}
                   />
                   <p className="text-xs text-muted-foreground">Leave blank so it never lapses.</p>
                 </div>

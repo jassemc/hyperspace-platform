@@ -4,6 +4,7 @@ import { useEffect, useActionState, useRef, useState } from "react"
 import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Label } from "@/components/ui/label"
 import {
   Drawer,
@@ -52,6 +53,12 @@ export function AddCreditForm({
   const [membershipId, setMembershipId] = useState("")
   const [resourceTypes, setResourceTypes] = useState<ResourceTypeDto[]>([])
   const notifiedRef = useRef(false)
+  // The calendar picker is controlled; a fresh open starts blank.
+  const [expiresAt, setExpiresAt] = useState("")
+
+  useEffect(() => {
+    if (isOpen) setExpiresAt("")
+  }, [isOpen])
 
   useEffect(() => {
     if (!isOpen) return
@@ -167,7 +174,17 @@ export function AddCreditForm({
 
                 <div className="grid gap-2">
                   <Label htmlFor="expiresAt">Expires at</Label>
-                  <Input id="expiresAt" name="expiresAt" type="date" />
+                  {/* In place, not portalled: inside the vaul drawer a portalled
+                      calendar renders but eats every click. */}
+                  <DateField
+                    id="expiresAt"
+                    name="expiresAt"
+                    value={expiresAt}
+                    onChange={setExpiresAt}
+                    placeholder="Never lapses"
+                    clearable
+                    portalled={false}
+                  />
                   <p className="text-xs text-muted-foreground">Leave blank for credit that never lapses.</p>
                 </div>
 

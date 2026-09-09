@@ -4,6 +4,7 @@ import { useEffect, useActionState, useRef, useState } from "react"
 import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Label } from "@/components/ui/label"
 import {
   Drawer,
@@ -67,6 +68,16 @@ export function AddDiscountForm({
   const [selectedRateIds, setSelectedRateIds] = useState<string[]>([])
   const [appliesToAll, setAppliesToAll] = useState(false)
   const [isPublic, setIsPublic] = useState(false)
+  // The calendar pickers are controlled, so the window is reset per open.
+  const [validFrom, setValidFrom] = useState("")
+  const [validUntil, setValidUntil] = useState("")
+
+  useEffect(() => {
+    if (isOpen) {
+      setValidFrom(editingDiscount?.validFrom ?? "")
+      setValidUntil(editingDiscount?.validUntil ?? "")
+    }
+  }, [isOpen, editingDiscount])
 
   const [createState, createFormAction] = useActionState(createDiscountAction, {})
   const [updateState, updateFormAction] = useActionState(updateDiscountAction, {})
@@ -462,20 +473,29 @@ export function AddDiscountForm({
                 <div className="grid gap-2">
                   <div className="grid gap-2">
                     <Label htmlFor="validFrom">Valid from</Label>
-                    <Input
+                    {/* In place, not portalled: inside the vaul drawer a
+                        portalled calendar renders but eats every click. */}
+                    <DateField
                       id="validFrom"
                       name="validFrom"
-                      type="date"
-                      defaultValue={editingDiscount?.validFrom ?? ""}
+                      value={validFrom}
+                      onChange={setValidFrom}
+                      placeholder="No start"
+                      clearable
+                      portalled={false}
                     />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="validUntil">Valid until</Label>
-                    <Input
+                    <DateField
                       id="validUntil"
                       name="validUntil"
-                      type="date"
-                      defaultValue={editingDiscount?.validUntil ?? ""}
+                      value={validUntil}
+                      onChange={setValidUntil}
+                      min={validFrom}
+                      placeholder="No end"
+                      clearable
+                      portalled={false}
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">Leave blank for no limit.</p>
