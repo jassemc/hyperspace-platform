@@ -2869,6 +2869,12 @@ export interface BusyIntervalDto {
   startsAt: string;
   /** @format date-time */
   endsAt: string;
+  /**
+   * PENDING (a website request awaiting staff) or CONFIRMED — both hold
+   * the slot (#34); clients draw a pending hold in its own colour so
+   * staff and visitors can tell "taken" from "asked for".
+   */
+  status: BookingStatus;
 }
 
 export interface AvailabilityDto {
@@ -3187,6 +3193,14 @@ export interface OpportunityDto {
    */
   requestedDate?: string | null;
   /**
+   * The public plan offer live when the website quoted this request
+   * (#51 / #52) — the code to apply at conversion so the visitor gets the
+   * price they were shown. Distinct from `requestedDiscountCode`, the
+   * visitor's own code. Null when no offer applied.
+   * @example "DOCSHOT25"
+   */
+  publicOfferCode?: string | null;
+  /**
    * The date of creation of the resource
    * @format date-time
    * @example "2025-05-25T10:03:33.169Z"
@@ -3309,6 +3323,11 @@ export interface CreateOpportunityDto {
    * @example "2026-09-15"
    */
   requestedDate?: string;
+  /**
+   * The public plan offer live when the website quoted the request (#52).
+   * @example "DOCSHOT25"
+   */
+  publicOfferCode?: string;
 }
 
 export interface UpdateOpportunityDto {
@@ -3785,22 +3804,39 @@ export interface PlanRequestResultDto {
   opportunityId: string;
   /** @format uuid */
   planId: string;
-  /** @example 200 */
+  /**
+   * The plan fee actually quoted: the list price, or the public offer's
+   * discounted price when one is live on the plan (#52) — the same figure
+   * every public surface showed the visitor before they submitted.
+   * @example 150
+   */
   priceHt: number;
+  /**
+   * The plan's undiscounted list fee; equals priceHt when no offer applies.
+   * @example 200
+   */
+  listPriceHt: number;
+  /**
+   * The public offer that priced this quote, or null. Recorded on the
+   * opportunity as `publicOfferCode` for staff to apply at conversion,
+   * and kept apart from `discountCode` — the visitor's own code (#51).
+   */
+  publicOffer?: PublicOfferDto | null;
   extras: Array<QuoteExtraDto>;
   /**
    * priceHt + the sum of the selected extras' priceHt.
-   * @example 230
+   * @example 180
    */
   totalHt: number;
   /**
-   * planTtc + the sum of the selected extras' totalTtc.
-   * @example 273.7
+   * the plan fee TTC + the sum of the selected extras' totalTtc.
+   * @example 214.2
    */
   totalTtc: number;
   /**
    * The code as typed (normalised), echoed back — not applied to any
-   * price on this path. Staff keep or drop it at onboarding.
+   * price on this path. Staff keep or drop it at onboarding. Never
+   * replaced by the public offer's code (#51).
    * @example "SUMMER26"
    */
   discountCode?: string | null;
