@@ -41,6 +41,18 @@ export function formatDate(value: string | null | undefined): string {
     return Number.isNaN(date.getTime()) ? "-" : date.toLocaleDateString()
 }
 
+/**
+ * A plain YYYY-MM-DD calendar date (a requested day, a validity bound) —
+ * read as a local date, never as UTC midnight, so it cannot slip to the day
+ * before in a browser west of Greenwich. `-` when missing or unparseable.
+ */
+export function formatCalendarDate(value: string | null | undefined): string {
+    if (!value) return "-"
+    const [year, month, day] = value.slice(0, 10).split("-").map(Number)
+    if (!year || !month || !day) return "-"
+    return new Date(year, month - 1, day).toLocaleDateString()
+}
+
 /** The business date in Tunis, not the browser's, since the API works in it. */
 export function todayInTunis(): string {
     return new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Tunis" }).format(new Date())

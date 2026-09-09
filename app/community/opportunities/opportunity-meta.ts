@@ -48,6 +48,7 @@ export const OPPORTUNITY_INTEREST_LABELS: Record<OpportunityInterest, string> = 
     domiciliation: "Domiciliation",
     private_office: "Private office",
     meeting_room: "Meeting room",
+    free_day: "Free trial day",
     other: "Other",
 }
 

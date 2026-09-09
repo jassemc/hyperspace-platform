@@ -3084,7 +3084,13 @@ export interface OpportunityMemberDto {
   email?: string | null;
 }
 
-export type OpportunityInterest = "coworking" | "domiciliation" | "private_office" | "meeting_room" | "other";
+export type OpportunityInterest =
+  | "coworking"
+  | "domiciliation"
+  | "private_office"
+  | "meeting_room"
+  | "free_day"
+  | "other";
 
 export type OpportunityStage = "new" | "contacted" | "tour" | "quote" | "won" | "lost";
 
@@ -3172,6 +3178,14 @@ export interface OpportunityDto {
    * @example "SUMMER26"
    */
   requestedDiscountCode?: string | null;
+  /**
+   * The day the visitor asked for (free trial day, meeting, move-in), as
+   * a YYYY-MM-DD business date. A wish to confirm, not a booking. Null
+   * when the request carried none.
+   * @format date
+   * @example "2026-09-15"
+   */
+  requestedDate?: string | null;
   /**
    * The date of creation of the resource
    * @format date-time
@@ -3289,6 +3303,12 @@ export interface CreateOpportunityDto {
    * @example "SUMMER26"
    */
   requestedDiscountCode?: string;
+  /**
+   * The day the visitor asked for, as a YYYY-MM-DD business date.
+   * @format date
+   * @example "2026-09-15"
+   */
+  requestedDate?: string;
 }
 
 export interface UpdateOpportunityDto {
@@ -3315,6 +3335,12 @@ export interface UpdateOpportunityDto {
    * @example "SUMMER26"
    */
   requestedDiscountCode?: string | null;
+  /**
+   * A date the lead no longer wants is cleared with null.
+   * @format date
+   * @example "2026-09-15"
+   */
+  requestedDate?: string | null;
 }
 
 export interface OnboardingResultDto {
@@ -3855,8 +3881,9 @@ export interface CreateContactRequestDto {
    */
   freeDay?: boolean;
   /**
-   * Preferred visit date (Africa/Tunis business day) — recorded on the
-   * opportunity for staff, mainly with `freeDay`.
+   * Preferred visit date (Africa/Tunis business day) — stored as the
+   * opportunity's `requestedDate`, whatever the interest (a trial day,
+   * a meeting, a move-in).
    * @format date
    * @example "2026-09-01"
    */
@@ -7241,7 +7268,7 @@ export namespace Api {
   }
 
   /**
-   * @description QR flow: the static QR at the door opens the portal page, which calls this endpoint with the member’s own token (method=qr; memberId omitted). Staff check any member in (method=manual) and may force `visitor`/`trial`. Authorization walks §6.2 in order: 24/7 entitlement → business-hours entitlement → half-day credit (consumed FIFO, atomic with the check-in; a same-half-day return consumes nothing) → forced → precise denial.
+   * @description QR flow: the static QR at the door opens the portal page, which calls this endpoint with the member’s own token (method=qr; memberId omitted). Staff check any member in (method=manual) and may force `visitor`/`trial` and set `checkedInAt`/`checkedOutAt` to record a past visit (authorization is evaluated at `checkedInAt`). Authorization walks §6.2 in order: 24/7 entitlement → business-hours entitlement → half-day credit (consumed FIFO, atomic with the check-in; a same-half-day return consumes nothing) → forced → precise denial.
    * @tags Attendance
    * @name CheckIn
    * @summary Check a member in (§6.2 authorization)
@@ -8200,7 +8227,7 @@ export namespace Api {
   }
 
   /**
-   * @description Creates member (visitor) + opportunity for a lightweight lead: the visitor asks about a service category (categorySlug, see GET /public/plan-categories; bare interest slugs like meeting_room are accepted too) OR wants a free trial day (freeDay) — exactly one of the two. No plan and no quote; the priced funnels stay /plan-requests and /booking-requests. Identity comes only from the body — no user account involved.
+   * @description Creates member (visitor) + opportunity for a lightweight lead: the visitor asks about a service category (categorySlug, see GET /public/plan-categories; bare interest slugs like meeting_room are accepted too) OR wants a free trial day (freeDay, stored as the free_day interest) — exactly one of the two. preferredDate becomes the opportunity requestedDate and notes are kept verbatim, for every interest. No plan and no quote; the priced funnels stay /plan-requests and /booking-requests. Identity comes only from the body — no user account involved.
    * @tags Public (website)
    * @name PublicCreateContactRequest
    * @summary Landing-page contact request
@@ -11075,7 +11102,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description QR flow: the static QR at the door opens the portal page, which calls this endpoint with the member’s own token (method=qr; memberId omitted). Staff check any member in (method=manual) and may force `visitor`/`trial`. Authorization walks §6.2 in order: 24/7 entitlement → business-hours entitlement → half-day credit (consumed FIFO, atomic with the check-in; a same-half-day return consumes nothing) → forced → precise denial.
+     * @description QR flow: the static QR at the door opens the portal page, which calls this endpoint with the member’s own token (method=qr; memberId omitted). Staff check any member in (method=manual) and may force `visitor`/`trial` and set `checkedInAt`/`checkedOutAt` to record a past visit (authorization is evaluated at `checkedInAt`). Authorization walks §6.2 in order: 24/7 entitlement → business-hours entitlement → half-day credit (consumed FIFO, atomic with the check-in; a same-half-day return consumes nothing) → forced → precise denial.
      *
      * @tags Attendance
      * @name CheckIn
@@ -11852,7 +11879,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Creates member (visitor) + opportunity for a lightweight lead: the visitor asks about a service category (categorySlug, see GET /public/plan-categories; bare interest slugs like meeting_room are accepted too) OR wants a free trial day (freeDay) — exactly one of the two. No plan and no quote; the priced funnels stay /plan-requests and /booking-requests. Identity comes only from the body — no user account involved.
+     * @description Creates member (visitor) + opportunity for a lightweight lead: the visitor asks about a service category (categorySlug, see GET /public/plan-categories; bare interest slugs like meeting_room are accepted too) OR wants a free trial day (freeDay, stored as the free_day interest) — exactly one of the two. preferredDate becomes the opportunity requestedDate and notes are kept verbatim, for every interest. No plan and no quote; the priced funnels stay /plan-requests and /booking-requests. Identity comes only from the body — no user account involved.
      *
      * @tags Public (website)
      * @name PublicCreateContactRequest

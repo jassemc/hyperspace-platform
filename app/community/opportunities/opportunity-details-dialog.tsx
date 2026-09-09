@@ -12,12 +12,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Copy, Mail, MapPin, Package, Pencil, User, UserPlus } from "lucide-react"
+import { CalendarDays, Copy, Mail, MapPin, Package, Pencil, User, UserPlus } from "lucide-react"
 import { toast } from "sonner"
 import { getPlan } from "@/lib/service"
 import type { OpportunityDto, PlanDto } from "@/lib/service/HsService"
 import { apiString } from "@/lib/api-value"
-import { formatDate, formatPriceHt, formatVatRate, priceTtc } from "@/lib/format"
+import {
+  formatCalendarDate,
+  formatDate,
+  formatPriceHt,
+  formatVatRate,
+  priceTtc,
+} from "@/lib/format"
 import { benefitLabel } from "@/lib/benefits"
 import {
   OPPORTUNITY_INTEREST_LABELS,
@@ -114,6 +120,8 @@ export function OpportunityDetailsDialog({
   }, [open, planId])
 
   const { member, requestedPlan, requestedResource, notes } = opportunity
+  // The day the visitor asked for — a wish to confirm, not a booking.
+  const requestedDate = apiString(opportunity.requestedDate)
   const value = opportunityValue(opportunity)
   const breakdown = valueBreakdown(value)
   const source = apiString(opportunity.source)
@@ -177,13 +185,26 @@ export function OpportunityDetailsDialog({
           </div>
 
           <Section title="Requested">
-            {!requestedPlan && !requestedResource ? (
+            {!requestedPlan && !requestedResource && !requestedDate ? (
               <p className="text-sm text-muted-foreground">
                 Nothing requested yet — a plan is needed before this lead can be converted.
               </p>
             ) : (
               <dl className="rounded-lg border text-sm">
-                <div className="flex items-start justify-between gap-3 px-3 py-2">
+                {requestedDate && (
+                  <div className="flex items-start justify-between gap-3 px-3 py-2">
+                    <dt className="flex items-center gap-2 text-muted-foreground">
+                      <CalendarDays className="h-4 w-4" />
+                      Date
+                    </dt>
+                    <dd className="text-right">{formatCalendarDate(requestedDate)}</dd>
+                  </div>
+                )}
+                <div
+                  className={`flex items-start justify-between gap-3 px-3 py-2 ${
+                    requestedDate ? "border-t" : ""
+                  }`}
+                >
                   <dt className="flex items-center gap-2 text-muted-foreground">
                     <Package className="h-4 w-4" />
                     Plan

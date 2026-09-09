@@ -92,6 +92,7 @@ function opportunityFields(formData: FormData) {
       "requestedDiscountCode",
       text(formData, "requestedDiscountCode")
     ),
+    requestedDate: clearable(formData, "requestedDate", text(formData, "requestedDate")),
   }
 }
 
@@ -115,6 +116,7 @@ export async function createOpportunityAction(
       requestedResourceId: fields.requestedResourceId ?? undefined,
       requestedPlanPriceHt: fields.requestedPlanPriceHt ?? undefined,
       requestedDiscountCode: fields.requestedDiscountCode ?? undefined,
+      requestedDate: fields.requestedDate ?? undefined,
       memberId: fields.memberId,
       interest: fields.interest,
       // Required by the schema; an opportunity always carries a list.

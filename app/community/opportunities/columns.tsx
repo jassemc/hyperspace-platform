@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge"
 import type { ColumnDef } from "@tanstack/react-table"
 import type { OpportunityDto, OpportunityInterest, OpportunityStage } from "@/lib/service/HsService"
-import { formatDate, formatPriceHt } from "@/lib/format"
+import { formatCalendarDate, formatDate, formatPriceHt } from "@/lib/format"
 import type { OptionsLoading } from "./use-opportunity-options"
 import { apiNumber, apiString } from "@/lib/api-value"
 import { OpportunityRowActions } from "./opportunity-row-actions"
@@ -55,15 +55,27 @@ export const createColumns = ({
     header: "Requested",
     cell: ({ row }) => {
       const { requestedPlan, requestedResource } = row.original
-      if (!requestedPlan && !requestedResource) {
+      // The day the visitor asked for — a trial day, a meeting, a move-in.
+      const requestedDate = apiString(row.original.requestedDate)
+      const hasPlanOrSpace = Boolean(requestedPlan || requestedResource)
+      if (!hasPlanOrSpace && !requestedDate) {
         return <span className="text-muted-foreground">-</span>
       }
       return (
         <div className="flex flex-col">
-          <span>{requestedPlan?.name ?? "No plan"}</span>
-          <span className="text-xs text-muted-foreground">
-            {requestedResource?.name ?? "Space to assign"}
-          </span>
+          {hasPlanOrSpace && (
+            <>
+              <span>{requestedPlan?.name ?? "No plan"}</span>
+              <span className="text-xs text-muted-foreground">
+                {requestedResource?.name ?? "Space to assign"}
+              </span>
+            </>
+          )}
+          {requestedDate && (
+            <span className={hasPlanOrSpace ? "text-xs text-muted-foreground" : undefined}>
+              {formatCalendarDate(requestedDate)}
+            </span>
+          )}
         </div>
       )
     },

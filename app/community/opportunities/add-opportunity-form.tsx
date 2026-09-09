@@ -366,6 +366,20 @@ export function AddOpportunityForm({
                 </div>
 
                 <div className="grid gap-2">
+                  <Label htmlFor="requestedDate">Requested date</Label>
+                  <Input
+                    id="requestedDate"
+                    name="requestedDate"
+                    type="date"
+                    defaultValue={apiString(editingOpportunity?.requestedDate) ?? ""}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    The day they asked for — a trial day, a meeting, a move-in. A wish
+                    to confirm, not a booking.
+                  </p>
+                </div>
+
+                <div className="grid gap-2">
                   <Label htmlFor="requestedDiscountCode">Discount code</Label>
                   <Input
                     id="requestedDiscountCode"
