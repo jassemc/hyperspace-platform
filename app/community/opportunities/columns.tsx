@@ -61,18 +61,18 @@ export const createColumns = ({
       if (!hasPlanOrSpace && !requestedDate) {
         return <span className="text-muted-foreground">-</span>
       }
+      // Same shape whether or not a plan was asked for: the plan line
+      // leads, the date sits under it like the space does.
       return (
         <div className="flex flex-col">
+          <span>{requestedPlan?.name ?? "No plan"}</span>
           {hasPlanOrSpace && (
-            <>
-              <span>{requestedPlan?.name ?? "No plan"}</span>
-              <span className="text-xs text-muted-foreground">
-                {requestedResource?.name ?? "Space to assign"}
-              </span>
-            </>
+            <span className="text-xs text-muted-foreground">
+              {requestedResource?.name ?? "Space to assign"}
+            </span>
           )}
           {requestedDate && (
-            <span className={hasPlanOrSpace ? "text-xs text-muted-foreground" : undefined}>
+            <span className="text-xs text-muted-foreground">
               {formatCalendarDate(requestedDate)}
             </span>
           )}

@@ -5,6 +5,7 @@ import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { ExtraTagPicker } from "@/components/extra-tag-picker"
 import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Label } from "@/components/ui/label"
 import {
   Drawer,
@@ -81,6 +82,10 @@ export function AddOpportunityForm({
   )
   const [quotedPrice, setQuotedPrice] = useState(
     apiNumber(editingOpportunity?.requestedPlanPriceHt)?.toString() ?? ""
+  )
+  // The day they asked for; DateField is controlled and posts it hidden.
+  const [requestedDate, setRequestedDate] = useState(
+    apiString(editingOpportunity?.requestedDate) ?? ""
   )
 
   const createNotifiedRef = useRef(false)
@@ -367,11 +372,16 @@ export function AddOpportunityForm({
 
                 <div className="grid gap-2">
                   <Label htmlFor="requestedDate">Requested date</Label>
-                  <Input
+                  {/* In place, not portalled: inside the vaul drawer a portalled
+                      calendar renders but eats every click (see convert-lead-form). */}
+                  <DateField
                     id="requestedDate"
                     name="requestedDate"
-                    type="date"
-                    defaultValue={apiString(editingOpportunity?.requestedDate) ?? ""}
+                    value={requestedDate}
+                    onChange={setRequestedDate}
+                    placeholder="No date"
+                    clearable
+                    portalled={false}
                   />
                   <p className="text-xs text-muted-foreground">
                     The day they asked for — a trial day, a meeting, a move-in. A wish
