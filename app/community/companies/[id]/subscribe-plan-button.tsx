@@ -1,8 +1,8 @@
 "use client"
 
-import React, { useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Label } from "@/components/ui/label"
 import {
   Drawer,
@@ -27,18 +27,6 @@ import { useRouter } from "next/navigation"
 const selectClassName =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
 
-/** Opens the date picker explicitly, since the drawer swallows the click that would. */
-function openNativePicker(event: React.MouseEvent<HTMLInputElement>) {
-  const input = event.currentTarget
-  if (typeof input.showPicker !== "function") return
-
-  try {
-    input.showPicker()
-  } catch {
-    // Thrown when the call is not tied to a user gesture; typing still works.
-  }
-}
-
 export function SubscribePlanButton({ companyId }: Readonly<{ companyId: string }>) {
   const router = useRouter()
   const [isOpen, setIsOpen] = useState(false)
@@ -46,6 +34,12 @@ export function SubscribePlanButton({ companyId }: Readonly<{ companyId: string 
   const [members, setMembers] = useState<MemberDto[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  // The calendar picker is controlled; a fresh open starts blank.
+  const [startsAt, setStartsAt] = useState("")
+
+  useEffect(() => {
+    if (isOpen) setStartsAt("")
+  }, [isOpen])
 
   useEffect(() => {
     if (!isOpen) return
@@ -166,16 +160,15 @@ export function SubscribePlanButton({ companyId }: Readonly<{ companyId: string 
 
                   <div className="grid gap-2">
                     <Label htmlFor="startsAt">Starts at</Label>
-                    <Input
+                    {/* In place, not portalled: inside the vaul drawer a portalled
+                        calendar renders but eats every click. */}
+                    <DateField
                       id="startsAt"
                       name="startsAt"
-                      type="date"
+                      value={startsAt}
+                      onChange={setStartsAt}
                       required
-                      // vaul treats every pointerdown in a left/right drawer as a
-                      // potential drag and captures the pointer, so the browser
-                      // never opens the native calendar on its own.
-                      data-vaul-no-drag
-                      onClick={openNativePicker}
+                      portalled={false}
                     />
                     <p className="text-xs text-muted-foreground">
                       First day of the membership, in Africa/Tunis business dates.

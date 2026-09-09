@@ -4,6 +4,7 @@ import { useEffect, useActionState, useRef, useState } from "react"
 import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Label } from "@/components/ui/label"
 import {
   Dialog,
@@ -124,6 +125,9 @@ export function MembershipFormDialog({
   const [discountsError, setDiscountsError] = useState(false)
   const [selectedExtraIds, setSelectedExtraIds] = useState<string[]>([])
   const [priceOverride, setPriceOverride] = useState<number | undefined>(undefined)
+  // The calendar pickers are controlled; both reset per open below.
+  const [startsAt, setStartsAt] = useState("")
+  const [endsAt, setEndsAt] = useState("")
 
   // The last state object each notify effect has already reacted to.
   // `useActionState` hands back a fresh object on every dispatch, so
@@ -143,6 +147,8 @@ export function MembershipFormDialog({
       setPriceOverride(undefined)
       setAssignedDiscount(null)
       setDiscountsError(false)
+      setStartsAt(editingMembership?.startsAt ?? "")
+      setEndsAt(editingMembership?.endsAt ?? "")
     }
   }, [isOpen, editingMembership, defaultCompanyId])
 
@@ -380,12 +386,17 @@ export function MembershipFormDialog({
                     the membership tonight, and a blank field reopens it. */}
                 <div className="grid gap-2">
                   <Label htmlFor="endsAt">Ends at</Label>
-                  <Input
+                  {/* In a modal layer already, so the calendar renders in place. */}
+                  <DateField
                     id="endsAt"
                     name="endsAt"
-                    type="date"
+                    value={endsAt}
+                    onChange={setEndsAt}
                     min={editingMembership.startsAt}
-                    defaultValue={editingMembership.endsAt ?? ""}
+                    placeholder="Open-ended"
+                    clearable={!editingMembership.cancelledAt}
+                    required={Boolean(editingMembership.cancelledAt)}
+                    portalled={false}
                   />
                   <p className="text-xs text-muted-foreground">
                     Last active day, inclusive — takes effect as is, with no notice period.
@@ -556,11 +567,27 @@ export function MembershipFormDialog({
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="grid gap-2">
                     <Label htmlFor="startsAt">Starts at</Label>
-                    <Input id="startsAt" name="startsAt" type="date" required />
+                    <DateField
+                      id="startsAt"
+                      name="startsAt"
+                      value={startsAt}
+                      onChange={setStartsAt}
+                      required
+                      portalled={false}
+                    />
                   </div>
                   <div className="grid gap-2">
                     <Label htmlFor="endsAt">Ends at</Label>
-                    <Input id="endsAt" name="endsAt" type="date" />
+                    <DateField
+                      id="endsAt"
+                      name="endsAt"
+                      value={endsAt}
+                      onChange={setEndsAt}
+                      min={startsAt}
+                      placeholder="Open-ended"
+                      clearable
+                      portalled={false}
+                    />
                     <p className="text-xs text-muted-foreground">
                       Last active day, inclusive. Leave blank for open-ended.
                     </p>

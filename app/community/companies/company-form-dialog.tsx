@@ -1,9 +1,10 @@
 "use client"
 
-import { useEffect, useActionState, useRef } from "react"
+import { useEffect, useActionState, useRef, useState } from "react"
 import { useFormStatus } from "react-dom"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { DateField } from "@/components/ui/date-field"
 import { Label } from "@/components/ui/label"
 import {
   Dialog,
@@ -57,6 +58,12 @@ export function CompanyFormDialog({ isOpen, onClose, editingCompany }: Readonly<
   // from an unrelated re-render.
   const lastCreateStateRef = useRef<ActionState | null>(null)
   const lastUpdateStateRef = useRef<ActionState | null>(null)
+
+  // The calendar picker is controlled, so the value is reset per open.
+  const [startDate, setStartDate] = useState("")
+  useEffect(() => {
+    if (isOpen) setStartDate(editingCompany?.startDate?.slice(0, 10) ?? "")
+  }, [isOpen, editingCompany])
 
   useEffect(() => {
     if (createState === lastCreateStateRef.current) return
@@ -157,11 +164,15 @@ export function CompanyFormDialog({ isOpen, onClose, editingCompany }: Readonly<
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="startDate">Start date</Label>
-                <Input
+                {/* In a modal layer already, so the calendar renders in place. */}
+                <DateField
                   id="startDate"
                   name="startDate"
-                  type="date"
-                  defaultValue={editingCompany?.startDate?.slice(0, 10) ?? ""}
+                  value={startDate}
+                  onChange={setStartDate}
+                  placeholder="No start date"
+                  clearable
+                  portalled={false}
                 />
                 <p className="text-xs text-muted-foreground">Memberships cannot start before this.</p>
               </div>
