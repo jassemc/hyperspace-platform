@@ -57,6 +57,13 @@ function monthRange(month: string, timeZone: string): { from: string; to: string
 
 const PERIODS = ["Morning", "Afternoon", "Evening"] as const
 
+/** Hatch of a confirmed booking on the day bar. */
+const BUSY_HATCH =
+  "bg-[repeating-linear-gradient(135deg,var(--color-muted-foreground)_0,var(--color-muted-foreground)_2px,transparent_2px,transparent_7px)] opacity-40"
+/** Hatch of a pending website request awaiting staff (backend #34). */
+const PENDING_HATCH =
+  "bg-[repeating-linear-gradient(135deg,var(--color-amber-500)_0,var(--color-amber-500)_2px,transparent_2px,transparent_7px)] opacity-70"
+
 /** Wall-clock hour (0–23) of a UTC instant in a zone. */
 function hourIn(iso: string, timeZone: string): number {
   return Number(
@@ -168,9 +175,17 @@ function DayTimeline({
   const pct = (ms: number) =>
     `${Math.min(100, Math.max(0, ((ms - dayStart) / span) * 100))}%`
 
+  // A pending website request holds its slot like a confirmed booking
+  // (backend #34) but is hatched in amber, so "asked for" reads apart
+  // from "taken" while staff decide.
   const busy = availability.busy
-    .map((b) => ({ start: Date.parse(b.startsAt), end: Date.parse(b.endsAt) }))
+    .map((b) => ({
+      start: Date.parse(b.startsAt),
+      end: Date.parse(b.endsAt),
+      pending: b.status === "pending",
+    }))
     .filter((b) => b.end > dayStart && b.start < dayEnd)
+  const hasPending = busy.some((b) => b.pending)
 
   const ticks: number[] = []
   for (let t = dayStart; t <= dayEnd; t += 2 * 3_600_000) ticks.push(t)
@@ -203,7 +218,7 @@ function DayTimeline({
             // A multi-capacity resource can hold two busy intervals with
             // the same start, so the start alone isn't a unique key.
             key={`${b.start}-${b.end}`}
-            className="absolute inset-y-0 bg-[repeating-linear-gradient(135deg,var(--color-muted-foreground)_0,var(--color-muted-foreground)_2px,transparent_2px,transparent_7px)] opacity-40"
+            className={cn("absolute inset-y-0", b.pending ? PENDING_HATCH : BUSY_HATCH)}
             style={{
               left: pct(Math.max(b.start, dayStart)),
               width: `calc(${pct(Math.min(b.end, dayEnd))} - ${pct(Math.max(b.start, dayStart))})`,
@@ -227,6 +242,18 @@ function DayTimeline({
           </span>
         ))}
       </div>
+      {hasPending && (
+        <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-muted-foreground">
+          <span className="inline-flex items-center gap-1">
+            <span className={cn("inline-block h-2.5 w-4 rounded-sm", BUSY_HATCH)} />
+            Booked
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className={cn("inline-block h-2.5 w-4 rounded-sm", PENDING_HATCH)} />
+            Pending request
+          </span>
+        </p>
+      )}
     </div>
   )
 }
