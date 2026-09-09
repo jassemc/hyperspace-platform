@@ -2477,6 +2477,14 @@ export interface BookingDto {
    * @example null
    */
   priceHt?: number | null;
+  /**
+   * The room at list price, before the discount `priceHt` is net of.
+   * Equals `priceHt` when no discount applies; on a PENDING booking the
+   * discount is only applied at confirm, so both are list. NULL when
+   * free or fully credit-covered.
+   * @example 40
+   */
+  roomListHt?: number | null;
   source: BookingSource;
   title?: string | null;
   notes?: string | null;

@@ -39,6 +39,7 @@ import { FREE_REASON_LABELS } from "./free-reason"
 import { MarkNoShowAlert } from "./mark-no-show-alert"
 import { useBookingMutations } from "./use-booking-mutations"
 import { BOOKING_SOURCE_LABELS, BOOKING_STATUS_CLASSES, BOOKING_STATUS_LABELS } from "./booking-status"
+import { bookingValue } from "./booking-value"
 
 /** Minutes between two instants, rendered as "1h 30m". */
 function duration(startsAt: string, endsAt: string): string {
@@ -210,11 +211,9 @@ export function BookingDetailsDialog({
   const email = booking.member?.email
   const CustomerIcon = booking.member ? User : Building2
   const sameDay = dayKey(booking.startsAt, timeZone) === dayKey(booking.endsAt, timeZone)
-  const extras = booking.extras ?? []
-  const creditCovered = !booking.isFree && (booking.priceHt === null || booking.priceHt === undefined)
-  const extrasHt = extras.reduce((s, e) => s + e.priceHt, 0)
-  const extrasTtc = extras.reduce((s, e) => s + e.totalTtc, 0)
-  const totalHt = (booking.priceHt ?? 0) + extrasHt
+  // Shared with the table's Price column, so the two cannot disagree.
+  const value = bookingValue(booking)
+  const { extras, creditCovered, extrasHt, extrasTtc, totalHt } = value
 
   return (
     <Dialog open={isOpen} onOpenChange={setOpen}>
@@ -407,24 +406,42 @@ export function BookingDetailsDialog({
                   <div className="flex justify-between border-t px-3 py-2 first:border-t-0">
                     <dt className="text-muted-foreground">Room (HT)</dt>
                     <dd className="tabular-nums">
-                      {creditCovered ? "Covered by credits" : formatPriceHt(booking.priceHt)}
+                      {creditCovered ? "Covered by credits" : formatPriceHt(value.roomListHt)}
                     </dd>
                   </div>
-                  {booking.discount && (
-                    <div className="flex justify-between border-t px-3 py-2">
-                      <dt className="text-muted-foreground">Discount ({booking.discount.code})</dt>
-                      <dd className="tabular-nums">{formatDiscountValue(booking.discount)}</dd>
-                    </div>
+                  {/* The API stores the room net of the discount plus the list
+                      price it came from; the row shows the list above, the
+                      amount taken off here, and the net below — so the total
+                      never looks like the discount was skipped (issue #37). */}
+                  {value.discount && (
+                    <>
+                      <div className="flex justify-between border-t px-3 py-2">
+                        <dt className="flex items-center gap-2 text-muted-foreground">
+                          Discount {value.discount.code} ({formatDiscountValue(value.discount)})
+                          {value.discountPending && (
+                            <Badge variant="outline" className="font-normal text-muted-foreground">
+                              applied at confirmation
+                            </Badge>
+                          )}
+                        </dt>
+                        <dd className="tabular-nums">
+                          {creditCovered ? "—" : formatPriceHt(value.discountHt)}
+                        </dd>
+                      </div>
+                      {!creditCovered && (
+                        <div className="flex justify-between border-t px-3 py-2">
+                          <dt className="text-muted-foreground">Room after discount (HT)</dt>
+                          <dd className="tabular-nums">{formatPriceHt(value.roomHt)}</dd>
+                        </div>
+                      )}
+                    </>
                   )}
                   <div className="flex justify-between border-t px-3 py-2">
                     <dt className="text-muted-foreground">Extras (HT)</dt>
                     <dd className="tabular-nums">{formatPriceHt(extrasHt)}</dd>
                   </div>
-                  {/* booking.priceHt is already net of any discount (the API
-                      applies it once, server-side, at confirm), so totalHt
-                      below must not subtract the discount a second time. */}
                   <div className="flex justify-between border-t bg-muted/40 px-3 py-2 font-semibold">
-                    <dt>Total HT</dt>
+                    <dt>{value.discountPending ? "Total HT (estimated)" : "Total HT"}</dt>
                     <dd className="tabular-nums">{formatPriceHt(totalHt)}</dd>
                   </div>
                 </>

@@ -8,6 +8,7 @@ import { ArrowUpDown } from "lucide-react"
 import { formatDateTime, formatEnumLabel, formatPriceHt } from "@/lib/format"
 import { BOOKING_STATUS_CLASSES, BOOKING_STATUS_LABELS } from "./booking-status"
 import { BookingRowActions } from "./booking-row-actions"
+import { bookingValue, valueBreakdown } from "./booking-value"
 import { FREE_REASON_LABELS } from "./free-reason"
 
 interface ColumnsProps {
@@ -81,14 +82,31 @@ export const createColumns = ({
           </Badge>
         )
       }
-      // NULL price means the booking is fully covered by credits.
-      const value = row.getValue<number | null>("priceHt")
-      return value === null || value === undefined ? (
-        <Badge variant="outline" className="font-normal">
-          Credit covered
-        </Badge>
-      ) : (
-        <span>{formatPriceHt(value)}</span>
+      // Shared with the details dialog, so the two cannot disagree.
+      const value = bookingValue(booking)
+      // NULL price means credits cover the room; only extras, if any, are charged.
+      if (value.creditCovered && value.extras.length === 0) {
+        return (
+          <Badge variant="outline" className="font-normal">
+            Credit covered
+          </Badge>
+        )
+      }
+      const breakdown = valueBreakdown(value)
+      return (
+        <div className="flex flex-col">
+          <span>
+            {formatPriceHt(value.totalHt)}
+            {value.discountPending && (
+              <span className="ml-1 text-xs text-muted-foreground" title="Discount applied at confirmation">
+                est.
+              </span>
+            )}
+          </span>
+          {breakdown && (
+            <span className="text-xs text-muted-foreground">{breakdown}</span>
+          )}
+        </div>
       )
     },
   },
