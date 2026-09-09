@@ -5,9 +5,10 @@ import { Button } from "@/components/ui/button"
 import type { ColumnDef } from "@tanstack/react-table"
 import type { MembershipDto, MembershipStatus } from "@/lib/service/HsService"
 import { ArrowUpDown } from "lucide-react"
-import { formatDate } from "@/lib/format"
+import { formatDate, formatPriceHt } from "@/lib/format"
 import { MEMBERSHIP_STATUS_CLASSES, MEMBERSHIP_STATUS_LABELS } from "./membership-status"
 import { MembershipRowActions } from "./membership-row-actions"
+import { membershipValue, valueBreakdown } from "./membership-value"
 
 interface ColumnsProps {
   /** Off on a member's own page, where every row is theirs. */
@@ -71,6 +72,30 @@ export const createColumns = ({
           <span className="text-xs text-muted-foreground">
             {membership.endsAt ? `until ${formatDate(membership.endsAt)}` : "open-ended"}
           </span>
+        </div>
+      )
+    },
+  },
+  {
+    id: "priceHt",
+    accessorFn: (membership) => membershipValue(membership).totalHt,
+    header: ({ column }) => (
+      <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+        Price (HT)
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => {
+      // Shared with the details dialog, so the two cannot disagree.
+      const value = membershipValue(row.original)
+      if (value.planListHt === null) {
+        return <span className="text-muted-foreground">-</span>
+      }
+      const breakdown = valueBreakdown(value)
+      return (
+        <div className="flex flex-col">
+          <span>{formatPriceHt(value.totalHt)}</span>
+          {breakdown && <span className="text-xs text-muted-foreground">{breakdown}</span>}
         </div>
       )
     },

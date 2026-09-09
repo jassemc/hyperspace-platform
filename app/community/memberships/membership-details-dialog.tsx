@@ -21,6 +21,7 @@ import { formatDate, formatEnumLabel, formatPriceHt, formatVatRate } from "@/lib
 import { benefitLabel } from "@/lib/benefits"
 import { formatDiscountValue } from "@/app/billing/discounts/discount-meta"
 import { billingCycleLabel, membershipSnapshot } from "./membership-snapshot"
+import { membershipValue, valueBreakdown } from "./membership-value"
 import { MEMBERSHIP_STATUS_CLASSES, MEMBERSHIP_STATUS_LABELS } from "./membership-status"
 import { CancelMembershipAlert } from "./cancel-membership-alert"
 import { PauseMembershipDialog } from "./pause-membership-dialog"
@@ -31,7 +32,7 @@ import { assignBlocker, useMembershipMutations } from "./use-membership-mutation
 import { AssignmentsSection } from "@/components/assignments/assignments-section"
 
 /** A row of the frozen terms table — same rhythm as the edit drawer's. */
-function Term({ label, value }: Readonly<{ label: string; value: React.ReactNode }>) {
+function Term({ label, value }: Readonly<{ label: React.ReactNode; value: React.ReactNode }>) {
   return (
     <div className="flex items-baseline justify-between gap-3 border-b px-3 py-2 last:border-b-0">
       <span className="text-muted-foreground">{label}</span>
@@ -114,6 +115,10 @@ export function MembershipDetailsDialog({
   const label = membership.name || "This membership"
   const snapshot = membershipSnapshot(membership)
   const cycle = billingCycleLabel(snapshot.plan) ?? "One-off"
+  // Shared with the table's Price column, so the two cannot disagree.
+  const value = membershipValue(membership)
+  const breakdown = valueBreakdown(value)
+  const discounted = value.discount !== null && value.discountHt !== 0
   const isPaused = membership.status === "paused"
   const isCompany = Boolean(membership.companyId)
 
@@ -141,15 +146,27 @@ export function MembershipDetailsDialog({
         </DialogHeader>
 
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto pr-1">
-          {/* The figure this membership bills on. */}
+          {/* The figure this membership bills on: plan and extras after the
+              discount, with the list price it came from struck beside it so
+              the reduction is visible at a glance. */}
           <div className="flex items-start justify-between gap-3 rounded-lg border bg-muted/30 p-4">
             <div>
-              <p className="text-sm text-muted-foreground">Plan price</p>
-              <p className="mt-1 text-2xl font-semibold tabular-nums">
-                {formatPriceHt(snapshot.plan?.priceHt)}
+              <p className="text-sm text-muted-foreground">
+                {snapshot.plan?.cycleMonths ? "Price per cycle" : "Price"}
+              </p>
+              <p className="mt-1 flex flex-wrap items-baseline gap-2">
+                <span className="text-2xl font-semibold tabular-nums">
+                  {value.planListHt === null ? "-" : formatPriceHt(value.totalHt)}
+                </span>
+                {discounted && (
+                  <s className="text-sm tabular-nums text-muted-foreground">
+                    {formatPriceHt(value.totalHt - value.discountHt)}
+                  </s>
+                )}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
                 {cycle} · VAT {formatVatRate(snapshot.plan?.vatRate)}
+                {breakdown ? ` · ${breakdown}` : ""}
               </p>
             </div>
             <div className="space-y-1 text-right text-xs text-muted-foreground">
@@ -224,8 +241,43 @@ export function MembershipDetailsDialog({
               ) : undefined
             }
           >
+            {/* The snapshot keeps the plan and extras at list price and the
+                API writes the discount as its own negative lines each cycle;
+                the rows replay that so the total never looks as if the
+                discount were skipped. */}
             <div className="rounded-lg border text-sm">
-              <Term label="Price (HT)" value={formatPriceHt(snapshot.plan?.priceHt)} />
+              <Term label="Plan (HT)" value={formatPriceHt(value.planListHt)} />
+              {value.discount && (
+                <>
+                  <Term
+                    label={`Discount ${value.discount.code} (${formatDiscountValue(value.discount)})`}
+                    value={formatPriceHt(value.planDiscountHt)}
+                  />
+                  <Term label="Plan after discount (HT)" value={formatPriceHt(value.planHt)} />
+                </>
+              )}
+              {value.extras.length > 0 && (
+                <Term
+                  label="Extras (HT)"
+                  value={
+                    <>
+                      {formatPriceHt(value.extrasHt + value.extrasDiscountHt)}
+                      {value.extrasDiscountHt !== 0 && (
+                        <span className="block text-xs text-muted-foreground">
+                          {formatPriceHt(value.extrasHt)} − {formatPriceHt(-value.extrasDiscountHt)}{" "}
+                          {value.discount?.code}
+                        </span>
+                      )}
+                    </>
+                  }
+                />
+              )}
+              {(value.discount || value.extras.length > 0) && (
+                <Term
+                  label={<span className="font-semibold">Total per cycle (HT)</span>}
+                  value={<span className="font-semibold">{formatPriceHt(value.totalHt)}</span>}
+                />
+              )}
               <Term label="VAT" value={formatVatRate(snapshot.plan?.vatRate)} />
               <Term label="Deposit" value={formatPriceHt(snapshot.plan?.deposit)} />
               <Term label="Setup fee" value={formatPriceHt(snapshot.plan?.setupFee)} />
