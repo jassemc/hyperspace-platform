@@ -246,6 +246,19 @@ export function OpportunityDetailsDialog({
                     </dd>
                   </div>
                 )}
+                {/* The offer the website priced the lead with (backend #52),
+                    shown apart from the visitor's own code (#51) — the
+                    convert drawer lets staff pick which one applies. */}
+                {apiString(opportunity.publicOfferCode) && (
+                  <div className="flex items-start justify-between gap-3 border-t px-3 py-2">
+                    <dt className="text-muted-foreground">Public offer applied</dt>
+                    <dd className="text-right">
+                      <code className="rounded bg-muted px-1 text-xs">
+                        {opportunity.publicOfferCode}
+                      </code>
+                    </dd>
+                  </div>
+                )}
               </dl>
             )}
           </Section>

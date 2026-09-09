@@ -175,10 +175,14 @@ export async function onboardLeadAction(
     if (!opportunityId) return { success: false, error: "Opportunity is required" }
     if (!startsAt) return { success: false, error: "Start date is required" }
 
-    // keep = the requested code, verbatim; replace = what staff typed;
-    // drop = explicitly null, clearing it rather than leaving it unset.
+    // keep = the visitor's requested code, verbatim; offer = the public
+    // offer live when the website quoted the lead (backend #51 — both
+    // travel in the hidden discountCode field); replace = what staff
+    // typed; drop = explicitly null, clearing it rather than leaving it
+    // unset.
     let discountCode: string | null | undefined
-    if (codeMode === "keep") discountCode = text(formData, "discountCode")
+    if (codeMode === "keep" || codeMode === "offer")
+      discountCode = text(formData, "discountCode")
     else if (codeMode === "replace") discountCode = text(formData, "discountCodeInput")
     else if (codeMode === "drop") discountCode = null
 

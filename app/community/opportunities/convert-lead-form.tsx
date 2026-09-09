@@ -62,8 +62,14 @@ export function ConvertLeadForm({
   const [state, formAction] = useActionState(onboardLeadAction, {})
   const [startsAt, setStartsAt] = useState(todayInTunis())
   const [endsAt, setEndsAt] = useState("")
-  const [codeMode, setCodeMode] = useState<"keep" | "drop" | "replace">(
-    opportunity.requestedDiscountCode ? "keep" : "replace"
+  // The visitor's own code and the public offer live when the website
+  // quoted the lead arrive separately (backend #51); staff pick which one
+  // the membership gets. The visitor's code wins by default when both are
+  // there — a partner code is the rarer, more deliberate signal.
+  const visitorCode = opportunity.requestedDiscountCode ?? null
+  const offerCode = opportunity.publicOfferCode ?? null
+  const [codeMode, setCodeMode] = useState<"keep" | "offer" | "drop" | "replace">(
+    visitorCode ? "keep" : offerCode ? "offer" : "replace"
   )
   const notifiedRef = useRef(false)
 
@@ -190,23 +196,45 @@ export function ConvertLeadForm({
 
                 <div className="grid gap-2">
                   <Label>Discount code</Label>
-                  {opportunity.requestedDiscountCode ? (
+                  {visitorCode || offerCode ? (
                     <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
-                      Requested on the website:{" "}
-                      <code className="rounded bg-muted px-1">
-                        {opportunity.requestedDiscountCode}
-                      </code>
-                      <div className="mt-2 flex gap-4">
-                        <label className="flex items-center gap-2">
-                          <input
-                            type="radio"
-                            name="codeMode"
-                            value="keep"
-                            checked={codeMode === "keep"}
-                            onChange={() => setCodeMode("keep")}
-                          />{" "}
-                          Keep
-                        </label>
+                      {visitorCode && (
+                        <p>
+                          Requested on the website:{" "}
+                          <code className="rounded bg-muted px-1">{visitorCode}</code>
+                        </p>
+                      )}
+                      {offerCode && (
+                        <p className={visitorCode ? "mt-1" : undefined}>
+                          Public offer shown to the visitor:{" "}
+                          <code className="rounded bg-muted px-1">{offerCode}</code>
+                        </p>
+                      )}
+                      <div className="mt-2 flex flex-wrap gap-4">
+                        {visitorCode && (
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="codeMode"
+                              value="keep"
+                              checked={codeMode === "keep"}
+                              onChange={() => setCodeMode("keep")}
+                            />{" "}
+                            Keep {offerCode ? "the visitor's code" : ""}
+                          </label>
+                        )}
+                        {offerCode && (
+                          <label className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name="codeMode"
+                              value="offer"
+                              checked={codeMode === "offer"}
+                              onChange={() => setCodeMode("offer")}
+                            />{" "}
+                            Apply the public offer
+                          </label>
+                        )}
                         <label className="flex items-center gap-2">
                           <input
                             type="radio"
@@ -235,7 +263,7 @@ export function ConvertLeadForm({
                     // this, but the typed code would be silently dropped.
                     <input type="hidden" name="codeMode" value="replace" />
                   )}
-                  {(codeMode === "replace" || !opportunity.requestedDiscountCode) && (
+                  {(codeMode === "replace" || (!visitorCode && !offerCode)) && (
                     <Input
                       name="discountCodeInput"
                       placeholder="e.g. 10LOYALTY"
@@ -247,7 +275,13 @@ export function ConvertLeadForm({
                   <input
                     type="hidden"
                     name="discountCode"
-                    value={codeMode === "keep" ? opportunity.requestedDiscountCode ?? "" : ""}
+                    value={
+                      codeMode === "keep"
+                        ? visitorCode ?? ""
+                        : codeMode === "offer"
+                          ? offerCode ?? ""
+                          : ""
+                    }
                   />
                   <p className="text-xs text-muted-foreground">
                     Checked when the membership is created; an unknown or ineligible code
