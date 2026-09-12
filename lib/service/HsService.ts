@@ -1620,6 +1620,13 @@ export interface ChargeDto {
    */
   vat: number;
   accountingCode?: string | null;
+  /**
+   * The discount code behind a `discount` line, also set on the fee line
+   * it reduced; null on every other row. Filter with `discountCode` on
+   * GET /charges to total a campaign.
+   * @example "LAUNCH20"
+   */
+  discountCode?: string | null;
   /** @format uuid */
   invoiceId?: string | null;
   /**
@@ -3408,6 +3415,71 @@ export interface OnboardLeadDto {
   discountCode?: string | null;
 }
 
+export interface MembershipQuoteLineDto {
+  kind: ChargeKind;
+  /** @example "Private Office — cycle 1 (2026-09-08)" */
+  description: string;
+  /**
+   * HT dinars; negative on `discount` lines.
+   * @example 900
+   */
+  amountHt: number;
+  /** @example 19 */
+  vatRate: number;
+  /**
+   * On a discount line and on the fee line it reduces (#55); null elsewhere.
+   * @example "LAUNCH20"
+   */
+  discountCode?: string | null;
+}
+
+export interface MembershipQuoteDto {
+  /** @example "Private Office" */
+  planName: string;
+  /** The plan discount that will be snapshotted onto the membership, or null. */
+  discount?: MembershipDiscountDto | null;
+  lines: Array<MembershipQuoteLineDto>;
+  /**
+   * Plan fee + extras at list price, first cycle.
+   * @example 940
+   */
+  cycleListHt: number;
+  /**
+   * Sum of the discount lines (≤ 0).
+   * @example -188
+   */
+  cycleDiscountHt: number;
+  /**
+   * What the first cycle actually costs: cycleListHt + cycleDiscountHt.
+   * @example 752
+   */
+  cycleNetHt: number;
+  /**
+   * Plan and extras deposits together — list price, never discounted.
+   * @example 900
+   */
+  depositHt: number;
+  /** @example 0 */
+  setupFeeHt: number;
+  /**
+   * Everything charged at creation: cycleNetHt + depositHt + setupFeeHt.
+   * @example 1652
+   */
+  dueAtCreationHt: number;
+}
+
+export interface OnboardingQuoteDto {
+  /** @format uuid */
+  opportunityId: string;
+  /**
+   * First day of the membership; defaults to today (Africa/Tunis).
+   * @example "2026-09-01"
+   */
+  startsAt?: string;
+  /** @example "SUMMER26" */
+  discountCode?: string | null;
+}
+
 export interface RevenueBucketDto {
   /**
    * Month ('2026-07') or plan name ('Part time') / charge-kind bucket.
@@ -4240,6 +4312,11 @@ export interface ListChargesParams {
   sort: Sort;
   /** @format uuid */
   memberId?: string;
+  /**
+   * Only the rows a discount code produced or reduced (case-insensitive).
+   * @example "LAUNCH20"
+   */
+  discountCode?: string;
   /** @format uuid */
   companyId?: string;
   kind?: ChargeKind;
@@ -6363,6 +6440,11 @@ export namespace Api {
       sort: Sort;
       /** @format uuid */
       memberId?: string;
+      /**
+       * Only the rows a discount code produced or reduced (case-insensitive).
+       * @example "LAUNCH20"
+       */
+      discountCode?: string;
       /** @format uuid */
       companyId?: string;
       kind?: ChargeKind;
@@ -7980,6 +8062,31 @@ export namespace Api {
     export type RequestBody = OnboardLeadDto;
     export type RequestHeaders = {};
     export type ResponseBody = OnboardingResultDto;
+  }
+
+  /**
+   * @description Prices the membership the opportunity would become — the first cycle's plan fee and extras at list price, the discount lines for the code as sent (keep / replace / drop, same semantics as POST /onboarding), the deposits (never discounted, and labelled so) and the setup fee — exactly as the conversion will write them. The convert-lead drawer calls this as staff change the code; the conversion re-computes everything itself.
+   * @tags Onboarding
+   * @name QuoteOnboarding
+   * @summary Quote a lead conversion (dry-run, nothing persisted)
+   * @request POST:/api/v1/onboarding/quote
+   * @secure
+   * @response `200` `(MembershipQuoteDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `403` `((ResponseErrorDto))` 403
+   * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `409` `(ResponseErrorDto)` Conflict
+   * @response `422` `((ResponseErrorDto))` 422
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   * @response `default` `MembershipQuoteDto`
+   */
+  export namespace QuoteOnboarding {
+    export type RequestParams = {};
+    export type RequestQuery = {};
+    export type RequestBody = OnboardingQuoteDto;
+    export type RequestHeaders = {};
+    export type ResponseBody = MembershipQuoteDto;
   }
 
   /**
@@ -11682,6 +11789,35 @@ export class HsService<SecurityDataType extends unknown> {
     onboardLead: (data: OnboardLeadDto, params: RequestParams = {}) =>
       this.http.request<OnboardingResultDto, ResponseErrorDto | OnboardingResultDto>({
         path: `/api/v1/onboarding`,
+        method: "POST",
+        body: data,
+        secure: true,
+        type: ContentType.Json,
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description Prices the membership the opportunity would become — the first cycle's plan fee and extras at list price, the discount lines for the code as sent (keep / replace / drop, same semantics as POST /onboarding), the deposits (never discounted, and labelled so) and the setup fee — exactly as the conversion will write them. The convert-lead drawer calls this as staff change the code; the conversion re-computes everything itself.
+     *
+     * @tags Onboarding
+     * @name QuoteOnboarding
+     * @summary Quote a lead conversion (dry-run, nothing persisted)
+     * @request POST:/api/v1/onboarding/quote
+     * @secure
+     * @response `200` `(MembershipQuoteDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `403` `((ResponseErrorDto))` 403
+     * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `409` `(ResponseErrorDto)` Conflict
+     * @response `422` `((ResponseErrorDto))` 422
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     * @response `default` `MembershipQuoteDto`
+     */
+    quoteOnboarding: (data: OnboardingQuoteDto, params: RequestParams = {}) =>
+      this.http.request<MembershipQuoteDto, ResponseErrorDto | MembershipQuoteDto>({
+        path: `/api/v1/onboarding/quote`,
         method: "POST",
         body: data,
         secure: true,

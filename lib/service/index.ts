@@ -50,17 +50,18 @@ import type {
   ListExtrasParams,
   ListInvoicesParams,
   ListLocationsParams,
-  ListMembershipsParams,
   ListMembersParams,
+  ListMembershipsParams,
   ListOpportunitiesParams,
   ListPlanCategoriesParams,
   ListPlansParams,
   ListResourceRatesParams,
-  ListResourcesParams,
   ListResourceTypesParams,
-  MembershipStatsParams,
+  ListResourcesParams,
   MemberStatsParams,
+  MembershipStatsParams,
   OnboardLeadDto,
+  OnboardingQuoteDto,
   OpportunityStatsParams,
   PublicListPlansParams,
   PublicListResourcesParams,
@@ -76,8 +77,8 @@ import type {
   UpdateLocationDto,
   UpdateMemberCompanyDto,
   UpdateMemberDto,
-  UpdateMembershipDto,
   UpdateMemberStatusDto,
+  UpdateMembershipDto,
   UpdateOpportunityDto,
   UpdatePlanCategoryDto,
   UpdatePlanDto,
@@ -488,6 +489,10 @@ export async function updateOpportunity(id: string, data: UpdateOpportunityDto, 
 
 export async function onboardLead(data: OnboardLeadDto, params?: RequestParams) {
   return hsService.api.onboardLead(data, params);
+}
+
+export async function quoteOnboarding(data: OnboardingQuoteDto, params?: RequestParams) {
+  return hsService.api.quoteOnboarding(data, params);
 }
 
 export async function getAnalyticsOccupancy(query: AnalyticsOccupancyParams, params?: RequestParams) {

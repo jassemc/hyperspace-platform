@@ -1319,6 +1319,19 @@ const meta = {
 
     {
       namespace: "api",
+      method: "POST",
+      usage: "quoteOnboarding",
+      path: "/api/v1/onboarding/quote",
+      functionName: "quoteOnboarding",
+      pathParams: [],
+      requestParams: [],
+      combinedPathAndRequestParams: [],
+      payload: { name: "data", optional: false, type: "OnboardingQuoteDto" },
+      responseType: "(MembershipQuoteDto)",
+    },
+
+    {
+      namespace: "api",
       method: "GET",
       usage: "analyticsOccupancy",
       path: "/api/v1/analytics/occupancy",
