@@ -5,7 +5,7 @@ import type {
     OpportunityStatsDto,
     RequestedExtraDto,
 } from "@/lib/service/HsService"
-import { apiNumber } from "@/lib/api-value"
+import { apiNumber, apiString } from "@/lib/api-value"
 import { formatPriceHt } from "@/lib/format"
 import { changeIn } from "@/lib/stats"
 
@@ -61,6 +61,13 @@ export interface OpportunityValue {
     planFee: number | null
     extras: RequestedExtraDto[]
     extrasTotal: number
+    /**
+     * What the website's offer took off the list sum, as a positive amount;
+     * 0 when the total is the list sum (or nothing says otherwise).
+     */
+    discountHt: number
+    /** The code that explains `discountHt`, when the lead names one. */
+    discountCode: string | null
     /** What the deal is worth, or null when there is nothing to add up. */
     total: number | null
 }
@@ -69,6 +76,12 @@ export interface OpportunityValue {
  * One definition of what a lead is worth, so the table cell and the details
  * dialog cannot drift apart. The API's own `expectedValue` wins when it has
  * one; otherwise it is the quoted plan fee plus the add-ons billing with it.
+ *
+ * A website lead's expectedValue is net of the public offer that was live
+ * when it was quoted, while requestedPlanPriceHt stays the LIST fee (the
+ * offer is applied as a real discount at conversion, backend #56) — so the
+ * gap between the two is the offer, and the breakdown names it rather than
+ * showing a list plan fee that does not add up to the total.
  */
 export function opportunityValue(opportunity: OpportunityDto): OpportunityValue {
     const extras = opportunity.requestedExtras ?? []
@@ -79,26 +92,48 @@ export function opportunityValue(opportunity: OpportunityDto): OpportunityValue 
         null
     const reported = apiNumber(opportunity.expectedValue)
     const nothingToSum = planFee === null && extras.length === 0
+    const listSum = planFee === null ? null : planFee + extrasTotal
+    const discountHt =
+        reported !== null && listSum !== null && reported < listSum
+            ? Math.round((listSum - reported) * 1000) / 1000
+            : 0
 
     return {
         planFee,
         extras,
         extrasTotal,
+        discountHt,
+        discountCode:
+            discountHt > 0
+                ? (apiString(opportunity.publicOfferCode) ??
+                  apiString(opportunity.requestedDiscountCode) ??
+                  null)
+                : null,
         total: reported ?? (nothingToSum ? null : (planFee ?? 0) + extrasTotal),
     }
 }
 
 /**
  * Says what the figure is made of, so a total nobody recognises can be traced
- * back to the plan fee and the add-ons that make it up.
+ * back to the plan fee, the add-ons that make it up, and the offer taken off.
  */
-export function valueBreakdown({ planFee, extras, extrasTotal }: OpportunityValue): string | null {
+export function valueBreakdown({
+    planFee,
+    extras,
+    extrasTotal,
+    discountHt,
+    discountCode,
+}: OpportunityValue): string | null {
     if (planFee === null) return null
     const addOns =
         extras.length > 0
             ? ` + ${extras.length} extra${extras.length > 1 ? "s" : ""} (${formatPriceHt(extrasTotal)})`
             : ""
-    return `${formatPriceHt(planFee)} plan${addOns}`
+    const offer =
+        discountHt > 0
+            ? ` − ${formatPriceHt(discountHt)}${discountCode ? ` (${discountCode})` : " offer"}`
+            : ""
+    return `${formatPriceHt(planFee)} plan${addOns}${offer}`
 }
 
 /** Won is money made, lost is money gone; neither is still in play. */

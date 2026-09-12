@@ -16,10 +16,10 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer"
 import { X } from "lucide-react"
-import type { OpportunityDto } from "@/lib/service/HsService"
+import type { MembershipQuoteDto, OpportunityDto } from "@/lib/service/HsService"
 import { apiNumber } from "@/lib/api-value"
 import { formatPriceHt, todayInTunis } from "@/lib/format"
-import { onboardLeadAction } from "./actions"
+import { onboardLeadAction, quoteOnboardingAction } from "./actions"
 import { benefitLabel } from "@/lib/benefits"
 import {
   OPPORTUNITY_INTEREST_LABELS,
@@ -34,6 +34,11 @@ interface ConvertLeadFormProps {
   opportunity: OpportunityDto
 }
 
+type CodeMode = "keep" | "offer" | "drop" | "replace"
+
+/** A typed code is re-quoted once the typing pauses, not on every key. */
+const QUOTE_DEBOUNCE_MS = 300
+
 function SubmitButton({ disabled }: Readonly<{ disabled: boolean }>) {
   const { pending } = useFormStatus()
 
@@ -44,11 +49,18 @@ function SubmitButton({ disabled }: Readonly<{ disabled: boolean }>) {
   )
 }
 
-function Row({ label, children }: Readonly<{ label: string; children: React.ReactNode }>) {
+function Row({
+  label,
+  children,
+  muted,
+  total,
+}: Readonly<{ label: React.ReactNode; children: React.ReactNode; muted?: boolean; total?: boolean }>) {
   return (
-    <div className="flex items-baseline justify-between gap-4 py-1.5">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-sm text-right">{children}</span>
+    <div className={`flex items-baseline justify-between gap-4 py-1.5 ${total ? "border-t mt-1 pt-2" : ""}`}>
+      <span className={`text-xs ${total ? "font-medium" : "text-muted-foreground"}`}>{label}</span>
+      <span className={`text-sm text-right tabular-nums ${muted ? "text-muted-foreground" : ""} ${total ? "font-medium" : ""}`}>
+        {children}
+      </span>
     </div>
   )
 }
@@ -68,9 +80,10 @@ export function ConvertLeadForm({
   // there — a partner code is the rarer, more deliberate signal.
   const visitorCode = opportunity.requestedDiscountCode ?? null
   const offerCode = opportunity.publicOfferCode ?? null
-  const [codeMode, setCodeMode] = useState<"keep" | "offer" | "drop" | "replace">(
+  const [codeMode, setCodeMode] = useState<CodeMode>(
     visitorCode ? "keep" : offerCode ? "offer" : "replace"
   )
+  const [typedCode, setTypedCode] = useState("")
   const notifiedRef = useRef(false)
 
   useEffect(() => {
@@ -91,8 +104,9 @@ export function ConvertLeadForm({
 
   const extras = opportunity.requestedExtras ?? []
   const extrasTotal = extras.reduce((sum, extra) => sum + extra.priceHt, 0)
-  // The plan fee alone; add-ons bill as their own rows every cycle.
-  const planFee =
+  // The LIST plan fee — what the quote below starts from. Add-ons bill as
+  // their own rows every cycle.
+  const listPlanFee =
     apiNumber(opportunity.requestedPlanPriceHt) ??
     opportunity.requestedPlan?.priceHt ??
     plan?.priceHt ??
@@ -100,6 +114,67 @@ export function ConvertLeadForm({
 
   // Without a plan there is nothing to bill, and the API refuses the request.
   const blocked = !opportunity.requestedPlan
+
+  // The code the conversion will be sent, as the radios and the input
+  // stand right now — the same keep / offer / drop / replace the action
+  // derives, so the preview prices what the submit would.
+  const chosenCode =
+    codeMode === "keep"
+      ? visitorCode
+      : codeMode === "offer"
+        ? offerCode
+        : codeMode === "replace"
+          ? typedCode.trim() || null
+          : null
+
+  // The preview is the API's own quote (backend #56): the exact lines the
+  // conversion will write, so the number staff approve is the number the
+  // member will owe. Re-asked whenever the code decision or the first
+  // day changes; the drawer used to show the list fee regardless of the
+  // code it was about to apply, and Remove / Replace visibly did nothing.
+  const [quote, setQuote] = useState<MembershipQuoteDto | null>(null)
+  const [quoteError, setQuoteError] = useState<string | null>(null)
+  const [quoting, setQuoting] = useState(false)
+  useEffect(() => {
+    if (blocked || !isOpen) return
+    let cancelled = false
+    setQuoting(true)
+    const timer = setTimeout(() => {
+      quoteOnboardingAction({
+        opportunityId: opportunity.id,
+        startsAt,
+        discountCode: chosenCode,
+      })
+        .then((result) => {
+          if (cancelled) return
+          if (result.quote) {
+            setQuote(result.quote)
+            setQuoteError(null)
+          } else {
+            // Keep the last good quote on screen, greyed, with the reason
+            // this code cannot be applied — the same refusal the
+            // conversion would give.
+            setQuoteError(result.error ?? "Could not price this conversion")
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setQuoting(false)
+        })
+    }, QUOTE_DEBOUNCE_MS)
+    return () => {
+      cancelled = true
+      clearTimeout(timer)
+    }
+  }, [blocked, isOpen, opportunity.id, startsAt, chosenCode])
+
+  // What the "What they will pay" block shows: the quote when it matches
+  // the current code, the list figures until the first one arrives.
+  const stale = quoteError !== null || quoting
+  const planFeeLines = quote?.lines.filter((line) => line.kind === "plan_fee") ?? []
+  const quotedPlanFee = planFeeLines[0]?.amountHt ?? listPlanFee
+  const quotedExtras = planFeeLines.slice(1)
+  const depositLines = quote?.lines.filter((line) => line.kind === "deposit") ?? []
+  const depositNote = depositLines.some((line) => line.description.includes("does not apply to deposits"))
 
   return (
     <Drawer open={isOpen} onOpenChange={onClose} direction="right">
@@ -138,7 +213,6 @@ export function ConvertLeadForm({
                       <span className="text-red-600">None recorded</span>
                     )}
                   </Row>
-                  <Row label="Plan fee">{formatPriceHt(planFee)}</Row>
                   <Row label="Space">
                     {resource ? (
                       resource.name
@@ -161,25 +235,70 @@ export function ConvertLeadForm({
                   </section>
                 )}
 
-                <section className="rounded-md border p-4">
-                  <p className="text-xs font-medium pb-2">Extras</p>
-                  {extras.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">None.</p>
-                  ) : (
-                    <>
-                      {extras.map((extra) => (
-                        <Row key={extra.extraId} label={extra.name}>
+                <section className="rounded-md border p-4" aria-busy={quoting}>
+                  <div className="flex items-baseline justify-between pb-2">
+                    <p className="text-xs font-medium">What they will pay</p>
+                    {quoting && <span className="text-xs text-muted-foreground">Pricing…</span>}
+                  </div>
+                  <Row label="Plan fee (list)" muted={stale}>
+                    {formatPriceHt(quotedPlanFee)}
+                  </Row>
+                  {quote
+                    ? quotedExtras.map((line, index) => (
+                        <Row key={line.description} label={extras[index]?.name ?? "Extra"} muted={stale}>
+                          {formatPriceHt(line.amountHt)}
+                        </Row>
+                      ))
+                    : extras.map((extra) => (
+                        <Row key={extra.extraId} label={extra.name} muted>
                           {formatPriceHt(extra.priceHt)}
                         </Row>
                       ))}
-                      <div className="border-t mt-2 pt-2">
-                        <Row label="Extras total">{formatPriceHt(extrasTotal)}</Row>
-                      </div>
-                    </>
+                  {quote?.discount && (
+                    <Row
+                      label={
+                        <>
+                          Discount{" "}
+                          <code className="rounded bg-muted px-1">{quote.discount.code}</code>
+                        </>
+                      }
+                      muted={stale}
+                    >
+                      {formatPriceHt(quote.cycleDiscountHt)}
+                    </Row>
                   )}
-                  <p className="pt-2 text-xs text-muted-foreground">
-                    Billed as their own rows each cycle, on top of the plan fee.
-                  </p>
+                  <Row label="First cycle (HT)" total muted={stale}>
+                    {quote
+                      ? formatPriceHt(quote.cycleNetHt)
+                      : formatPriceHt(listPlanFee === null ? null : listPlanFee + extrasTotal)}
+                  </Row>
+                  {quote && quote.depositHt > 0 && (
+                    <Row
+                      label={depositNote ? "Deposit — not discounted" : "Deposit"}
+                      muted={stale}
+                    >
+                      {formatPriceHt(quote.depositHt)}
+                    </Row>
+                  )}
+                  {quote && quote.setupFeeHt > 0 && (
+                    <Row label="Setup fee" muted={stale}>
+                      {formatPriceHt(quote.setupFeeHt)}
+                    </Row>
+                  )}
+                  {quote && (quote.depositHt > 0 || quote.setupFeeHt > 0) && (
+                    <Row label="Due at creation (HT)" total muted={stale}>
+                      {formatPriceHt(quote.dueAtCreationHt)}
+                    </Row>
+                  )}
+                  {quoteError ? (
+                    <p className="pt-2 text-xs text-red-600">{quoteError}</p>
+                  ) : (
+                    <p className="pt-2 text-xs text-muted-foreground">
+                      {quote
+                        ? "These are the charges the conversion will write; they follow the code you pick below."
+                        : "List prices — the priced quote is on its way."}
+                    </p>
+                  )}
                 </section>
 
                 {blocked ? (
@@ -267,9 +386,8 @@ export function ConvertLeadForm({
                     <Input
                       name="discountCodeInput"
                       placeholder="e.g. 10LOYALTY"
-                      onChange={(e) => {
-                        e.currentTarget.value = e.currentTarget.value.toUpperCase()
-                      }}
+                      value={typedCode}
+                      onChange={(e) => setTypedCode(e.target.value.toUpperCase())}
                     />
                   )}
                   <input
@@ -284,8 +402,8 @@ export function ConvertLeadForm({
                     }
                   />
                   <p className="text-xs text-muted-foreground">
-                    Checked when the membership is created; an unknown or ineligible code
-                    is refused with the reason.
+                    Priced above as you change it; an unknown or ineligible code
+                    is refused with the reason, here and at conversion.
                   </p>
                 </div>
 

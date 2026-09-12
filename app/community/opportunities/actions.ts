@@ -1,9 +1,12 @@
 "use server"
 
 import { revalidatePath, revalidateTag } from "next/cache"
-import { createOpportunity, onboardLead, updateOpportunity } from "@/lib/service"
+import { problem } from "@/lib/action-state"
+import { createOpportunity, onboardLead, quoteOnboarding, updateOpportunity } from "@/lib/service"
 import type {
   CreateOpportunityDto,
+  MembershipQuoteDto,
+  OnboardingQuoteDto,
   OnboardingResultDto,
   OpportunityInterest,
   OpportunityStage,
@@ -211,5 +214,24 @@ export async function onboardLeadAction(
       success: false,
       error: error instanceof Error ? error.message : "Failed to convert this lead",
     }
+  }
+}
+
+/**
+ * The convert drawer's live preview (backend #56): what converting this
+ * lead would charge, with the code as the drawer currently has it. A
+ * refusal (unknown or ineligible code, closed lead) comes back as text,
+ * not a thrown error — a thrown server-action error reaches the browser
+ * stripped of its message in production, and the reason is the point.
+ */
+export async function quoteOnboardingAction(
+  input: OnboardingQuoteDto
+): Promise<{ quote?: MembershipQuoteDto; error?: string }> {
+  try {
+    return { quote: (await quoteOnboarding(input)) as MembershipQuoteDto }
+  } catch (error) {
+    // The bare RFC 9457 detail ("Discount code "X" does not exist"), not
+    // the client's "Status Code 422: …" message.
+    return { error: problem(error, "Could not price this conversion").error }
   }
 }
