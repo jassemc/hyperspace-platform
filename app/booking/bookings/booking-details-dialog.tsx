@@ -405,7 +405,14 @@ export function BookingDetailsDialog({
             pending={pending === "confirm"}
             partnerTagged={false}
             onConfirm={async (opts) => {
-              if (await confirm(opts)) setConfirmOpen(false)
+              // A confirmed booking is done with this dialog: close the
+              // details too, not just the question — staff were left
+              // looking at a modal whose only remaining action was to
+              // dismiss it (hscowork/platform-hscowork-backend#32).
+              if (await confirm(opts)) {
+                setConfirmOpen(false)
+                setOpen(false)
+              }
             }}
           />
         )}
