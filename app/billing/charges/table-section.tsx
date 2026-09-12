@@ -29,6 +29,8 @@ export async function ChargeTableSection({
       kind: asEnum<ChargeKind>(firstParam(params.kind), CHARGE_KINDS),
       // `?uninvoiced=true` narrows to what can still be put on an invoice.
       uninvoiced: firstParam(params.uninvoiced) === "true" ? true : undefined,
+      // `?code=LAUNCH20` — every row a campaign produced or reduced (#55).
+      discountCode: firstParam(params.code) || undefined,
     })
     ;({ results, total } = pageResult<ChargeDto>(response))
   } catch (error) {

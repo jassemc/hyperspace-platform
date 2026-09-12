@@ -30,6 +30,7 @@ export async function ChargesTab({
       memberId: member.id,
       kind: asEnum<ChargeKind>(firstParam(params.kind), CHARGE_KINDS),
       uninvoiced: firstParam(params.uninvoiced) === "true" ? true : undefined,
+      discountCode: firstParam(params.code) || undefined,
     })
     ;({ results, total } = pageResult<ChargeDto>(response))
   } catch (error) {

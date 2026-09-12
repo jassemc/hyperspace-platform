@@ -80,13 +80,23 @@ export const createColumns = ({
     },
   },
   {
-    id: "accountingCode",
-    accessorFn: (charge) => apiString(charge.accountingCode) ?? "",
+    id: "code",
+    // A discount line names its campaign, and so does the fee line it
+    // reduced (backend #55); anything else shows its accounting code. One
+    // column, because a row only ever carries one of the two.
+    accessorFn: (charge) =>
+      apiString(charge.discountCode) ?? apiString(charge.accountingCode) ?? "",
     header: "Code",
     cell: ({ row }) => {
-      const value = row.getValue<string>("accountingCode")
+      const discountCode = apiString(row.original.discountCode)
+      const value = discountCode ?? apiString(row.original.accountingCode)
       return value ? (
-        <code className="rounded bg-muted px-1.5 py-0.5 text-xs">{value}</code>
+        <code
+          className="rounded bg-muted px-1.5 py-0.5 text-xs"
+          title={discountCode ? "Discount code" : "Accounting code"}
+        >
+          {value}
+        </code>
       ) : (
         <span className="text-muted-foreground">-</span>
       )
