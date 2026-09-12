@@ -162,7 +162,7 @@ export function ConvertLeadForm({
                 )}
 
                 <section className="rounded-md border p-4">
-                  <p className="text-xs font-medium pb-2">Paid add-ons</p>
+                  <p className="text-xs font-medium pb-2">Extras</p>
                   {extras.length === 0 ? (
                     <p className="text-xs text-muted-foreground">None.</p>
                   ) : (
@@ -173,7 +173,7 @@ export function ConvertLeadForm({
                         </Row>
                       ))}
                       <div className="border-t mt-2 pt-2">
-                        <Row label="Add-ons total">{formatPriceHt(extrasTotal)}</Row>
+                        <Row label="Extras total">{formatPriceHt(extrasTotal)}</Row>
                       </div>
                     </>
                   )}

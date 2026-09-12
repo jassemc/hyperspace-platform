@@ -96,7 +96,7 @@ export function valueBreakdown({ planFee, extras, extrasTotal }: OpportunityValu
     if (planFee === null) return null
     const addOns =
         extras.length > 0
-            ? ` + ${extras.length} add-on${extras.length > 1 ? "s" : ""} (${formatPriceHt(extrasTotal)})`
+            ? ` + ${extras.length} extra${extras.length > 1 ? "s" : ""} (${formatPriceHt(extrasTotal)})`
             : ""
     return `${formatPriceHt(planFee)} plan${addOns}`
 }

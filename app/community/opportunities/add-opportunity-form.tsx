@@ -284,10 +284,10 @@ export function AddOpportunityForm({
 
                 {selectedPlan && (
                   <div className="grid gap-2">
-                    <Label>Paid add-ons</Label>
+                    <Label>Extras</Label>
                     {planExtras.length === 0 ? (
                       <p className="text-xs text-muted-foreground">
-                        This plan offers no add-ons.
+                        This plan offers no extras.
                       </p>
                     ) : (
                       <ExtraTagPicker
@@ -337,7 +337,7 @@ export function AddOpportunityForm({
                   />
                   <p className="text-xs text-muted-foreground">
                     The plan fee for this lead. Empty means the plan&apos;s own
-                    price. Add-ons bill on top of it.
+                    price. Extras bill on top of it.
                   </p>
                 </div>
 
@@ -359,10 +359,10 @@ export function AddOpportunityForm({
                   />
                   <p className="text-xs text-muted-foreground">
                     {expectedValue === null
-                      ? "Set by the requested plan and its add-ons."
+                      ? "Set by the requested plan and its extras."
                       : `Quoted plan fee${
                           selectedExtras.length > 0
-                            ? ` + ${selectedExtras.length} add-on${
+                            ? ` + ${selectedExtras.length} extra${
                                 selectedExtras.length > 1 ? "s" : ""
                               } (${formatPriceHt(extrasTotal)})`
                             : ""
