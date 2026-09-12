@@ -4,21 +4,33 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
-import { CopyId, Section } from "@/components/details-dialog-parts"
-import { Armchair, Ban, Mail, Pause, Pencil, Play, RotateCw } from "lucide-react"
+import {
+  BenefitList,
+  Code,
+  DetailsBody,
+  DetailsContent,
+  DetailsFooter,
+  DetailsHeader,
+  Empty,
+  ExtrasTable,
+  Hero,
+  HeroValue,
+  MetaLine,
+  Notes,
+  Party,
+  Section,
+  Sep,
+  StatusBadge,
+  Term,
+  Terms,
+  Thumb,
+} from "@/components/details-dialog-parts"
+import { Armchair, Ban, Building2, Pause, Pencil, Play, RotateCw, User } from "lucide-react"
 import { getListMembershipPauses } from "@/lib/service"
 import type { MembershipDto, MembershipPauseDto } from "@/lib/service/HsService"
 import { formatDate, formatEnumLabel, formatPriceHt, formatVatRate } from "@/lib/format"
-import { benefitLabel } from "@/lib/benefits"
 import { formatDiscountValue } from "@/app/billing/discounts/discount-meta"
 import { billingCycleLabel, membershipSnapshot } from "./membership-snapshot"
 import { membershipValue, valueBreakdown } from "./membership-value"
@@ -30,16 +42,6 @@ import { ResumeMembershipAlert } from "./resume-membership-alert"
 import type { MembershipActions } from "./use-membership-mutations"
 import { assignBlocker, useMembershipMutations } from "./use-membership-mutations"
 import { AssignmentsSection } from "@/components/assignments/assignments-section"
-
-/** A row of the frozen terms table — same rhythm as the edit drawer's. */
-function Term({ label, value }: Readonly<{ label: React.ReactNode; value: React.ReactNode }>) {
-  return (
-    <div className="flex items-baseline justify-between gap-3 border-b px-3 py-2 last:border-b-0">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right tabular-nums">{value}</span>
-    </div>
-  )
-}
 
 /**
  * Everything a membership is made of, read-only. The row already names its
@@ -115,6 +117,7 @@ export function MembershipDetailsDialog({
   const label = membership.name || "This membership"
   const snapshot = membershipSnapshot(membership)
   const cycle = billingCycleLabel(snapshot.plan) ?? "One-off"
+  const planName = membership.plan?.name || snapshot.plan?.name || "Plan not in snapshot"
   // Shared with the table's Price column, so the two cannot disagree.
   const value = membershipValue(membership)
   const breakdown = valueBreakdown(value)
@@ -124,65 +127,88 @@ export function MembershipDetailsDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col overflow-hidden">
-        <DialogHeader>
-          <div className="flex items-start gap-3 pr-6 text-left">
-            <div className="min-w-0 flex-1 space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <DialogTitle className="leading-tight">{label}</DialogTitle>
-                <Badge variant="secondary" className={`${MEMBERSHIP_STATUS_CLASSES[membership.status]} border-0`}>
-                  {MEMBERSHIP_STATUS_LABELS[membership.status]}
-                </Badge>
-                {membership.cancelledAt && (
-                  <Badge variant="outline">Cancelled {formatDate(membership.cancelledAt)}</Badge>
-                )}
-              </div>
-              <DialogDescription>
-                {isCompany ? "Company" : "Member"} ·{" "}
-                {membership.plan?.name || snapshot.plan?.name || "Plan not in snapshot"}
-              </DialogDescription>
-            </div>
-          </div>
-        </DialogHeader>
+      <DetailsContent>
+        <DetailsHeader
+          visual={<Thumb name={label} icon={isCompany ? Building2 : User} />}
+          title={label}
+          badges={
+            <>
+              <StatusBadge className={MEMBERSHIP_STATUS_CLASSES[membership.status]}>
+                {MEMBERSHIP_STATUS_LABELS[membership.status]}
+              </StatusBadge>
+              {membership.cancelledAt && (
+                <Badge variant="outline">Cancelled {formatDate(membership.cancelledAt)}</Badge>
+              )}
+            </>
+          }
+          description={
+            <>
+              {/* A membership is usually named after its plan; say it once. */}
+              {planName !== label && (
+                <>
+                  <span className="font-medium text-foreground">{planName}</span>
+                  <Sep />
+                </>
+              )}
+              <span>{cycle}</span>
+              <Sep />
+              <span>{isCompany ? "Company" : "Member"}</span>
+            </>
+          }
+        />
 
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto pr-1">
+        <DetailsBody>
           {/* The figure this membership bills on: plan and extras after the
               discount, with the list price it came from struck beside it so
               the reduction is visible at a glance. */}
-          <div className="flex items-start justify-between gap-3 rounded-lg border bg-muted/30 p-4">
-            <div>
-              <p className="text-sm text-muted-foreground">
-                {snapshot.plan?.cycleMonths ? "Price per cycle" : "Price"}
-              </p>
-              <p className="mt-1 flex flex-wrap items-baseline gap-2">
-                <span className="text-2xl font-semibold tabular-nums">
-                  {value.planListHt === null ? "-" : formatPriceHt(value.totalHt)}
-                </span>
-                {discounted && (
-                  <s className="text-sm tabular-nums text-muted-foreground">
-                    {formatPriceHt(value.totalHt - value.discountHt)}
-                  </s>
-                )}
-              </p>
-              <p className="mt-1 text-xs text-muted-foreground">
+          <Hero
+            eyebrow={snapshot.plan?.cycleMonths ? "Price per cycle" : "Price"}
+            hint={
+              <>
                 {cycle} · VAT {formatVatRate(snapshot.plan?.vatRate)}
                 {breakdown ? ` · ${breakdown}` : ""}
-              </p>
-            </div>
-            <div className="space-y-1 text-right text-xs text-muted-foreground">
-              <p>Billed to the {membership.billTo}</p>
-              {membership.discount?.code && (
-                <p className="flex items-center justify-end gap-1">
-                  <span>Discount</span>
-                  <code className="rounded bg-muted px-1 text-xs">{membership.discount.code}</code>
-                  <span>{formatDiscountValue(membership.discount)}</span>
-                </p>
+              </>
+            }
+            aside={
+              <>
+                <p>Billed to the {membership.billTo}</p>
+                {membership.discount?.code && (
+                  <p className="flex items-center justify-end gap-1">
+                    <span>Discount</span>
+                    <Code>{membership.discount.code}</Code>
+                    <span>{formatDiscountValue(membership.discount)}</span>
+                  </p>
+                )}
+              </>
+            }
+          >
+            <HeroValue className="items-baseline">
+              {value.planListHt === null ? "-" : formatPriceHt(value.totalHt)}
+              {discounted && (
+                <s className="text-sm font-normal text-muted-foreground">
+                  {formatPriceHt(value.totalHt - value.discountHt)}
+                </s>
               )}
-            </div>
-          </div>
+            </HeroValue>
+          </Hero>
+
+          <Section title="Customer">
+            {membership.company ? (
+              <Party kind="company" id={membership.company.id} name={membership.company.name} />
+            ) : membership.member ? (
+              <Party
+                kind="member"
+                id={membership.member.id}
+                name={membership.member.fullName}
+                email={membership.member.email}
+              />
+            ) : (
+              <Empty>No customer attached.</Empty>
+            )}
+          </Section>
 
           <Section title="Term">
-            <div className="rounded-lg border text-sm">
+            <Terms>
               <Term label="Starts" value={formatDate(membership.startsAt)} />
               <Term
                 label="Ends"
@@ -191,7 +217,7 @@ export function MembershipDetailsDialog({
               {membership.cancelledAt && (
                 <Term label="Cancelled" value={formatDate(membership.cancelledAt)} />
               )}
-            </div>
+            </Terms>
           </Section>
 
           <AssignmentsSection
@@ -202,50 +228,31 @@ export function MembershipDetailsDialog({
             onCreateOpenChange={setAssignOpen}
           />
 
-          <Section title="Customer">
-            {membership.company ? (
-              <Link
-                href={`/community/companies/${membership.company.id}`}
-                className="text-sm text-primary hover:underline"
-              >
-                {membership.company.name}
-              </Link>
-            ) : membership.member ? (
-              <div className="flex flex-wrap items-center gap-2 text-sm">
-                <span>{membership.member.fullName}</span>
-                {membership.member.email && (
-                  <a
-                    href={`mailto:${membership.member.email}`}
-                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                  >
-                    <Mail className="h-3 w-3" />
-                    {membership.member.email}
-                  </a>
-                )}
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">—</p>
-            )}
+          <Section title="Extras">
+            <ExtrasTable
+              extras={snapshot.extras.map((extra) => ({ ...extra, id: extra.extraId }))}
+              emptyText="No extras were taken with this membership."
+            />
           </Section>
 
           {/* The contract this membership actually runs on. The catalog plan
               may since have been repriced or archived; none of that reaches
-              a membership already sold, so this is the figure that counts. */}
+              a membership already sold, so these are the figures that count.
+              The snapshot keeps the plan and extras at list price and the
+              API writes the discount as its own negative lines each cycle;
+              the rows replay that so the total never looks as if the
+              discount were skipped. */}
           <Section
-            title="Plan snapshot"
+            title="Pricing"
             aside={
-              membership.plan?.name ? (
-                <Link href="/space/plan" className="text-xs text-primary hover:underline">
-                  Catalog: {membership.plan.name}
-                </Link>
+              snapshot.snapshotAt ? (
+                <span className="text-xs text-muted-foreground">
+                  Snapshot {formatDate(snapshot.snapshotAt)}
+                </span>
               ) : undefined
             }
           >
-            {/* The snapshot keeps the plan and extras at list price and the
-                API writes the discount as its own negative lines each cycle;
-                the rows replay that so the total never looks as if the
-                discount were skipped. */}
-            <div className="rounded-lg border text-sm">
+            <Terms>
               <Term label="Plan (HT)" value={formatPriceHt(value.planListHt)} />
               {value.discount && (
                 <>
@@ -259,79 +266,52 @@ export function MembershipDetailsDialog({
               {value.extras.length > 0 && (
                 <Term
                   label="Extras (HT)"
-                  value={
-                    <>
-                      {formatPriceHt(value.extrasHt + value.extrasDiscountHt)}
-                      {value.extrasDiscountHt !== 0 && (
-                        <span className="block text-xs text-muted-foreground">
-                          {formatPriceHt(value.extrasHt)} − {formatPriceHt(-value.extrasDiscountHt)}{" "}
-                          {value.discount?.code}
-                        </span>
-                      )}
-                    </>
+                  value={formatPriceHt(value.extrasHt + value.extrasDiscountHt)}
+                  hint={
+                    value.extrasDiscountHt !== 0 && (
+                      <>
+                        {formatPriceHt(value.extrasHt)} − {formatPriceHt(-value.extrasDiscountHt)}{" "}
+                        {value.discount?.code}
+                      </>
+                    )
                   }
                 />
               )}
-              {(value.discount || value.extras.length > 0) && (
-                <Term
-                  label={<span className="font-semibold">Total per cycle (HT)</span>}
-                  value={<span className="font-semibold">{formatPriceHt(value.totalHt)}</span>}
-                />
-              )}
               <Term label="VAT" value={formatVatRate(snapshot.plan?.vatRate)} />
+              <Term
+                total
+                label={snapshot.plan?.cycleMonths ? "Total per cycle (HT)" : "Total (HT)"}
+                value={formatPriceHt(value.totalHt)}
+              />
+            </Terms>
+          </Section>
+
+          <Section
+            title="Plan terms"
+            aside={
+              membership.plan?.name ? (
+                <Link href="/space/plan" className="text-xs text-primary hover:underline">
+                  Catalog: {membership.plan.name}
+                </Link>
+              ) : undefined
+            }
+          >
+            <Terms>
+              <Term label="Billing" value={cycle} />
+              {snapshot.plan?.kind && <Term label="Kind" value={formatEnumLabel(snapshot.plan.kind)} />}
               <Term label="Deposit" value={formatPriceHt(snapshot.plan?.deposit)} />
               <Term label="Setup fee" value={formatPriceHt(snapshot.plan?.setupFee)} />
-              {snapshot.plan?.kind && <Term label="Kind" value={formatEnumLabel(snapshot.plan.kind)} />}
               <Term
-                label="Cancellation days"
+                label="Cancellation notice"
                 value={
                   snapshot.plan?.cancellationDays ? `${snapshot.plan.cancellationDays} days` : "None"
                 }
               />
-              {snapshot.snapshotAt && <Term label="Taken" value={formatDate(snapshot.snapshotAt)} />}
-            </div>
+            </Terms>
+          </Section>
 
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">Extras</p>
-              {snapshot.extras.length === 0 ? (
-                <p className="text-xs text-muted-foreground">No extras were taken with this membership.</p>
-              ) : (
-                <div className="rounded-lg border text-sm">
-                  {snapshot.extras.map((extra) => (
-                    <Term
-                      key={extra.extraId}
-                      label={extra.name}
-                      value={
-                        <>
-                          {formatPriceHt(extra.priceHt)}
-                          <span className="block text-xs text-muted-foreground">
-                            VAT {formatVatRate(extra.vatRate)}
-                            {extra.deposit ? ` · deposit ${formatPriceHt(extra.deposit)}` : ""}
-                          </span>
-                        </>
-                      }
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">Included benefits</p>
-              {snapshot.benefits.length === 0 ? (
-                <p className="text-xs text-muted-foreground">This plan grants no benefits.</p>
-              ) : (
-                <ul className="space-y-1 rounded-lg border bg-muted/30 p-3">
-                  {snapshot.benefits.map((benefit, index) => (
-                    // Snapshot benefits carry no id of their own, and the
-                    // list is a frozen copy that never reorders.
-                    <li key={index} className="text-sm text-muted-foreground">
-                      {benefitLabel(benefit)}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+          <Section title="Included with this plan">
+            <BenefitList benefits={snapshot.benefits} emptyText="This plan grants no benefits." />
           </Section>
 
           {loading ? (
@@ -342,34 +322,36 @@ export function MembershipDetailsDialog({
             pauses &&
             pauses.length > 0 && (
               <Section title="Pauses">
-                <div className="rounded-lg border text-sm">
+                <Terms>
                   {pauses.map((p) => (
-                    <div key={p.id} className="border-b px-3 py-2 last:border-b-0">
-                      <p>
-                        {formatDate(p.startsAt)} → {p.endsAt ? formatDate(p.endsAt) : "open"}
-                      </p>
-                      {p.reason && <p className="text-xs text-muted-foreground">{p.reason}</p>}
-                    </div>
+                    <Term
+                      key={p.id}
+                      label={
+                        <span className="text-foreground">
+                          {formatDate(p.startsAt)} → {p.endsAt ? formatDate(p.endsAt) : "open"}
+                        </span>
+                      }
+                      value={p.reason ? <span className="text-muted-foreground">{p.reason}</span> : ""}
+                    />
                   ))}
-                </div>
+                </Terms>
               </Section>
             )
           )}
 
           {membership.notes && (
             <Section title="Notes">
-              <p className="whitespace-pre-wrap text-sm">{membership.notes}</p>
+              <Notes>{membership.notes}</Notes>
             </Section>
           )}
 
-          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <MetaLine id={membership.id} label="Membership">
             <span>Created {formatDate(membership.createdAt)}</span>
             <span>Updated {formatDate(membership.updatedAt)}</span>
-            <CopyId id={membership.id} label="Membership" />
-          </p>
-        </div>
+          </MetaLine>
+        </DetailsBody>
 
-        <DialogFooter className="flex-row flex-wrap items-center justify-end gap-2 sm:justify-end">
+        <DetailsFooter>
           <Button variant="outline" size="sm" onClick={onEdit} disabled={busy}>
             <Pencil className="mr-1.5 h-4 w-4" />
             Edit
@@ -427,7 +409,7 @@ export function MembershipDetailsDialog({
             <Ban className="mr-1.5 h-4 w-4" />
             Cancel
           </Button>
-        </DialogFooter>
+        </DetailsFooter>
 
         <CancelMembershipAlert
           open={cancelOpen}
@@ -473,7 +455,7 @@ export function MembershipDetailsDialog({
             }}
           />
         )}
-      </DialogContent>
+      </DetailsContent>
     </Dialog>
   )
 }

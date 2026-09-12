@@ -1,30 +1,35 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
+import { Dialog } from "@/components/ui/dialog"
 import { Skeleton } from "@/components/ui/skeleton"
-import { CalendarDays, Copy, Mail, MapPin, Package, Pencil, User, UserPlus } from "lucide-react"
-import { toast } from "sonner"
+import {
+  BenefitList,
+  Code,
+  DetailsBody,
+  DetailsContent,
+  DetailsFooter,
+  DetailsHeader,
+  Empty,
+  ExtrasTable,
+  Hero,
+  HeroValue,
+  MetaLine,
+  Notes,
+  Party,
+  Section,
+  Sep,
+  StatusBadge,
+  Term,
+  Terms,
+  Thumb,
+} from "@/components/details-dialog-parts"
+import { CalendarDays, MapPin, Package, Pencil, User, UserPlus } from "lucide-react"
 import { getPlan } from "@/lib/service"
 import type { OpportunityDto, PlanDto } from "@/lib/service/HsService"
 import { apiString } from "@/lib/api-value"
-import {
-  formatCalendarDate,
-  formatDate,
-  formatPriceHt,
-  formatVatRate,
-  priceTtc,
-} from "@/lib/format"
-import { benefitLabel } from "@/lib/benefits"
+import { formatCalendarDate, formatDate, formatPriceHt } from "@/lib/format"
 import {
   OPPORTUNITY_INTEREST_LABELS,
   OPPORTUNITY_STAGE_CLASSES,
@@ -32,45 +37,6 @@ import {
   opportunityValue,
   valueBreakdown,
 } from "./opportunity-meta"
-
-function Section({
-  title,
-  aside,
-  children,
-}: Readonly<{ title: string; aside?: React.ReactNode; children: React.ReactNode }>) {
-  return (
-    <section className="space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          {title}
-        </h3>
-        {aside}
-      </div>
-      {children}
-    </section>
-  )
-}
-
-function CopyId({ id }: Readonly<{ id: string }>) {
-  return (
-    <button
-      type="button"
-      className="inline-flex items-center gap-1 font-mono text-xs text-muted-foreground hover:text-foreground"
-      title="Copy opportunity ID"
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(id)
-          toast.success("Opportunity ID copied")
-        } catch {
-          toast.error("Could not copy")
-        }
-      }}
-    >
-      {id}
-      <Copy className="h-3 w-3" />
-    </button>
-  )
-}
 
 /**
  * Everything a lead is made of, read-only. The row already names its member,
@@ -122,233 +88,145 @@ export function OpportunityDetailsDialog({
   const { member, requestedPlan, requestedResource, notes } = opportunity
   // The day the visitor asked for — a wish to confirm, not a booking.
   const requestedDate = apiString(opportunity.requestedDate)
+  const requestedCode = apiString(opportunity.requestedDiscountCode)
+  const publicOffer = apiString(opportunity.publicOfferCode)
   const value = opportunityValue(opportunity)
   const breakdown = valueBreakdown(value)
   const source = apiString(opportunity.source)
   const closed = Boolean(opportunity.closedAt)
-  const benefits = plan?.benefits ?? []
+  const memberName = member?.fullName || "Unknown member"
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[90vh] max-w-2xl flex-col overflow-hidden">
-        <DialogHeader>
-          <div className="flex items-start gap-3 pr-6 text-left">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-muted">
-              <User className="h-5 w-5 text-muted-foreground" />
-            </div>
-            <div className="min-w-0 flex-1 space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <DialogTitle className="leading-tight">
-                  {member?.fullName || "Unknown member"}
-                </DialogTitle>
-                <Badge
-                  variant="secondary"
-                  className={`${OPPORTUNITY_STAGE_CLASSES[opportunity.stage] ?? ""} border-0`}
-                >
-                  {OPPORTUNITY_STAGE_LABELS[opportunity.stage] ?? opportunity.stage}
-                </Badge>
-              </div>
-              <DialogDescription className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
-                <span className="font-medium text-foreground">
-                  {OPPORTUNITY_INTEREST_LABELS[opportunity.interest] ?? opportunity.interest}
-                </span>
-                {source && (
-                  <>
-                    <span aria-hidden="true">·</span>
-                    <span>{source}</span>
-                  </>
-                )}
-              </DialogDescription>
-              {member?.email && (
-                <a
-                  href={`mailto:${member.email}`}
-                  className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                >
-                  <Mail className="h-3 w-3" />
-                  {member.email}
-                </a>
+      <DetailsContent>
+        <DetailsHeader
+          visual={<Thumb name={memberName} icon={User} />}
+          title={memberName}
+          badges={
+            <StatusBadge className={OPPORTUNITY_STAGE_CLASSES[opportunity.stage]}>
+              {OPPORTUNITY_STAGE_LABELS[opportunity.stage] ?? opportunity.stage}
+            </StatusBadge>
+          }
+          description={
+            <>
+              <span className="font-medium text-foreground">
+                {OPPORTUNITY_INTEREST_LABELS[opportunity.interest] ?? opportunity.interest}
+              </span>
+              {source && (
+                <>
+                  <Sep />
+                  <span>{source}</span>
+                </>
               )}
-            </div>
-          </div>
-        </DialogHeader>
+            </>
+          }
+        />
 
-        <div className="min-h-0 flex-1 space-y-5 overflow-y-auto pr-1">
+        <DetailsBody>
           {/* What the deal is worth — the figure the pipeline is measured in. */}
-          <div className="rounded-lg border bg-muted/30 p-4">
-            <p className="text-sm text-muted-foreground">Expected value</p>
-            <p className="mt-1 text-2xl font-semibold tabular-nums">
+          <Hero
+            eyebrow="Expected value"
+            hint={breakdown ?? "Set by the requested plan and its extras."}
+          >
+            <HeroValue>
               {value.total === null ? "Not quoted yet" : formatPriceHt(value.total)}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {breakdown ?? "Set by the requested plan and its add-ons."}
-            </p>
-          </div>
+            </HeroValue>
+          </Hero>
+
+          <Section title="Customer">
+            {member ? (
+              <Party kind="member" id={member.id} name={member.fullName} email={member.email} />
+            ) : (
+              <Empty>No member attached.</Empty>
+            )}
+          </Section>
 
           <Section title="Requested">
             {!requestedPlan && !requestedResource && !requestedDate ? (
-              <p className="text-sm text-muted-foreground">
-                Nothing requested yet — a plan is needed before this lead can be converted.
-              </p>
+              <Empty>Nothing requested yet — a plan is needed before this lead can be converted.</Empty>
             ) : (
-              <dl className="rounded-lg border text-sm">
+              <Terms>
                 {requestedDate && (
-                  <div className="flex items-start justify-between gap-3 px-3 py-2">
-                    <dt className="flex items-center gap-2 text-muted-foreground">
-                      <CalendarDays className="h-4 w-4" />
-                      Date
-                    </dt>
-                    <dd className="text-right">{formatCalendarDate(requestedDate)}</dd>
-                  </div>
+                  <Term icon={CalendarDays} label="Date" value={formatCalendarDate(requestedDate)} />
                 )}
-                <div
-                  className={`flex items-start justify-between gap-3 px-3 py-2 ${
-                    requestedDate ? "border-t" : ""
-                  }`}
-                >
-                  <dt className="flex items-center gap-2 text-muted-foreground">
-                    <Package className="h-4 w-4" />
-                    Plan
-                  </dt>
-                  <dd className="text-right">
-                    {requestedPlan ? (
-                      <>
-                        <span>{requestedPlan.name}</span>
-                        <span className="block text-xs text-muted-foreground tabular-nums">
-                          {formatPriceHt(requestedPlan.priceHt)}
-                          {value.planFee !== null &&
-                            value.planFee !== requestedPlan.priceHt &&
-                            ` · quoted at ${formatPriceHt(value.planFee)}`}
-                        </span>
-                      </>
+                <Term
+                  icon={Package}
+                  label="Plan"
+                  value={
+                    requestedPlan ? (
+                      requestedPlan.name
                     ) : (
                       <span className="text-muted-foreground">No plan</span>
-                    )}
-                  </dd>
-                </div>
-                <div className="flex items-start justify-between gap-3 border-t px-3 py-2">
-                  <dt className="flex items-center gap-2 text-muted-foreground">
-                    <MapPin className="h-4 w-4" />
-                    Space
-                  </dt>
-                  <dd className="text-right">
-                    {requestedResource?.name ?? (
+                    )
+                  }
+                  hint={
+                    requestedPlan && (
+                      <>
+                        {formatPriceHt(requestedPlan.priceHt)}
+                        {value.planFee !== null &&
+                          value.planFee !== requestedPlan.priceHt &&
+                          ` · quoted at ${formatPriceHt(value.planFee)}`}
+                      </>
+                    )
+                  }
+                />
+                <Term
+                  icon={MapPin}
+                  label="Space"
+                  value={
+                    requestedResource?.name ?? (
                       <span className="text-muted-foreground">Space to assign</span>
-                    )}
-                  </dd>
-                </div>
-                {apiString(opportunity.requestedDiscountCode) && (
-                  <div className="flex items-start justify-between gap-3 border-t px-3 py-2">
-                    <dt className="text-muted-foreground">Requested discount code</dt>
-                    <dd className="text-right">
-                      <code className="rounded bg-muted px-1 text-xs">
-                        {opportunity.requestedDiscountCode}
-                      </code>
-                    </dd>
-                  </div>
+                    )
+                  }
+                />
+                {requestedCode && (
+                  <Term label="Requested discount code" value={<Code>{requestedCode}</Code>} />
                 )}
                 {/* The offer the website priced the lead with (backend #52),
                     shown apart from the visitor's own code (#51) — the
                     convert drawer lets staff pick which one applies. */}
-                {apiString(opportunity.publicOfferCode) && (
-                  <div className="flex items-start justify-between gap-3 border-t px-3 py-2">
-                    <dt className="text-muted-foreground">Public offer applied</dt>
-                    <dd className="text-right">
-                      <code className="rounded bg-muted px-1 text-xs">
-                        {opportunity.publicOfferCode}
-                      </code>
-                    </dd>
-                  </div>
+                {publicOffer && (
+                  <Term label="Public offer applied" value={<Code>{publicOffer}</Code>} />
                 )}
-              </dl>
+              </Terms>
             )}
+          </Section>
+
+          <Section title="Extras">
+            <ExtrasTable extras={value.extras.map((extra) => ({ ...extra, id: extra.extraId }))} />
           </Section>
 
           {planId && (
             <Section title="Included with this plan">
               {planLoading ? (
                 <Skeleton className="h-10 w-full" />
-              ) : benefits.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  {plan ? "This plan includes no benefits." : "Could not load the plan's benefits."}
-                </p>
               ) : (
-                <ul className="space-y-1 rounded-lg border bg-muted/30 p-3">
-                  {benefits.map((benefit) => (
-                    <li key={benefit.id} className="text-sm text-muted-foreground">
-                      {benefitLabel(benefit)}
-                    </li>
-                  ))}
-                </ul>
+                <BenefitList
+                  benefits={plan?.benefits ?? []}
+                  emptyText={
+                    plan ? "This plan includes no benefits." : "Could not load the plan's benefits."
+                  }
+                />
               )}
             </Section>
           )}
 
-          <Section title="Paid add-ons">
-            {value.extras.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No add-ons.</p>
-            ) : (
-              <div className="overflow-x-auto rounded-lg border">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/40 text-xs text-muted-foreground">
-                    <tr>
-                      <th className="px-3 py-2 text-left font-medium">Add-on</th>
-                      <th className="px-3 py-2 text-right font-medium">Price HT</th>
-                      <th className="px-3 py-2 text-right font-medium">VAT</th>
-                      <th className="px-3 py-2 text-right font-medium">Total TTC</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {value.extras.map((extra) => (
-                      <tr key={extra.extraId} className="border-t">
-                        <td className="px-3 py-2">{extra.name}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">
-                          {formatPriceHt(extra.priceHt)}
-                        </td>
-                        <td className="px-3 py-2 text-right tabular-nums">
-                          {formatVatRate(extra.vatRate)}
-                        </td>
-                        <td className="px-3 py-2 text-right tabular-nums">
-                          {formatPriceHt(priceTtc(extra.priceHt, extra.vatRate))}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                  <tfoot className="border-t bg-muted/40 font-medium">
-                    <tr>
-                      <td className="px-3 py-2">Add-ons total</td>
-                      <td className="px-3 py-2 text-right tabular-nums">
-                        {formatPriceHt(value.extrasTotal)}
-                      </td>
-                      <td />
-                      <td />
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            )}
-          </Section>
-
           {notes && (
             <Section title="Notes">
-              <p className="whitespace-pre-wrap rounded-lg border bg-muted/30 p-3 text-sm">
-                {notes}
-              </p>
+              <Notes>{notes}</Notes>
             </Section>
           )}
 
           {/* No time zone: an opportunity has no location, so these are dates
               rather than instants — the same call the table makes. */}
-          <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <MetaLine id={opportunity.id} label="Opportunity">
             <span>Created {formatDate(opportunity.createdAt)}</span>
             <span>Updated {formatDate(opportunity.updatedAt)}</span>
-            <span>
-              {closed ? `Closed ${formatDate(opportunity.closedAt)}` : "Open"}
-            </span>
-            <CopyId id={opportunity.id} />
-          </p>
-        </div>
+            <span>{closed ? `Closed ${formatDate(opportunity.closedAt)}` : "Open"}</span>
+          </MetaLine>
+        </DetailsBody>
 
-        <DialogFooter className="flex-row flex-wrap items-center justify-end gap-2 sm:justify-end">
+        <DetailsFooter>
           {onEdit && (
             <Button variant="outline" size="sm" onClick={onEdit} disabled={busy}>
               <Pencil className="mr-1.5 h-4 w-4" />
@@ -361,8 +239,8 @@ export function OpportunityDetailsDialog({
               Convert
             </Button>
           )}
-        </DialogFooter>
-      </DialogContent>
+        </DetailsFooter>
+      </DetailsContent>
     </Dialog>
   )
 }

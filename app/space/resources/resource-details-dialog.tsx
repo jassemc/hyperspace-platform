@@ -12,7 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { CopyId, Section } from "@/components/details-dialog-parts"
+import { CopyId, Section, Term, Terms } from "@/components/details-dialog-parts"
 import { Archive, ArchiveRestore, Armchair, Pencil } from "lucide-react"
 import type { ResourceDto } from "@/lib/service/HsService"
 import { formatDate, formatEnumLabel } from "@/lib/format"
@@ -20,15 +20,6 @@ import { AssignmentsSection } from "@/components/assignments/assignments-section
 import { ArchiveResourceAlert } from "./archive-resource-alert"
 import { useResourceArchive } from "./resource-row-actions"
 import { RESOURCE_STATUS_CLASSES, RESOURCE_STATUS_LABELS } from "./resource-status"
-
-function Term({ label, value }: Readonly<{ label: string; value: React.ReactNode }>) {
-  return (
-    <div className="flex items-baseline justify-between gap-3 border-b px-3 py-2 last:border-b-0">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="text-right tabular-nums">{value}</span>
-    </div>
-  )
-}
 
 function minutes(value: number | null | undefined): string {
   if (!value) return "—"
@@ -93,7 +84,7 @@ export function ResourceDetailsDialog({
           />
 
           <Section title="Booking">
-            <div className="rounded-lg border text-sm">
+            <Terms>
               <Term label="Capacity" value={resource.capacity ?? "—"} />
               <Term label="Minimum duration" value={minutes(resource.minDurationMin)} />
               <Term label="Maximum duration" value={minutes(resource.maxDurationMin)} />
@@ -106,14 +97,14 @@ export function ResourceDetailsDialog({
                     : "—"
                 }
               />
-            </div>
+            </Terms>
           </Section>
 
           <Section title="Rates">
             {rates.length === 0 ? (
               <p className="text-xs text-muted-foreground">No rates on this resource.</p>
             ) : (
-              <div className="rounded-lg border text-sm">
+              <Terms>
                 {rates.map((rate) => (
                   <Term
                     key={rate.id}
@@ -121,7 +112,7 @@ export function ResourceDetailsDialog({
                     value={`${formatEnumLabel(rate.intervalType)}${rate.isWeekendRate ? " · weekend" : ""}`}
                   />
                 ))}
-              </div>
+              </Terms>
             )}
           </Section>
 
