@@ -16,9 +16,14 @@ import {
   DrawerTitle,
 } from "@/components/ui/drawer"
 import { X } from "lucide-react"
-import type { MembershipQuoteDto, OpportunityDto } from "@/lib/service/HsService"
+import type {
+  MembershipQuoteDto,
+  OpportunityDto,
+  ResourceDto,
+} from "@/lib/service/HsService"
 import { apiNumber } from "@/lib/api-value"
 import { formatPriceHt, todayInTunis } from "@/lib/format"
+import { getListResources } from "@/lib/service"
 import { onboardLeadAction, quoteOnboardingAction } from "./actions"
 import { benefitLabel } from "@/lib/benefits"
 import {
@@ -101,6 +106,48 @@ export function ConvertLeadForm({
   const plan = context.plan
   const resource = opportunity.requestedResource ?? null
   const member = opportunity.member
+
+  /**
+   * #91 (R-09): the spaces this plan is sold under, so the office can be
+   * held in the same step the copy always promised. `null` means the
+   * plan sells no assignable space at all (Part time, Hot desk), which
+   * is a different thing from "none chosen yet".
+   */
+  const [assignableSpaces, setAssignableSpaces] = useState<ResourceDto[] | null>(null)
+  const [loadingSpaces, setLoadingSpaces] = useState(false)
+  const [spaceId, setSpaceId] = useState(resource?.id ?? "")
+
+  useEffect(() => {
+    setSpaceId(resource?.id ?? "")
+  }, [resource?.id])
+
+  useEffect(() => {
+    if (!isOpen || !plan?.id) return
+    let cancelled = false
+    setLoadingSpaces(true)
+    getListResources({ limit: 100, offset: 0, sort: "ASC" })
+      .then((page) => {
+        if (cancelled) return
+        const sold = ((page.results ?? []) as ResourceDto[]).filter(
+          (candidate) =>
+            candidate.resourceType?.canAssign === true &&
+            (candidate.targetPlanIds ?? []).includes(plan.id),
+        )
+        // Keep an already-chosen space in the list even if it no longer
+        // matches, so converting never silently drops what was sold.
+        const chosen = resource && !sold.some((s) => s.id === resource.id) ? [resource as ResourceDto] : []
+        setAssignableSpaces(sold.length || chosen.length ? [...chosen, ...sold] : null)
+      })
+      .catch(() => {
+        if (!cancelled) setAssignableSpaces(null)
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingSpaces(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [isOpen, plan?.id, resource])
 
   const extras = opportunity.requestedExtras ?? []
   const extrasTotal = extras.reduce((sum, extra) => sum + extra.priceHt, 0)
@@ -192,13 +239,17 @@ export function ConvertLeadForm({
           <DrawerHeader className="px-6 pb-4">
             <DrawerTitle>Convert this lead</DrawerTitle>
             <DrawerDescription>
-              Creates the membership, its credits and charges, holds the space,
-              and marks the opportunity won — in one step.
+              Creates the membership, its credits and charges, marks the
+              opportunity won — and, when a space is chosen below, holds it
+              from day one. All in one step.
             </DrawerDescription>
           </DrawerHeader>
 
           <form action={formAction} className="flex min-h-0 flex-1 flex-col">
             <input type="hidden" name="opportunityId" value={opportunity.id} />
+            {/* What the opportunity already names, so the action patches
+                only when the choice actually changed (#91). */}
+            <input type="hidden" name="previousResourceId" value={resource?.id ?? ""} />
 
             <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-4">
               <div className="space-y-6">
@@ -214,10 +265,31 @@ export function ConvertLeadForm({
                     )}
                   </Row>
                   <Row label="Space">
-                    {resource ? (
-                      resource.name
+                    {assignableSpaces === null ? (
+                      // No assignable space is sold with this plan (Part
+                      // time, Hot desk): there is nothing to hold, and the
+                      // copy above says "when a space is chosen".
+                      <span className="text-muted-foreground">
+                        Not sold with this plan
+                      </span>
                     ) : (
-                      <span className="text-muted-foreground">Assign later</span>
+                      <select
+                        aria-label="Space"
+                        name="requestedResourceId"
+                        className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+                        value={spaceId}
+                        onChange={(event) => setSpaceId(event.target.value)}
+                        disabled={loadingSpaces}
+                      >
+                        <option value="">
+                          {loadingSpaces ? "Loading spaces…" : "Assign later"}
+                        </option>
+                        {assignableSpaces.map((space) => (
+                          <option key={space.id} value={space.id}>
+                            {space.name}
+                          </option>
+                        ))}
+                      </select>
                     )}
                   </Row>
                 </section>

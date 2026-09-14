@@ -189,6 +189,24 @@ export async function onboardLeadAction(
     else if (codeMode === "replace") discountCode = text(formData, "discountCodeInput")
     else if (codeMode === "drop") discountCode = null
 
+    // #91 (R-09): the dialog's own copy promised the space was held,
+    // but nothing assigned it — staff had to open the membership row
+    // afterwards, and meanwhile the office read as free on the public
+    // catalogue and could be requested by someone else.
+    //
+    // POST /onboarding assigns from day one when the OPPORTUNITY names a
+    // space; it takes no resource of its own ("to change what is sold,
+    // PATCH the opportunity first"). So the drawer's picker writes the
+    // choice onto the opportunity first, and the conversion then holds
+    // it in its own transaction — which is what the copy always claimed.
+    const requestedResourceId = text(formData, "requestedResourceId")
+    const previousResourceId = text(formData, "previousResourceId")
+    if ((requestedResourceId ?? "") !== (previousResourceId ?? "")) {
+      await updateOpportunity(opportunityId, {
+        requestedResourceId: requestedResourceId ?? null,
+      })
+    }
+
     const result = (await onboardLead({
       opportunityId,
       startsAt,
