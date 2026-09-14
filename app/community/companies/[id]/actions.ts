@@ -15,6 +15,7 @@ import type {
   PlanDto,
 } from "@/lib/service/HsService"
 import { type ActionState, problem, text } from "@/lib/action-state"
+import { buildSubscriptionPayload } from "./subscription-payload"
 import {
   cancelMembershipAction as cancelMembership,
   renewMembershipAction as renewMembership,
@@ -162,22 +163,20 @@ export async function subscribeMemberToPlanAction(
 ): Promise<ActionState> {
   try {
     const companyId = text(formData, "companyId")
-    const memberId = text(formData, "memberId")
-    const planId = text(formData, "planId")
-    const startsAt = text(formData, "startsAt")
-
-    if (!memberId) return { success: false, error: "Select a member" }
-    if (!planId) return { success: false, error: "Select a plan" }
-    if (!startsAt) return { success: false, error: "Start date is required" }
-
-    const data: CreateMembershipDto = {
-      memberId,
-      planId,
-      startsAt,
+    // #92 (C-02): the company id used to be read here and used ONLY to
+    // pick what to revalidate — it never reached the API, so every
+    // subscription made from a company's page was silently personal.
+    const built = buildSubscriptionPayload({
+      companyId: companyId ?? "",
+      memberId: text(formData, "memberId"),
+      planId: text(formData, "planId"),
+      startsAt: text(formData, "startsAt"),
       notes: text(formData, "notes"),
-    }
+      billTo: text(formData, "billTo"),
+    })
+    if (!built.ok) return { success: false, error: built.error }
 
-    await createMembership(data)
+    await createMembership(built.data)
     if (companyId) revalidateCompany(companyId)
     return { success: true }
   } catch (error) {

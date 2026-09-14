@@ -36,6 +36,8 @@ export function SubscribePlanButton({ companyId }: Readonly<{ companyId: string 
   const [isSaving, setIsSaving] = useState(false)
   // The calendar picker is controlled; a fresh open starts blank.
   const [startsAt, setStartsAt] = useState("")
+  /** Empty = the company holds the membership itself (#92). */
+  const [memberId, setMemberId] = useState("")
 
   useEffect(() => {
     if (isOpen) setStartsAt("")
@@ -81,11 +83,6 @@ export function SubscribePlanButton({ companyId }: Readonly<{ companyId: string 
 
   const hasMembers = members.length > 0
 
-  const getMemberPlaceholder = () => {
-    if (isLoading) return "Loading members..."
-    return hasMembers ? "Select a member" : "No members in this company"
-  }
-
   return (
     <>
       <Button onClick={() => setIsOpen(true)}>
@@ -108,8 +105,8 @@ export function SubscribePlanButton({ companyId }: Readonly<{ companyId: string 
             <DrawerHeader className="px-6 pb-4">
               <DrawerTitle>Subscribe to Plan</DrawerTitle>
               <DrawerDescription>
-                Creates a membership for one member of this company. Plan terms are frozen at
-                creation time.
+                Creates a membership held by this company, or a seat for one of its
+                members. Plan terms are frozen at creation time.
               </DrawerDescription>
             </DrawerHeader>
 
@@ -122,10 +119,19 @@ export function SubscribePlanButton({ companyId }: Readonly<{ companyId: string 
                       id="memberId"
                       name="memberId"
                       className={selectClassName}
-                      required
-                      disabled={isLoading || !hasMembers}
+                      value={memberId}
+                      onChange={(event) => setMemberId(event.target.value)}
+                      disabled={isLoading}
                     >
-                      <option value="">{getMemberPlaceholder()}</option>
+                      {/* Empty means the COMPANY holds the membership, whose
+                          credits pool across every employee (#92 / C-02) —
+                          the API tells the two apart by whether memberId is
+                          sent, so this option must send nothing. */}
+                      <option value="">
+                        {isLoading
+                          ? "Loading members..."
+                          : "The company itself (pooled credits)"}
+                      </option>
                       {members.map((member) => (
                         <option key={member.id} value={member.id}>
                           {member.fullName}
@@ -133,12 +139,34 @@ export function SubscribePlanButton({ companyId }: Readonly<{ companyId: string 
                         </option>
                       ))}
                     </select>
-                    {!isLoading && !hasMembers && (
-                      <p className="text-xs text-muted-foreground">
-                        Attach a member on the Members tab before subscribing to a plan.
-                      </p>
-                    )}
+                    <p className="text-xs text-muted-foreground">
+                      {memberId
+                        ? "A seat for this employee, on the company's account."
+                        : "Held by the company: its credits pool across every employee."}
+                      {!isLoading && !hasMembers
+                        ? " Attach a member on the Members tab to subscribe one individually."
+                        : ""}
+                    </p>
                   </div>
+
+                  {memberId && (
+                    <div className="grid gap-2">
+                      <Label htmlFor="billTo">Bill to</Label>
+                      <select
+                        id="billTo"
+                        name="billTo"
+                        className={selectClassName}
+                        defaultValue="company"
+                        disabled={isLoading}
+                      >
+                        <option value="company">The company</option>
+                        <option value="member">The member</option>
+                      </select>
+                      <p className="text-xs text-muted-foreground">
+                        Who receives the plan fee and deposit charges (C-03).
+                      </p>
+                    </div>
+                  )}
 
                   <div className="grid gap-2">
                     <Label htmlFor="planId">Plan</Label>
@@ -190,7 +218,7 @@ export function SubscribePlanButton({ companyId }: Readonly<{ companyId: string 
 
               <DrawerFooter className="shrink-0 border-t pt-4 px-6 pb-6">
                 <div className="flex gap-3">
-                  <Button type="submit" disabled={isSaving || !hasMembers} className="flex-1">
+                  <Button type="submit" disabled={isSaving} className="flex-1">
                     {isSaving ? "Subscribing..." : "Subscribe"}
                   </Button>
                   <DrawerClose asChild>
