@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { DateTimeField } from "@/components/ui/date-time-field"
+import { applyHalf } from "./slot-draft"
 import {
   Dialog,
   DialogClose,
@@ -255,23 +256,12 @@ export function BookingFormDialog({
   }
 
   /**
-   * One half of the manual pair. Kept as a merged draft so a part-typed
-   * entry survives on screen, but collapsed back to `null` the moment
-   * both halves are empty rather than lingering as an object of two
-   * empty strings.
+   * One half of the manual pair. Moving the START carries the END with
+   * it, preserving the duration (#95) — see applyHalf, which is unit
+   * tested in slot-draft.test.ts.
    */
   const updateHalf = (half: "startsAt" | "endsAt", next: string) => {
-    setSlot((current) => {
-      const startsAt = half === "startsAt" ? next : (current?.startsAt ?? "")
-      let endsAt = half === "endsAt" ? next : (current?.endsAt ?? "")
-      // A previously-picked end that the new start has now reached or
-      // passed is stale, not merely off the grid — keeping it selected
-      // would look valid right up until the server rejects it (an end
-      // equal to the new start is a zero-duration pair, not a real
-      // range). Same-shape strings compare correctly as-is.
-      if (half === "startsAt" && endsAt && endsAt <= next) endsAt = ""
-      return startsAt || endsAt ? { startsAt, endsAt } : null
-    })
+    setSlot((current) => applyHalf(current, half, next))
     invalidateQuote()
   }
 
