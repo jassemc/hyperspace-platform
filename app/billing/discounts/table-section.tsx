@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListDiscounts, getListPlans, getListResourceRates } from "@/lib/service"
 import type {
   DiscountDto,
@@ -43,6 +44,7 @@ export async function DiscountTableSection({
     results = response.results ?? []
     total = response.meta?.totalItems ?? results.length
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load discounts", error)
   }
 
@@ -54,6 +56,7 @@ export async function DiscountTableSection({
       planNames[plan.id] = plan.name
     }
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load plans", error)
   }
 
@@ -64,6 +67,7 @@ export async function DiscountTableSection({
       rateNames[rate.id] = rate.name
     }
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load resource rates", error)
   }
 

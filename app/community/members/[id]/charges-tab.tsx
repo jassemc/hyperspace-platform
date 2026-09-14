@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListCharges } from "@/lib/service"
 import type { ChargeDto, ChargeKind, MemberDetailsDto } from "@/lib/service/HsService"
 import {
@@ -34,6 +35,7 @@ export async function ChargesTab({
     })
     ;({ results, total } = pageResult<ChargeDto>(response))
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load member charges", error)
   }
 

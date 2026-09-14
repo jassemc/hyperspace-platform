@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListMembers } from "@/lib/service"
 import type { MemberDto, MemberStatus } from "@/lib/service/HsService"
 import {
@@ -37,6 +38,7 @@ export async function MemberTableSection({
       createdFrom,
       createdTo,
     }).catch((error) => {
+      escalateAuthError(error)
       console.warn("Failed to load members", error)
       return null
     }),

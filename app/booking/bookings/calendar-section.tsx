@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getBookingCalendar, getListResourceTypes } from "@/lib/service"
 import type { BookingCalendarDto, ResourceTypeDto } from "@/lib/service/HsService"
 import { firstParam, resolveSearchParams, type SearchParamsInput } from "@/lib/search-params"
@@ -62,6 +63,7 @@ export async function BookingCalendarSection({
       problem?.error?.type === "mixed_location_calendar"
         ? "This selection spans more than one location. Pick a location to see its calendar."
         : (problem?.message ?? "The calendar could not be loaded.")
+    escalateAuthError(cause)
     console.warn("Failed to load booking calendar", cause)
   }
 

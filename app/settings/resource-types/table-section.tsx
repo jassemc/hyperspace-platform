@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListResourceTypes } from "@/lib/service"
 import type { ListResourceTypesParams, ResourceTypeDto } from "@/lib/service/HsService"
 import { pageResult } from "@/lib/search-params"
@@ -26,6 +27,7 @@ export async function ResourceTypeTableSection({ searchParams }: Readonly<{ sear
         const response = await getListResourceTypes(query)
         ;({ results, total } = pageResult<ResourceTypeDto>(response))
     } catch (error) {
+        escalateAuthError(error)
         console.warn("Failed to load resource types", error)
     }
 

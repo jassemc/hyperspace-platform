@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListDiscounts } from "@/lib/service"
 import type { DiscountDto } from "@/lib/service/HsService"
 import { pageResult } from "@/lib/search-params"
@@ -12,6 +13,7 @@ export async function SectionCards() {
     const response = await getListDiscounts({ limit: 100, offset: 0, sort: "ASC" })
     discounts = pageResult<DiscountDto>(response).results
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load discount stats", error)
   }
 

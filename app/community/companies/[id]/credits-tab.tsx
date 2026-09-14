@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListCredits, getListResourceTypes } from "@/lib/service"
 import type {
   CompanyDetailsDto,
@@ -29,6 +30,7 @@ export async function CreditsTab({
   const [response, types] = await Promise.all([
     getListCredits({ limit, offset, sort: "DESC", q, kind, companyId: company.id }).catch(
       (error) => {
+        escalateAuthError(error)
         console.warn("Failed to load company credits", error)
         return null
       }

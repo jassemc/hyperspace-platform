@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListCredits } from "@/lib/service"
 import type { CreditTransactionDto } from "@/lib/service/HsService"
 import { pageResult } from "@/lib/search-params"
@@ -14,6 +15,7 @@ export async function SectionCards() {
     credits = page.results
     total = page.total
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load credit stats", error)
   }
 

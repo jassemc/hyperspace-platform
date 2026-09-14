@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListInvoices, getListMembers, getListCompanies } from "@/lib/service"
 import type { CompanyDto, InvoiceDto, InvoiceStatus, MemberDto } from "@/lib/service/HsService"
 import {
@@ -25,6 +26,7 @@ export async function InvoiceTableSection({
     const response = await getListInvoices({ limit, offset, sort: "DESC", q, status })
     ;({ results, total } = pageResult<InvoiceDto>(response))
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load invoices", error)
   }
 
@@ -43,6 +45,7 @@ export async function InvoiceTableSection({
       companyNames[company.id] = company.name
     }
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load invoice lookups", error)
   }
 

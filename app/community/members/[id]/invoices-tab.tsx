@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListInvoices } from "@/lib/service"
 import type { InvoiceDto, InvoiceStatus, MemberDetailsDto } from "@/lib/service/HsService"
 import {
@@ -33,6 +34,7 @@ export async function InvoicesTab({
     })
     ;({ results, total } = pageResult<InvoiceDto>(response))
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load member invoices", error)
   }
 

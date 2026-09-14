@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListBookings } from "@/lib/service"
 import type {
   BookingDto,
@@ -52,6 +53,7 @@ export async function BookingTableSection({
       createdFrom,
       createdTo,
     }).catch((error) => {
+      escalateAuthError(error)
       console.warn("Failed to load bookings", error)
       return null
     }),
@@ -88,6 +90,7 @@ export async function BookingTableSection({
     // its envelope instead.
     timeZone = zone
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load booking lookups", error)
   }
 

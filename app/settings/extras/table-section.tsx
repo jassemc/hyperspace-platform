@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListExtras } from "@/lib/service"
 import type { ExtraDto } from "@/lib/service/HsService"
 import { pageQuery, pageResult, resolveSearchParams, type SearchParamsInput } from "@/lib/search-params"
@@ -16,6 +17,7 @@ export async function ExtraTableSection({
     const response = await getListExtras({ limit, offset, sort: "ASC", q })
     ;({ results, total } = pageResult<ExtraDto>(response))
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load extras", error)
   }
 

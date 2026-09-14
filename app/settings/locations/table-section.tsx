@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListLocations } from "@/lib/service"
 import type { LocationDto } from "@/lib/service/HsService"
 import { pageQuery, pageResult, resolveSearchParams, type SearchParamsInput } from "@/lib/search-params"
@@ -16,6 +17,7 @@ export async function LocationTableSection({
     const response = await getListLocations({ limit, offset, sort: "ASC", q })
     ;({ results, total } = pageResult<LocationDto>(response))
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load locations", error)
   }
 

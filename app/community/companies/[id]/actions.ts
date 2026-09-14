@@ -1,5 +1,6 @@
 "use server"
 
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { revalidatePath, revalidateTag } from "next/cache"
 import {
   createMembership,
@@ -48,6 +49,7 @@ export async function searchAttachableMembers(query: string): Promise<MemberDto[
 
     return (response.results ?? []).filter((member) => !member.companyId)
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to search attachable members", error)
     return []
   }
@@ -63,6 +65,7 @@ export async function listCompanyOptions(): Promise<CompanyDto[]> {
 
     return response.results ?? []
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load companies", error)
     return []
   }
@@ -96,6 +99,7 @@ export async function listPlanOptions(): Promise<PlanDto[]> {
 
     return response.results ?? []
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load plans", error)
     return []
   }

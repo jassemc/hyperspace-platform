@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListCredits, getListResourceTypes } from "@/lib/service"
 import type { CreditTransactionDto, CreditTransactionKind, ResourceTypeDto } from "@/lib/service/HsService"
 import {
@@ -33,6 +34,7 @@ export async function CreditTableSection({
     })
     ;({ results, total } = pageResult<CreditTransactionDto>(response))
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load credits", error)
   }
 
@@ -44,6 +46,7 @@ export async function CreditTableSection({
       resourceTypeNames[type.id] = type.name
     }
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load resource types for credits", error)
   }
 

@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListCompanies } from "@/lib/service"
 import type { CompanyDto } from "@/lib/service/HsService"
 import { pageQuery, pageResult, resolveSearchParams, type SearchParamsInput } from "@/lib/search-params"
@@ -18,6 +19,7 @@ export async function CompanyTableSection({
 
   const [response] = await Promise.all([
     getListCompanies({ limit, offset, sort: "ASC", q }).catch((error) => {
+      escalateAuthError(error)
       console.warn("Failed to load companies", error)
       return null
     }),

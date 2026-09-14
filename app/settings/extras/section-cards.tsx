@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListExtras } from "@/lib/service"
 import type { ExtraDto } from "@/lib/service/HsService"
 import { pageResult } from "@/lib/search-params"
@@ -15,6 +16,7 @@ export async function SectionCards() {
     extras = page.results
     total = page.total
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load extra stats", error)
   }
 

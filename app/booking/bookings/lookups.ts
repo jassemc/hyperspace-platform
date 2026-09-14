@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { cache } from "react"
 import { getListCompanies, getListMembers, getListResources } from "@/lib/service"
 import type { CompanyDto, MemberDto, ResourceDto } from "@/lib/service/HsService"
@@ -23,14 +24,17 @@ const PAGE = { limit: 100, offset: 0, sort: "ASC" as const }
 export const bookingLookups = cache(async (): Promise<BookingLookups> => {
   const [resourcePage, memberPage, companyPage] = await Promise.all([
     getListResources({ ...PAGE, canBook: true }).catch((error) => {
+      escalateAuthError(error)
       console.warn("Failed to load resources", error)
       return null
     }),
     getListMembers(PAGE).catch((error) => {
+      escalateAuthError(error)
       console.warn("Failed to load members", error)
       return null
     }),
     getListCompanies(PAGE).catch((error) => {
+      escalateAuthError(error)
       console.warn("Failed to load companies", error)
       return null
     }),

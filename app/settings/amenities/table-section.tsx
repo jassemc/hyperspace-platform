@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListAmenities } from "@/lib/service"
 import type { AmenityDto } from "@/lib/service/HsService"
 import { pageQuery, pageResult, resolveSearchParams, type SearchParamsInput } from "@/lib/search-params"
@@ -16,6 +17,7 @@ export async function AmenityTableSection({
     const response = await getListAmenities({ limit, offset, sort: "ASC", q })
     ;({ results, total } = pageResult<AmenityDto>(response))
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load amenities", error)
   }
 

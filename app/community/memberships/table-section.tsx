@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListMemberships } from "@/lib/service"
 import type { MembershipDto, MembershipStatus } from "@/lib/service/HsService"
 import {
@@ -27,6 +28,7 @@ export async function MembershipTableSection({
 
   const [response, stats, planOptionsStats] = await Promise.all([
     getListMemberships({ limit, offset, sort: "ASC", q, status, planId }).catch((error) => {
+      escalateAuthError(error)
       console.warn("Failed to load memberships", error)
       return null
     }),

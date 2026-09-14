@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListResources, getListResourceTypes } from "@/lib/service";
 import type { ListResourcesParams, ResourceDto, ResourceTypeDto } from "@/lib/service/HsService";
 import { pageResult } from "@/lib/search-params";
@@ -34,6 +35,7 @@ export async function ResourceTableSection({ searchParams }: Readonly<{ searchPa
         const response = await getListResources(query)
         ;({ results, total } = pageResult<ResourceDto>(response))
     } catch (error) {
+        escalateAuthError(error)
         console.warn("Failed to load resources", error)
     }
 
@@ -49,6 +51,7 @@ export async function ResourceTableSection({ searchParams }: Readonly<{ searchPa
             resourceTypeNames[type.id] = type.name
         }
     } catch (error) {
+        escalateAuthError(error)
         console.warn("Failed to load resource types", error)
     }
 

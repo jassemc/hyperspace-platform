@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListPlans } from "@/lib/service"
 import type { PlanDto } from "@/lib/service/HsService"
 import { pageResult } from "@/lib/search-params"
@@ -14,6 +15,7 @@ export async function SectionCards() {
     plans = page.results
     total = page.total
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load plan stats", error)
   }
 

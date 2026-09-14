@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListCheckins, getListLocations } from "@/lib/service"
 import type { CheckinDto, LocationDto, MemberDetailsDto } from "@/lib/service/HsService"
 import { pageQuery, pageResult, resolveSearchParams, type SearchParamsInput } from "@/lib/search-params"
@@ -13,6 +14,7 @@ export async function CheckinsTab({
 
   const [response, locations] = await Promise.all([
     getListCheckins({ limit, offset, sort: "DESC", q, memberId: member.id }).catch((error) => {
+      escalateAuthError(error)
       console.warn("Failed to load member check-ins", error)
       return null
     }),

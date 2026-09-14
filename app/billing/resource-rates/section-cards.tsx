@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListResourceRates } from "@/lib/service"
 import type { ResourceRateDto } from "@/lib/service/HsService"
 import { pageResult } from "@/lib/search-params"
@@ -14,6 +15,7 @@ export async function SectionCards() {
     rates = page.results
     total = page.total
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load resource rate stats", error)
   }
 

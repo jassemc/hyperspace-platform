@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListCheckins } from "@/lib/service"
 import type { CheckinDto } from "@/lib/service/HsService"
 import { pageResult } from "@/lib/search-params"
@@ -14,6 +15,7 @@ export async function SectionCards() {
     checkins = page.results
     total = page.total
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load check-in stats", error)
   }
 

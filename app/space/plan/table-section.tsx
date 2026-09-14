@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListPlans } from "@/lib/service"
 import type { ListPlansParams, PlanDto } from "@/lib/service/HsService"
 import { PlanTable } from "./plan-table"
@@ -32,6 +33,7 @@ export async function PlanTableSection({
     results = response.results ?? []
     total = response.meta?.totalItems ?? results.length
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load plans", error)
   }
 

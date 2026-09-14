@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListPlanCategories } from "@/lib/service"
 import type { PlanCategoryDto } from "@/lib/service/HsService"
 import { pageQuery, pageResult, resolveSearchParams, type SearchParamsInput } from "@/lib/search-params"
@@ -17,6 +18,7 @@ export async function PlanCategoryTableSection({
     const response = await getListPlanCategories({ limit, offset, sort: "ASC", q })
     ;({ results, total } = pageResult<PlanCategoryDto>(response))
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load plan categories", error)
   }
 

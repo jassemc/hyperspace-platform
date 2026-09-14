@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListBookings } from "@/lib/service"
 import type { BookingDto, BookingStatus, CompanyDetailsDto } from "@/lib/service/HsService"
 import {
@@ -26,6 +27,7 @@ export async function BookingsTab({
   const [response, lookups, timeZone] = await Promise.all([
     getListBookings({ limit, offset, sort: "DESC", q, status, companyId: company.id }).catch(
       (error) => {
+        escalateAuthError(error)
         console.warn("Failed to load company bookings", error)
         return null
       }

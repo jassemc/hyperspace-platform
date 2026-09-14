@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListResourceRates, getListResourceTypes } from "@/lib/service"
 import type {
   ListResourceRatesParams,
@@ -40,6 +41,7 @@ export async function ResourceRateTableSection({
     results = response.results ?? []
     total = response.meta?.totalItems ?? results.length
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load resource rates", error)
   }
 
@@ -51,6 +53,7 @@ export async function ResourceRateTableSection({
       resourceTypeNames[type.id] = type.name
     }
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load resource types", error)
   }
 

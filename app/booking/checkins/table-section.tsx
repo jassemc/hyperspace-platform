@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListCheckins, getListLocations } from "@/lib/service"
 import type { CheckinDto, LocationDto } from "@/lib/service/HsService"
 import {
@@ -30,6 +31,7 @@ export async function CheckinTableSection({
     })
     ;({ results, total } = pageResult<CheckinDto>(response))
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load check-ins", error)
   }
 
@@ -43,6 +45,7 @@ export async function CheckinTableSection({
       locationNames[location.id] = location.name
     }
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load check-in lookups", error)
   }
 

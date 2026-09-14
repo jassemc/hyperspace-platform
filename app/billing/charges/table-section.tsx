@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListCharges, getListMembers, getListCompanies } from "@/lib/service"
 import type { ChargeDto, ChargeKind, CompanyDto, MemberDto } from "@/lib/service/HsService"
 import {
@@ -34,6 +35,7 @@ export async function ChargeTableSection({
     })
     ;({ results, total } = pageResult<ChargeDto>(response))
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load charges", error)
   }
 
@@ -52,6 +54,7 @@ export async function ChargeTableSection({
       companyNames[company.id] = company.name
     }
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load charge lookups", error)
   }
 

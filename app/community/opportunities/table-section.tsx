@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListOpportunities } from "@/lib/service"
 import type {
   OpportunityDto,
@@ -54,6 +55,7 @@ export async function OpportunityTableSection({
     })
     ;({ results, total } = pageResult<OpportunityDto>(response))
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load opportunities", error)
   }
 

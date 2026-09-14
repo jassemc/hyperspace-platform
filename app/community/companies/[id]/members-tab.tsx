@@ -1,3 +1,4 @@
+import { escalateAuthError } from "@/lib/auth/api-auth"
 import { getListMembers } from "@/lib/service"
 import type { MemberDto } from "@/lib/service/HsService"
 import { pageQuery, pageResult, resolveSearchParams, type SearchParamsInput } from "@/lib/search-params"
@@ -21,6 +22,7 @@ export async function MembersTab({
     const response = await getListMembers({ limit, offset, sort: "ASC", companyId, q })
     ;({ results, total } = pageResult<MemberDto>(response))
   } catch (error) {
+    escalateAuthError(error)
     console.warn("Failed to load company members", error)
   }
 
