@@ -1,12 +1,7 @@
 "use client"
 
 import {
-  BadgeCheck,
-  Bell,
-  ChevronsUpDown,
-  CreditCard,
   LogOut,
-  Sparkles,
 } from "lucide-react"
 
 import {
@@ -17,7 +12,6 @@ import {
 import {
   DropdownMenu,
   DropdownMenuContent,
-  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
@@ -27,6 +21,7 @@ import {
 import { LogoutButton } from "./logout-button"
 import { useMemo } from "react"
 import { Button } from "@/components/ui/button"
+import { SidebarTrigger } from "@/components/sidebar"
 
 // Function to generate avatar URL using DiceBear API
 function generateAvatarUrl(seed: string): string {
@@ -67,7 +62,15 @@ export function AppNavbar({
   if (!user) return null
 
   return (
-    <div className="flex items-center justify-end w-full px-4">
+    <div className="flex w-full items-center gap-2 px-4">
+      {/* #90 (X-03): below the md breakpoint the sidebar is hidden and
+          nothing replaced it — at 375 px the Overview rendered with no
+          way to leave it. The sidebar component already has an
+          off-canvas (Sheet) variant driven by `openMobile`; what was
+          missing was anything to open it. Desktop keeps its own
+          pin/collapse control, so this shows only on small screens. */}
+      <SidebarTrigger className="md:hidden" aria-label="Open navigation" />
+      <div className="flex flex-1 items-center justify-end">
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
@@ -97,28 +100,10 @@ export function AppNavbar({
               </div>
             </div>
           </DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            <DropdownMenuItem>
-              <Sparkles />
-              Upgrade to Pro
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            <DropdownMenuItem>
-              <BadgeCheck />
-              Account
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <CreditCard />
-              Billing
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              <Bell />
-              Notifications
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
+          {/* #74 (S-10): "Upgrade to Pro", Account, Billing and
+              Notifications were DropdownMenuItems with no onSelect, no
+              href and no asChild — four more things that look clickable
+              and do nothing. Logout is what this menu is actually for. */}
           <DropdownMenuSeparator />
           <DropdownMenuItem>
             <LogOut />
@@ -126,6 +111,7 @@ export function AppNavbar({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+      </div>
     </div>
   )
 }

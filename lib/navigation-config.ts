@@ -126,20 +126,6 @@ export const navigationConfig: NavigationConfig = {
                     url: "/community/opportunities",
                     icon: Target,
                 },
-                {
-                    title: "Discussions",
-                    url: "#",
-                    icon: MessageSquare,
-                    items: [
-                        { title: "Active Topics", url: "#" },
-                        { title: "Create Topic", url: "#" },
-                    ]
-                },
-                {
-                    title: "Events",
-                    url: "#",
-                    icon: Calendar,
-                }
             ]
         },
         {
@@ -150,7 +136,7 @@ export const navigationConfig: NavigationConfig = {
             subMenus: [
                 {
                     title: "Resource types",
-                    url: "#",
+                    url: "/settings/resource-types",
                     icon: Map,
                     dynamicId: "resourceTypes",
                     items: []
@@ -165,15 +151,6 @@ export const navigationConfig: NavigationConfig = {
                     url: "/space/plan",
                     icon: Calendar,
                 },
-                {
-                    title: "Availability",
-                    url: "#",
-                    icon: Clock,
-                    items: [
-                        { title: "Check Schedule", url: "#" },
-                        { title: "Book Space", url: "#" },
-                    ]
-                }
             ]
         },
         {
@@ -207,20 +184,6 @@ export const navigationConfig: NavigationConfig = {
                     url: "/billing/discounts",
                     icon: BadgePercent,
                 },
-                {
-                    title: "Payment Methods",
-                    url: "#",
-                    icon: CreditCard,
-                },
-                {
-                    title: "Subscriptions",
-                    url: "#",
-                    icon: Calendar,
-                    items: [
-                        { title: "Manage Plans", url: "#" },
-                        { title: "Usage Stats", url: "#" },
-                    ]
-                }
             ]
         },
         {
@@ -272,30 +235,6 @@ export const navigationConfig: NavigationConfig = {
                     url: "/settings/locations",
                     icon: MapPin,
                 },
-                {
-                    title: "Profile",
-                    url: "#",
-                    icon: User,
-                    items: [
-                        { title: "Edit Profile", url: "#" },
-                        { title: "Change Password", url: "#" },
-                        { title: "Privacy Settings", url: "#" },
-                    ]
-                },
-                {
-                    title: "Notifications",
-                    url: "#",
-                    icon: Bell,
-                },
-                {
-                    title: "Preferences",
-                    url: "#",
-                    icon: Settings,
-                    items: [
-                        { title: "Theme", url: "#" },
-                        { title: "Language", url: "#" },
-                    ]
-                }
             ]
         },
     ]

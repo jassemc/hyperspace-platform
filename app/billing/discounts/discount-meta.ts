@@ -17,7 +17,7 @@ export function formatDiscountValue(d: Pick<DiscountDto, "percentOff" | "amountO
   return "—"
 }
 
-/** Validity window, inclusive, YYYY-MM-DD compare (Africa/Tunis dates from the API). Any kind may carry one. */
+/** Validity window, inclusive, YYYY-MM-DD compare (business dates from the API). Any kind may carry one. */
 export function isInWindow(
   d: Pick<DiscountDto, "validFrom" | "validUntil">,
   today = todayInTunis()

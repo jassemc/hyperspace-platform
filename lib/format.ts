@@ -1,3 +1,4 @@
+import { DEFAULT_TIMEZONE } from "@/lib/timezone"
 /**
  * Money and rate formatting for the API's current units.
  *
@@ -53,10 +54,20 @@ export function formatCalendarDate(value: string | null | undefined): string {
     return new Date(year, month - 1, day).toLocaleDateString()
 }
 
-/** The business date in Tunis, not the browser's, since the API works in it. */
-export function todayInTunis(): string {
-    return new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Tunis" }).format(new Date())
+/**
+ * Today as a business date, not the browser's, since the API works in
+ * business dates.
+ *
+ * The zone is a parameter with a deployment default (#74): a caller that
+ * knows which location it is talking about should pass that location's
+ * own zone, rather than every date default assuming one region.
+ */
+export function businessToday(timeZone: string = DEFAULT_TIMEZONE): string {
+    return new Intl.DateTimeFormat("en-CA", { timeZone }).format(new Date())
 }
+
+/** @deprecated Named for one region; use businessToday(). */
+export const todayInTunis = businessToday
 
 /**
  * Date and time in a given zone. `timeZone` is required, not defaulted:

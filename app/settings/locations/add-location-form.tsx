@@ -20,6 +20,7 @@ import type { ClosedDayDto, LocationDto } from "@/lib/service/HsService"
 import { createLocationAction, updateLocationAction } from "./actions"
 import { DAY_LABELS, WEEK_DAYS, type WeekDay } from "./location-meta"
 import { toast } from "sonner"
+import { DEFAULT_TIMEZONE } from "@/lib/timezone"
 
 interface AddLocationFormProps {
   isOpen: boolean
@@ -141,10 +142,12 @@ export function AddLocationForm({ isOpen, onClose, editingLocation }: Readonly<A
                   <Input
                     id="timezone"
                     name="timezone"
-                    placeholder="Africa/Tunis"
-                    defaultValue={editingLocation?.timezone || "Africa/Tunis"}
+                    placeholder={DEFAULT_TIMEZONE}
+                    defaultValue={editingLocation?.timezone || DEFAULT_TIMEZONE}
                   />
-                  <p className="text-xs text-muted-foreground">IANA name. Defaults to Africa/Tunis.</p>
+                  <p className="text-xs text-muted-foreground">
+                    IANA name. Defaults to {DEFAULT_TIMEZONE}.
+                  </p>
                 </div>
 
                 <div className="grid gap-2">
