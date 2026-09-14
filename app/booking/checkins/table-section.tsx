@@ -1,5 +1,5 @@
-import { getListCheckins, getListMembers, getListLocations } from "@/lib/service"
-import type { CheckinDto, LocationDto, MemberDto } from "@/lib/service/HsService"
+import { getListCheckins, getListLocations } from "@/lib/service"
+import type { CheckinDto, LocationDto } from "@/lib/service/HsService"
 import {
   firstParam,
   pageQuery,
@@ -33,18 +33,12 @@ export async function CheckinTableSection({
     console.warn("Failed to load check-ins", error)
   }
 
-  // Check-ins reference member and location by id only.
-  const memberNames: Record<string, string> = {}
+  // The member's name travels on the check-in itself (#85); only the
+  // location still needs resolving, and locations are few.
   const locationNames: Record<string, string> = {}
 
   try {
-    const [members, locations] = await Promise.all([
-      getListMembers({ limit: 100, offset: 0, sort: "ASC" }),
-      getListLocations({ limit: 100, offset: 0, sort: "ASC" }),
-    ])
-    for (const member of (members?.results ?? []) as MemberDto[]) {
-      memberNames[member.id] = member.fullName
-    }
+    const locations = await getListLocations({ limit: 100, offset: 0, sort: "ASC" })
     for (const location of (locations?.results ?? []) as LocationDto[]) {
       locationNames[location.id] = location.name
     }
@@ -56,7 +50,6 @@ export async function CheckinTableSection({
     <CheckinTable
       data={results}
       totalCount={total}
-      memberNames={memberNames}
       locationNames={locationNames}
     />
   )

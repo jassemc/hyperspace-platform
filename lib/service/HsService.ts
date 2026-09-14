@@ -1582,6 +1582,20 @@ export interface UpdateDiscountDto {
   validUntil?: string | null;
 }
 
+export interface ChargeMemberDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Dali May" */
+  fullName: string;
+}
+
+export interface ChargeCompanyDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Lumina Dev Studio SARL" */
+  name: string;
+}
+
 export type ChargeKind = "plan_fee" | "booking" | "store" | "one_off" | "deposit" | "setup_fee" | "discount";
 
 export interface ChargeDto {
@@ -1595,6 +1609,14 @@ export interface ChargeDto {
   memberId?: string | null;
   /** @format uuid */
   companyId?: string | null;
+  /**
+   * The customer's name, resolved server-side (#85 / O-02). Without it
+   * the billing tables had to build a lookup from a capped members page
+   * and rendered anyone outside it as unknown. Blank rather than absent
+   * when the relation was not joined — the id says whether there IS one.
+   */
+  member?: ChargeMemberDto | null;
+  company?: ChargeCompanyDto | null;
   /** @format uuid */
   membershipId?: string | null;
   /** @format uuid */
@@ -2310,6 +2332,15 @@ export type CheckinMethod = "qr" | "manual";
 
 export type EntitlementUsed = "access_24_7" | "access_business_hours" | "half_day_credit" | "visitor" | "trial";
 
+export interface CheckinMemberDto {
+  /** @format uuid */
+  id: string;
+  /** @example "Dali May" */
+  fullName: string;
+  /** @example "dali@example.tn" */
+  email?: string | null;
+}
+
 export interface CheckinDto {
   /**
    * Unique identifier
@@ -2327,6 +2358,16 @@ export interface CheckinDto {
   checkedOutAt?: string | null;
   method: CheckinMethod;
   entitlementUsed: EntitlementUsed;
+  /**
+   * Who is on site, resolved server-side (#85 / O-02).
+   *
+   * Without it the staff platform had to build a name lookup from
+   * `GET /members?limit=100`, so anyone outside the first 100 rows —
+   * which is every recently created member once the base passes 100 —
+   * rendered as "Unknown member" on the very list the front desk reads
+   * to see who is in the building. Mirrors BookingDto.member.
+   */
+  member?: CheckinMemberDto | null;
   /**
    * The date of creation of the resource
    * @format date-time
@@ -2474,6 +2515,14 @@ export interface BookingDto {
   /** @format uuid */
   companyId?: string | null;
   company?: BookingCompanyDto | null;
+  /**
+   * Who the booking was BILLED to, when that differs from who it was
+   * made for (#86 / O-10): an employee's own booking that drained the
+   * company's pooled credits carries the company here while `companyId`
+   * stays null. The company Bookings tab matches either.
+   * @format uuid
+   */
+  billedCompanyId?: string | null;
   /** @format date-time */
   startsAt: string;
   /** @format date-time */
@@ -2523,6 +2572,8 @@ export interface BookingDto {
    */
   updatedAt: string;
 }
+
+export type BookingSortBy = "startsAt" | "createdAt";
 
 export interface BookingStatusCountDto {
   status: BookingStatus;
@@ -3510,8 +3561,18 @@ export interface ExpiringMembershipDto {
   planName: string;
   /** @format uuid */
   memberId?: string | null;
+  /**
+   * Resolved server-side (#85 / O-02) — the staff Overview used to match
+   * `memberId` against a `members?limit=100` page and printed "Company"
+   * for anyone outside it, on the one list that exists to tell staff
+   * which renewals to chase.
+   * @example "Dali May"
+   */
+  memberName?: string | null;
   /** @format uuid */
   companyId?: string | null;
+  /** @example "Lumina Dev Studio SARL" */
+  companyName?: string | null;
   /** @example "2026-08-01" */
   endsAt: string;
 }
@@ -3811,6 +3872,26 @@ export interface PublicResourceTypeDto {
    * @example true
    */
   canBook: boolean;
+}
+
+export interface PublicBookingQuoteDto {
+  /** @example 90 */
+  priceHt?: number | null;
+  extras: Array<QuoteExtraDto>;
+  /** @example 90 */
+  grandTotalHt: number;
+  /** @example 107.1 */
+  grandTotalTtc: number;
+}
+
+export interface BookingQuoteRequestDto {
+  /** @format uuid */
+  resourceId: string;
+  /** @example "2026-07-20T09:00:00Z" */
+  startsAt: string;
+  /** @example "2026-07-20T11:00:00Z" */
+  endsAt: string;
+  extraIds?: Array<string>;
 }
 
 export interface BookingRequestResultDto {
@@ -4562,6 +4643,22 @@ export interface ListBookingsParams {
   from?: string;
   /** @example "2026-07-31T23:59:59Z" */
   to?: string;
+  /**
+   * When the booking was REQUESTED, not when it happens (#87 / O-01).
+   * `from`/`to` above filter the booking's own window; these filter its
+   * creation time, which is how the desk answers "what came in over the
+   * weekend" without opening every row.
+   * @example "2026-09-11T17:00:00Z"
+   */
+  createdFrom?: string;
+  /** @example "2026-09-14T09:00:00Z" */
+  createdTo?: string;
+  /**
+   * Which column `sort` orders by. `startsAt` (the default) is the
+   * calendar view; `createdAt` is the Monday-morning triage view —
+   * newest requests first (#87).
+   */
+  sortBy?: BookingSortBy;
   status?: BookingStatus;
   source?: BookingSource;
   /**
@@ -6360,7 +6457,7 @@ export namespace Api {
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
    * @response `404` `((ResponseErrorDto))` 404
-   * @response `409` `(ResponseErrorDto)` Conflict
+   * @response `409` `((ResponseErrorDto))` 409
    * @response `422` `((ResponseErrorDto))` 422
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
@@ -6377,7 +6474,7 @@ export namespace Api {
   }
 
   /**
-   * @description Stops new assignments; existing snapshots and charges keep their values.
+   * @description Stops new assignments; existing snapshots and charges keep their values. Archiving is one-way: an archived discount can neither be archived again nor edited.
    * @tags Billing — Discounts
    * @name ArchiveDiscount
    * @summary Archive a discount
@@ -6387,6 +6484,7 @@ export namespace Api {
    * @response `401` `(ResponseErrorDto)` Unauthorized
    * @response `403` `((ResponseErrorDto))` 403
    * @response `404` `(ResponseErrorDto)` Not Found
+   * @response `409` `(ResponseErrorDto)` Conflict
    * @response `422` `(ResponseErrorDto)` Unprocessable Entity
    * @response `429` `(ResponseErrorDto)` Too Many Requests
    * @response `500` `(ResponseErrorDto)` Internal Server Error
@@ -7530,7 +7628,7 @@ export namespace Api {
   }
 
   /**
- * @description Staff/admin see everything; member-role callers see their own and their employer company's bookings. Filters: resourceId, status, source, memberId, companyId, isFree, and from/to (interval overlap — a booking matches when it touches the range). `q` searches title, notes and the customer name.
+ * @description Staff/admin see everything; member-role callers see their own and their employer company's bookings. Filters: resourceId, status, source, memberId, companyId, isFree, and from/to (interval overlap — a booking matches when it touches the range). `q` searches title, notes and the customer name. createdFrom/createdTo filter when the request CAME IN rather than when the room is used, and sortBy=createdAt orders by it — the Monday-morning "what arrived over the weekend" view.
  * @tags Bookings
  * @name ListBookings
  * @summary List bookings
@@ -7571,6 +7669,22 @@ export namespace Api {
       from?: string;
       /** @example "2026-07-31T23:59:59Z" */
       to?: string;
+      /**
+       * When the booking was REQUESTED, not when it happens (#87 / O-01).
+       * `from`/`to` above filter the booking's own window; these filter its
+       * creation time, which is how the desk answers "what came in over the
+       * weekend" without opening every row.
+       * @example "2026-09-11T17:00:00Z"
+       */
+      createdFrom?: string;
+      /** @example "2026-09-14T09:00:00Z" */
+      createdTo?: string;
+      /**
+       * Which column `sort` orders by. `startsAt` (the default) is the
+       * calendar view; `createdAt` is the Monday-morning triage view —
+       * newest requests first (#87).
+       */
+      sortBy?: BookingSortBy;
       status?: BookingStatus;
       source?: BookingSource;
       /**
@@ -7597,7 +7711,7 @@ export namespace Api {
   }
 
   /**
-   * @description Members book for themselves (source=portal); staff book for any member XOR company (source=staff). Pricing: room_hour credits first (scope from membership snapshots, drained soonest-expiring first), remainder at the member rate — or the visitor rate without a membership. price_ht is NULL when fully credit-covered. Conflicts are impossible at the database level (GiST exclusion constraint). Staff may pass isFree + freeReason: no credits are consumed and no charges written (room and extras alike).
+   * @description Members book for themselves (source=portal); staff book for any member XOR company (source=staff). Pricing: room_hour credits first (scope from the GRANTS the membership holds — a wildcard grant covers any type — drained soonest-expiring first), remainder at the member rate — or the visitor rate without a membership. price_ht is NULL when fully credit-covered. Conflicts are impossible at the database level (GiST exclusion constraint). Staff may pass isFree + freeReason: no credits are consumed and no charges written (room and extras alike).
    * @tags Bookings
    * @name CreateBooking
    * @summary Create a booking (§6.3 credit-first pricing)
@@ -8329,6 +8443,29 @@ export namespace Api {
       "X-Api-Key": string;
     };
     export type ResponseBody = PublicResourceTypeDto;
+  }
+
+  /**
+   * @description The §6.3 price the visitor would be charged for this resource, slot and extras — the same pricing path POST /public/booking-requests uses, quoted anonymously so the figure never depends on a resolved member. Nothing is created and no slot is held; call it on every duration, slot or extras change to keep the order summary honest (#64).
+   * @tags Public (website)
+   * @name PublicQuoteBookingRequest
+   * @summary Dry-run price for a website booking slot
+   * @request POST:/api/v1/public/booking-requests/quote
+   * @response `200` `(PublicBookingQuoteDto)` 200
+   * @response `401` `(ResponseErrorDto)` Unauthorized
+   * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+   * @response `429` `(ResponseErrorDto)` Too Many Requests
+   * @response `500` `(ResponseErrorDto)` Internal Server Error
+   */
+  export namespace PublicQuoteBookingRequest {
+    export type RequestParams = {};
+    export type RequestQuery = {};
+    export type RequestBody = BookingQuoteRequestDto;
+    export type RequestHeaders = {
+      /** Pre-provisioned service key (see SERVICE_API_KEYS). No user identity is attached to this group. */
+      "X-Api-Key": string;
+    };
+    export type ResponseBody = PublicBookingQuoteDto;
   }
 
   /**
@@ -10347,7 +10484,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
      * @response `404` `((ResponseErrorDto))` 404
-     * @response `409` `(ResponseErrorDto)` Conflict
+     * @response `409` `((ResponseErrorDto))` 409
      * @response `422` `((ResponseErrorDto))` 422
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
@@ -10365,7 +10502,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Stops new assignments; existing snapshots and charges keep their values.
+     * @description Stops new assignments; existing snapshots and charges keep their values. Archiving is one-way: an archived discount can neither be archived again nor edited.
      *
      * @tags Billing — Discounts
      * @name ArchiveDiscount
@@ -10376,6 +10513,7 @@ export class HsService<SecurityDataType extends unknown> {
      * @response `401` `(ResponseErrorDto)` Unauthorized
      * @response `403` `((ResponseErrorDto))` 403
      * @response `404` `(ResponseErrorDto)` Not Found
+     * @response `409` `(ResponseErrorDto)` Conflict
      * @response `422` `(ResponseErrorDto)` Unprocessable Entity
      * @response `429` `(ResponseErrorDto)` Too Many Requests
      * @response `500` `(ResponseErrorDto)` Internal Server Error
@@ -11370,7 +11508,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
- * @description Staff/admin see everything; member-role callers see their own and their employer company's bookings. Filters: resourceId, status, source, memberId, companyId, isFree, and from/to (interval overlap — a booking matches when it touches the range). `q` searches title, notes and the customer name.
+ * @description Staff/admin see everything; member-role callers see their own and their employer company's bookings. Filters: resourceId, status, source, memberId, companyId, isFree, and from/to (interval overlap — a booking matches when it touches the range). `q` searches title, notes and the customer name. createdFrom/createdTo filter when the request CAME IN rather than when the room is used, and sortBy=createdAt orders by it — the Monday-morning "what arrived over the weekend" view.
  *
  * @tags Bookings
  * @name ListBookings
@@ -11406,7 +11544,7 @@ export class HsService<SecurityDataType extends unknown> {
       }),
 
     /**
-     * @description Members book for themselves (source=portal); staff book for any member XOR company (source=staff). Pricing: room_hour credits first (scope from membership snapshots, drained soonest-expiring first), remainder at the member rate — or the visitor rate without a membership. price_ht is NULL when fully credit-covered. Conflicts are impossible at the database level (GiST exclusion constraint). Staff may pass isFree + freeReason: no credits are consumed and no charges written (room and extras alike).
+     * @description Members book for themselves (source=portal); staff book for any member XOR company (source=staff). Pricing: room_hour credits first (scope from the GRANTS the membership holds — a wildcard grant covers any type — drained soonest-expiring first), remainder at the member rate — or the visitor rate without a membership. price_ht is NULL when fully credit-covered. Conflicts are impossible at the database level (GiST exclusion constraint). Staff may pass isFree + freeReason: no credits are consumed and no charges written (room and extras alike).
      *
      * @tags Bookings
      * @name CreateBooking
@@ -12008,6 +12146,29 @@ export class HsService<SecurityDataType extends unknown> {
       this.http.request<PublicResourceTypeDto, ResponseErrorDto>({
         path: `/api/v1/public/resource-types`,
         method: "GET",
+        format: "json",
+        ...params,
+      }),
+
+    /**
+     * @description The §6.3 price the visitor would be charged for this resource, slot and extras — the same pricing path POST /public/booking-requests uses, quoted anonymously so the figure never depends on a resolved member. Nothing is created and no slot is held; call it on every duration, slot or extras change to keep the order summary honest (#64).
+     *
+     * @tags Public (website)
+     * @name PublicQuoteBookingRequest
+     * @summary Dry-run price for a website booking slot
+     * @request POST:/api/v1/public/booking-requests/quote
+     * @response `200` `(PublicBookingQuoteDto)` 200
+     * @response `401` `(ResponseErrorDto)` Unauthorized
+     * @response `422` `(ResponseErrorDto)` Unprocessable Entity
+     * @response `429` `(ResponseErrorDto)` Too Many Requests
+     * @response `500` `(ResponseErrorDto)` Internal Server Error
+     */
+    publicQuoteBookingRequest: (data: BookingQuoteRequestDto, params: RequestParams = {}) =>
+      this.http.request<PublicBookingQuoteDto, ResponseErrorDto>({
+        path: `/api/v1/public/booking-requests/quote`,
+        method: "POST",
+        body: data,
+        type: ContentType.Json,
         format: "json",
         ...params,
       }),

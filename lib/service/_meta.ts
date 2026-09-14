@@ -1439,6 +1439,19 @@ const meta = {
     {
       namespace: "api",
       method: "POST",
+      usage: "publicQuoteBookingRequest",
+      path: "/api/v1/public/booking-requests/quote",
+      functionName: "publicQuoteBookingRequest",
+      pathParams: [],
+      requestParams: [],
+      combinedPathAndRequestParams: [],
+      payload: { name: "data", optional: false, type: "BookingQuoteRequestDto" },
+      responseType: "(PublicBookingQuoteDto)",
+    },
+
+    {
+      namespace: "api",
+      method: "POST",
       usage: "publicCreateBookingRequest",
       path: "/api/v1/public/booking-requests",
       functionName: "publicCreateBookingRequest",

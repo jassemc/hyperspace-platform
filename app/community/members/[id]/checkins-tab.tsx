@@ -37,8 +37,6 @@ export async function CheckinsTab({
       <CheckinTable
         data={results}
         totalCount={total}
-        // The checkout button names the member; every row here is this one.
-        memberNames={{ [member.id]: member.fullName }}
         locationNames={locationNames}
         hideMember
       />

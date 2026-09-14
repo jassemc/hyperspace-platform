@@ -6,6 +6,7 @@ import type {
   AnalyticsMembershipsParams,
   AnalyticsOccupancyParams,
   AnalyticsRevenueParams,
+  BookingQuoteRequestDto,
   CompanyStatsParams,
   ConfirmBookingDto,
   CreateAmenityDto,
@@ -528,6 +529,10 @@ export async function getPublicListResources(query: PublicListResourcesParams, p
 
 export async function getPublicListResourceTypes(params?: RequestParams) {
   return hsService.api.publicListResourceTypes(params);
+}
+
+export async function publicQuoteBookingRequest(data: BookingQuoteRequestDto, params?: RequestParams) {
+  return hsService.api.publicQuoteBookingRequest(data, params);
 }
 
 export async function publicCreateBookingRequest(data: CreateBookingRequestDto, params?: RequestParams) {

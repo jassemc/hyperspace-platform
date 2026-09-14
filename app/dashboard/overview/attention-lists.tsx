@@ -3,37 +3,29 @@ import {
   getListBookings,
   getListCharges,
   getListCheckins,
-  getListMembers,
 } from "@/lib/service"
 import type {
   BookingDto,
   ChargeDto,
   CheckinDto,
-  MemberDto,
   MembershipAnalyticsDto,
 } from "@/lib/service/HsService"
 import { pageResult } from "@/lib/search-params"
-import { apiName, apiString } from "@/lib/api-value"
+import { apiString } from "@/lib/api-value"
 import { formatDate, formatDateTime, formatPriceHt, formatTimeOfDay } from "@/lib/format"
 import { SummaryTable } from "@/components/summary-table"
 import { primaryTimeZone } from "@/lib/locations"
 
 /** The things a staff member would act on first thing in the morning. */
 export async function AttentionLists() {
-  const [checkinPage, bookingPage, chargePage, memberPage, timeZone, analytics] =
+  const [checkinPage, bookingPage, chargePage, timeZone, analytics] =
     await Promise.all([
       getListCheckins({ limit: 100, offset: 0, sort: "DESC" }).catch(() => null),
       getListBookings({ limit: 100, offset: 0, sort: "ASC" }).catch(() => null),
       getListCharges({ limit: 100, offset: 0, sort: "DESC", uninvoiced: true }).catch(() => null),
-      getListMembers({ limit: 100, offset: 0, sort: "ASC" }).catch(() => null),
       primaryTimeZone(),
       getAnalyticsMemberships({ expiringWithinDays: 30 }).catch(() => null),
     ])
-
-  const memberNames: Record<string, string> = {}
-  for (const member of memberPage ? pageResult<MemberDto>(memberPage).results : []) {
-    memberNames[member.id] = member.fullName
-  }
 
   const onSite = (checkinPage ? pageResult<CheckinDto>(checkinPage).results : []).filter(
     (checkin) => !checkin.checkedOutAt
@@ -59,7 +51,11 @@ export async function AttentionLists() {
         rows={onSite
           .slice(0, 10)
           .map((checkin) => [
-            memberNames[checkin.memberId] ?? "Unknown member",
+            // #85 (O-02): the name travels on the check-in now. The
+            // lookup this replaces was built from `members?limit=100`,
+            // so the person who walked in a minute ago — the whole
+            // point of this list — read as "Unknown member".
+            checkin.member?.fullName || "Unknown member",
             formatTimeOfDay(checkin.checkedInAt, timeZone),
             checkin.entitlementUsed,
           ])}
@@ -85,7 +81,9 @@ export async function AttentionLists() {
         headers={["Plan", "Customer", "Ends"]}
         rows={expiring.map((row) => [
           row.planName,
-          apiName(row.memberId, memberNames) ?? "Company",
+          // #85: the API resolves the name now, so a member outside the
+          // first 100 no longer reads as "Company" on the renewals list.
+          row.memberName || row.companyName || "Unnamed customer",
           formatDate(row.endsAt),
         ])}
       />

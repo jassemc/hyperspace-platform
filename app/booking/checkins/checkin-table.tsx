@@ -7,7 +7,6 @@ import { createColumns } from "./columns"
 interface CheckinTableProps {
   data: CheckinDto[]
   totalCount?: number
-  memberNames?: Record<string, string>
   locationNames?: Record<string, string>
   /** Member page: every row is theirs. */
   hideMember?: boolean
@@ -16,11 +15,10 @@ interface CheckinTableProps {
 export function CheckinTable({
   data,
   totalCount,
-  memberNames = {},
   locationNames = {},
   hideMember = false,
 }: Readonly<CheckinTableProps>) {
-  const columns = createColumns({ memberNames, locationNames, hideMember })
+  const columns = createColumns({ locationNames, hideMember })
 
   return (
     <DataTable

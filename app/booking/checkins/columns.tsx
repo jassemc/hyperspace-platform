@@ -9,7 +9,6 @@ import { CheckoutButton } from "./checkout-button"
 interface ColumnsProps {
   /** Off on a member's own page, where every row is theirs. */
   hideMember?: boolean
-  memberNames?: Record<string, string>
   locationNames?: Record<string, string>
 }
 
@@ -30,14 +29,17 @@ function duration(checkin: CheckinDto): string {
 }
 
 export const createColumns = ({
-  memberNames = {},
   locationNames = {},
   hideMember = false,
 }: ColumnsProps): ColumnDef<CheckinDto>[] => {
   const columns: ColumnDef<CheckinDto>[] = [
   {
     id: "member",
-    accessorFn: (checkin) => memberNames[checkin.memberId] ?? "",
+    // #85 (O-02): the name travels on the row. The lookup map this
+    // replaced was built from `members?limit=100`, so anyone outside the
+    // first 100 — every recently created member once the base passes
+    // 100 — showed as "Unknown".
+    accessorFn: (checkin) => checkin.member?.fullName ?? "",
     header: "Member",
     cell: ({ row }) => {
       const value = row.getValue<string>("member")
@@ -102,7 +104,7 @@ export const createColumns = ({
       return (
         <CheckoutButton
           checkinId={checkin.id}
-          memberName={memberNames[checkin.memberId] ?? "Member"}
+          memberName={checkin.member?.fullName || "Member"}
         />
       )
     },
