@@ -45,7 +45,7 @@ export function AppSidebar({ resourceTypeItems = [], ...props }: AppSidebarProps
   const [activeItem, setActiveItem] = React.useState<MenuItem>(getDefaultActiveItem())
   const [isHovered, setIsHovered] = React.useState(false)
   const [isSticky, setIsSticky] = React.useState(false)
-  const { setOpen } = useSidebar()
+  const { setOpen, isMobile, setOpenMobile } = useSidebar()
 
   const navMain = React.useMemo(
     () => applyDynamicSubMenuItems(navigationConfig.navMain, "resourceTypes", resourceTypeItems),
@@ -185,7 +185,6 @@ export function AppSidebar({ resourceTypeItems = [], ...props }: AppSidebarProps
             <SidebarLogoutButton />
           </SidebarFooter>
         </Sidebar>
-      </Sidebar>
 
       {/* Second sidebar - Hover overlay */}
       {/*
@@ -195,10 +194,25 @@ export function AppSidebar({ resourceTypeItems = [], ...props }: AppSidebarProps
         away with the content. It now stays put and scrolls its own list when
         there are more submenus than fit.
       */}
+      {/*
+        #90 (X-03): on a phone the whole sidebar is an off-canvas sheet,
+        and this panel — positioned `fixed` beside the desktop icon rail,
+        revealed on hover — landed UNDER that sheet's overlay. The
+        sections were reachable, their sub-items were not: the sheet's
+        subtree swallowed every click on them. Hover is not a gesture a
+        phone has either.
+
+        So on mobile it flows inside the sheet, always open, beside the
+        rail; on desktop it keeps the hover/pin overlay unchanged.
+      */}
       <div
-        className={`fixed left-(--sidebar-width-icon) top-0 z-50 flex h-svh w-60 flex-col bg-sidebar border-r shadow-lg transition-all duration-300 ease-in-out ${
-          isHovered || isSticky ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'
-        }`}
+        className={
+          isMobile
+            ? "relative z-50 flex h-svh min-w-0 flex-1 flex-col bg-sidebar border-r"
+            : `fixed left-(--sidebar-width-icon) top-0 z-50 flex h-svh w-60 flex-col bg-sidebar border-r shadow-lg transition-all duration-300 ease-in-out ${
+                isHovered || isSticky ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-4 pointer-events-none'
+              }`
+        }
       >
         <div className="flex h-full w-full flex-col">
           <div className="gap-3.5 border-b p-4">
@@ -301,6 +315,7 @@ export function AppSidebar({ resourceTypeItems = [], ...props }: AppSidebarProps
           </div>
         </div>
       </div>
+      </Sidebar>
     </nav>
   )
 }

@@ -585,7 +585,11 @@ export function DataTable<TData, TValue>({
 
             </div>
 
-            <div className="relative overflow-hidden rounded-md border mx-4">
+            {/* #90 (X-03): a wide table must scroll inside its own box,
+                not push the page sideways. `overflow-hidden` clipped the
+                columns instead of letting them scroll, so at 375 px the
+                right-hand columns were simply unreachable. */}
+            <div className="relative overflow-x-auto overflow-y-hidden rounded-md border mx-4">
                 {isPending && (
                     <div className="absolute inset-0 z-20 flex items-center justify-center bg-background/60">
                         <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
