@@ -30,6 +30,9 @@ interface BookingTableProps {
   activeResourceId?: string
   activeFrom?: string
   activeTo?: string
+  /** Creation-time window (#87). */
+  activeCreatedFrom?: string
+  activeCreatedTo?: string
   /** Member page: every row is theirs, so no Customer column and no filters. */
   hideCustomer?: boolean
   showFilters?: boolean
@@ -51,6 +54,8 @@ export function BookingTable({
   activeResourceId,
   activeFrom,
   activeTo,
+  activeCreatedFrom,
+  activeCreatedTo,
   hideCustomer = false,
   showFilters = true,
   defaultMemberId,
@@ -113,13 +118,28 @@ export function BookingTable({
         { label: "Last 30 days", days: 30 },
       ],
     },
+    {
+      // #87 (O-01): when the request came IN, as opposed to when the
+      // room is used. "Last 3 days" on a Monday is the weekend.
+      kind: "dateRange",
+      label: "Requested",
+      fromKey: "createdFrom",
+      toKey: "createdTo",
+      fromValue: activeCreatedFrom,
+      toValue: activeCreatedTo,
+      presets: [
+        { label: "Today", days: 0 },
+        { label: "Last 3 days", days: 3 },
+        { label: "Last 7 days", days: 7 },
+      ],
+    },
   ]
 
   return (
     <>
       {/* Remount on filter change so pagination is re-read from the URL. */}
       <DataTable
-        key={`${activeStatus ?? "all"}-${activeResourceId ?? "any"}-${activeSource ?? "any"}-${activeFrom ?? ""}-${activeTo ?? ""}`}
+        key={`${activeStatus ?? "all"}-${activeResourceId ?? "any"}-${activeSource ?? "any"}-${activeFrom ?? ""}-${activeTo ?? ""}-${activeCreatedFrom ?? ""}-${activeCreatedTo ?? ""}`}
         columns={columns}
         data={data}
         totalCount={typeof totalCount === "number" ? totalCount : undefined}

@@ -5,7 +5,12 @@ import { Button } from "@/components/ui/button"
 import type { ColumnDef } from "@tanstack/react-table"
 import type { BookingDto, BookingStatus } from "@/lib/service/HsService"
 import { ArrowUpDown } from "lucide-react"
-import { formatDateTime, formatEnumLabel, formatPriceHt } from "@/lib/format"
+import {
+  formatDateTime,
+  formatEnumLabel,
+  formatPriceHt,
+  formatRelativeTime,
+} from "@/lib/format"
 import { BOOKING_STATUS_CLASSES, BOOKING_STATUS_LABELS } from "./booking-status"
 import { BookingRowActions } from "./booking-row-actions"
 import { bookingValue, valueBreakdown } from "./booking-value"
@@ -65,6 +70,31 @@ export const createColumns = ({
         <div className="flex flex-col">
           <span>{formatDateTime(booking.startsAt, timeZone)}</span>
           <span className="text-xs text-muted-foreground">to {formatDateTime(booking.endsAt, timeZone)}</span>
+        </div>
+      )
+    },
+  },
+  {
+    // #87 (O-01): when the request CAME IN, which is the Monday-morning
+    // question ("what arrived over the weekend?"). It used to be visible
+    // only inside each row's Details dialog, so answering it meant
+    // opening every pending row. Sortable, because that is how the
+    // question is actually asked.
+    accessorKey: "createdAt",
+    header: ({ column }) => (
+      <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+        Requested
+        <ArrowUpDown className="ml-2 h-4 w-4" />
+      </Button>
+    ),
+    cell: ({ row }) => {
+      const booking = row.original
+      return (
+        <div className="flex flex-col">
+          <span>{formatRelativeTime(booking.createdAt)}</span>
+          <span className="text-xs text-muted-foreground">
+            {formatDateTime(booking.createdAt, timeZone)}
+          </span>
         </div>
       )
     },

@@ -12,7 +12,13 @@ import type {
 } from "@/lib/service/HsService"
 import { pageResult } from "@/lib/search-params"
 import { apiString } from "@/lib/api-value"
-import { formatDate, formatDateTime, formatPriceHt, formatTimeOfDay } from "@/lib/format"
+import {
+  formatDate,
+  formatDateTime,
+  formatPriceHt,
+  formatRelativeTime,
+  formatTimeOfDay,
+} from "@/lib/format"
 import { SummaryTable } from "@/components/summary-table"
 import { primaryTimeZone } from "@/lib/locations"
 
@@ -31,9 +37,12 @@ export async function AttentionLists() {
     (checkin) => !checkin.checkedOutAt
   )
 
-  const pending = (bookingPage ? pageResult<BookingDto>(bookingPage).results : []).filter(
-    (booking) => booking.status === "pending"
-  )
+  // #87 (O-01): newest request first — the Monday-morning reading. The
+  // page itself is ordered by startsAt, which answers a different
+  // question (when the room is used, not when the request arrived).
+  const pending = (bookingPage ? pageResult<BookingDto>(bookingPage).results : [])
+    .filter((booking) => booking.status === "pending")
+    .sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
 
   const uninvoiced = chargePage
     ? pageResult<ChargeDto>(chargePage).results.filter((charge) => !apiString(charge.invoiceId))
@@ -65,12 +74,13 @@ export async function AttentionLists() {
         title="Bookings awaiting confirmation"
         subtitle={pending.length > 0 ? `${pending.length} to review` : undefined}
         emptyMessage="No bookings are waiting."
-        headers={["Booking", "Resource", "Starts"]}
+        headers={["Booking", "Resource", "Requested", "Starts"]}
         rows={pending
           .slice(0, 10)
           .map((booking) => [
             booking.title || "Untitled booking",
             booking.resource.name || "Unknown resource",
+            formatRelativeTime(booking.createdAt),
             formatDateTime(booking.startsAt, timeZone),
           ])}
       />

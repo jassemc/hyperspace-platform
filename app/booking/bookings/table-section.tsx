@@ -29,6 +29,9 @@ export async function BookingTableSection({
   const resourceId = firstParam(params.resourceId)
   const from = firstParam(params.from)
   const to = firstParam(params.to)
+  // #87 (O-01): when the request came in, not when the room is used.
+  const createdFrom = firstParam(params.createdFrom)
+  const createdTo = firstParam(params.createdTo)
 
   let results: BookingDto[] = []
   let total = 0
@@ -46,6 +49,8 @@ export async function BookingTableSection({
       resourceId,
       from,
       to,
+      createdFrom,
+      createdTo,
     }).catch((error) => {
       console.warn("Failed to load bookings", error)
       return null
@@ -100,6 +105,8 @@ export async function BookingTableSection({
       activeResourceId={resourceId}
       activeFrom={from}
       activeTo={to}
+      activeCreatedFrom={createdFrom}
+      activeCreatedTo={createdTo}
     />
   )
 }

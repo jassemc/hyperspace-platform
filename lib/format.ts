@@ -122,3 +122,39 @@ export function formatTimeOfDay(
         hourCycle: "h23",
     }).format(date)
 }
+
+/**
+ * "2 h ago", "yesterday", "3 d ago" — the coarse reading the desk wants
+ * beside an absolute timestamp (#87 / O-01). Deliberately blunt: this
+ * answers "did this come in over the weekend?", not "exactly when".
+ *
+ * `now` is injectable so the behaviour can be tested without freezing
+ * the clock.
+ */
+export function formatRelativeTime(
+  value: string | null | undefined,
+  now: Date = new Date()
+): string {
+  if (!value) return "-"
+  const then = new Date(value)
+  if (Number.isNaN(then.getTime())) return "-"
+
+  const seconds = Math.round((now.getTime() - then.getTime()) / 1000)
+  if (seconds < 0) return "just now"
+  if (seconds < 60) return "just now"
+
+  const minutes = Math.floor(seconds / 60)
+  if (minutes < 60) return `${minutes} min ago`
+
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} h ago`
+
+  const days = Math.floor(hours / 24)
+  if (days === 1) return "yesterday"
+  if (days < 30) return `${days} d ago`
+
+  const months = Math.floor(days / 30)
+  if (months < 12) return `${months} mo ago`
+
+  return `${Math.floor(months / 12)} y ago`
+}
